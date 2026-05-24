@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-graphite-800;
+  }
+  
+  body {
+    @apply bg-dark-950 text-gray-100 antialiased;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-6 py-3 bg-gradient-to-r from-gold-600 to-gold-500 text-anthracite-950 font-semibold rounded-lg shadow-lg hover:shadow-glow-gold transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:ring-offset-2 focus:ring-offset-dark-950;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 bg-gradient-to-r from-anthracite-700 to-anthracite-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-glow-anthracite transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-anthracite-500 focus:ring-offset-2 focus:ring-offset-dark-950;
+  }
+
+  .btn-outline {
+    @apply px-6 py-3 border-2 border-gold-500 text-gold-400 font-semibold rounded-lg hover:bg-gold-500 hover:text-anthracite-950 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:ring-offset-2 focus:ring-offset-dark-950;
+  }
+
+  .card {
+    @apply bg-anthracite-900/50 backdrop-blur-sm border border-anthracite-800 rounded-xl shadow-card hover:shadow-card-hover transition-all duration-300;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 bg-anthracite-800/50 border border-anthracite-700 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent transition-all duration-300;
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-white hover:bg-anthracite-800/50 rounded-lg transition-all duration-300 cursor-pointer;
+  }
+
+  .sidebar-link-active {
+    @apply flex items-center gap-3 px-4 py-3 text-white bg-gradient-to-r from-gold-600/20 to-anthracite-600/20 border-l-4 border-gold-500 rounded-lg;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-gold-400 to-gold-600 bg-clip-text text-transparent;
+  }
+
+  .bg-glass {
+    @apply bg-anthracite-900/30 backdrop-blur-md border border-anthracite-800/50;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}

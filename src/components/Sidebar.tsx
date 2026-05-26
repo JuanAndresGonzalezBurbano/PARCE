@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Wrench, Phone, User, BarChart3 } from 'lucide-react';
+import { Home, Wrench, Phone } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface SidebarProps {

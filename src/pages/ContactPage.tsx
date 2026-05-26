@@ -40,7 +40,7 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen bg-gradient-dark">
-      <Navbar isAuthenticated userName="Juan Gustavo" />
+      <Navbar isAuthenticated userName="Juan Gustavo" hideNavLinks={true} />
 
       <main className="pt-24 pb-12 px-4">
         <motion.div

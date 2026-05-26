@@ -8,9 +8,10 @@ interface NavbarProps {
   userName?: string;
   userAvatar?: string;
   userRole?: 'user' | 'mechanic';
+  hideNavLinks?: boolean;
 }
 
-export default function Navbar({ isAuthenticated = false, userName, userAvatar, userRole = 'user' }: NavbarProps) {
+export default function Navbar({ isAuthenticated = false, userName, userAvatar, userRole = 'user', hideNavLinks = false }: NavbarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -48,7 +49,7 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar, 
                 <Link to="/" className="text-gray-300 hover:text-white transition-colors">
                   Inicio
                 </Link>
-                <Link to="/services" className="text-gray-300 hover:text-white transition-colors">
+                <Link to="/register" className="text-gray-300 hover:text-white transition-colors">
                   Servicios
                 </Link>
                 <Link to="/contact" className="text-gray-300 hover:text-white transition-colors">
@@ -61,9 +62,9 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar, 
                   Registro
                 </Link>
               </>
-            ) : userRole === 'mechanic' ? (
+            ) : userRole === 'mechanic' || hideNavLinks ? (
               <>
-                {/* User Menu for Mechanic - No navigation links */}
+                {/* User Menu for Mechanic or when hideNavLinks is true - No navigation links */}
                 <div className="relative ml-auto">
                   <button
                     onClick={() => setShowUserMenu(!showUserMenu)}
@@ -195,7 +196,7 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar, 
                   <Link to="/" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
                     Inicio
                   </Link>
-                  <Link to="/services" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
+                  <Link to="/register" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
                     Servicios
                   </Link>
                   <Link to="/contact" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
@@ -207,6 +208,18 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar, 
                   <Link to="/register" className="block px-4 py-2 bg-primary-600 text-white rounded-lg text-center">
                     Registro
                   </Link>
+                </>
+              ) : hideNavLinks ? (
+                <>
+                  <Link to={profilePath} className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
+                    Perfil
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2 text-red-400 hover:bg-dark-800 rounded-lg"
+                  >
+                    Cerrar Sesión
+                  </button>
                 </>
               ) : (
                 <>

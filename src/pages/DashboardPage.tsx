@@ -1,140 +1,234 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Wrench, FileText, Plus, Edit, Trash2, X, Search, Star } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Calendar, Wrench, Star, Menu } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 
 export default function DashboardPage() {
-  const [activeTab, setActiveTab] = useState('users');
-  const [showModal, setShowModal] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  // Mock data for charts
+  const monthlyData = [
+    { month: 'ENE', services: 80 },
+    { month: 'FEB', services: 95 },
+    { month: 'MAR', services: 110 },
+    { month: 'ABR', services: 90 },
+    { month: 'MAY', services: 105 },
+    { month: 'JUN', services: 120 },
+    { month: 'JUL', services: 135 },
+    { month: 'AGO', services: 115 },
+    { month: 'SEP', services: 125 },
+    { month: 'OCT', services: 140 },
+    { month: 'NOV', services: 130 },
+    { month: 'DIC', services: 125 },
+  ];
 
-  const [users, setUsers] = useState([
-    { id: 1, name: 'Carlos Rodríguez', email: 'carlos@email.com', phone: '+57 300 123 4567', status: 'active' },
-    { id: 2, name: 'María González', email: 'maria@email.com', phone: '+57 301 987 6543', status: 'active' },
-  ]);
+  const comparisonData = [
+    { year: '2023', value: 200 },
+    { year: '2024', value: 250 },
+    { year: '2025', value: 300 },
+  ];
 
-  const [mechanics, setMechanics] = useState([
-    { id: 1, name: 'Juan Burbano', email: 'juan@email.com', phone: '+57 310 111 2222', status: 'active', rating: 4.8 },
-    { id: 2, name: 'Ana López', email: 'ana@email.com', phone: '+57 311 333 4444', status: 'active', rating: 4.9 },
-  ]);
-
-  const [services, setServices] = useState([
-    { id: 1, name: 'Entrega de gasolina', description: 'Servicio de entrega de gasolina', duration: '30-45 min', price: '$50.000', status: 'active' },
-    { id: 2, name: 'Cambio de llanta', description: 'Reparación o cambio de neumáticos', duration: '45-60 min', price: '$80.000', status: 'active' },
-  ]);
-
-  const handleDelete = (id) => {
-    if (!confirm('¿Eliminar este elemento?')) return;
-    if (activeTab === 'users') setUsers(users.filter(u => u.id !== id));
-    else if (activeTab === 'mechanics') setMechanics(mechanics.filter(m => m.id !== id));
-    else setServices(services.filter(s => s.id !== id));
-  };
-
-  const getCurrentData = () => {
-    if (activeTab === 'users') return users;
-    if (activeTab === 'mechanics') return mechanics;
-    return services;
-  };
-
-  const filteredData = getCurrentData().filter(item =>
-    Object.values(item).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const calendarDays = Array.from({ length: 31 }, (_, i) => i + 1);
 
   return (
     <div className="min-h-screen bg-dark-950">
-      <Navbar isAuthenticated userName="Administrador" />
+      <Navbar isAuthenticated userName="Juan Gustavo" />
       <Sidebar />
+
       <main className="ml-64 pt-16 p-8">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Panel de Administración</h1>
-            <p className="text-gray-400">Gestiona usuarios, mecánicos y servicios</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="card p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-gray-400 text-sm font-medium">Usuarios</h3>
-                <Users className="w-8 h-8 text-gold-500" />
-              </div>
-              <p className="text-3xl font-bold text-white">{users.length}</p>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-6"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-white mb-2">Dashboard</h1>
+              <p className="text-gray-400">Bienvenido de vuelta, Juan Gustavo</p>
             </div>
-            <div className="card p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-gray-400 text-sm font-medium">Mecánicos</h3>
-                <Wrench className="w-8 h-8 text-anthracite-500" />
-              </div>
-              <p className="text-3xl font-bold text-white">{mechanics.length}</p>
-            </div>
-            <div className="card p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-gray-400 text-sm font-medium">Servicios</h3>
-                <FileText className="w-8 h-8 text-gold-500" />
-              </div>
-              <p className="text-3xl font-bold text-white">{services.length}</p>
-            </div>
-          </div>
-
-          <div className="flex gap-4 border-b border-anthracite-800">
-            {['users', 'mechanics', 'services'].map(tab => (
-              <button key={tab} onClick={() => setActiveTab(tab)} className={`px-6 py-3 font-medium transition-colors ${activeTab === tab ? 'text-gold-500 border-b-2 border-gold-500' : 'text-gray-400 hover:text-white'}`}>
-                {tab === 'users' ? 'Usuarios' : tab === 'mechanics' ? 'Mecánicos' : 'Servicios'}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex gap-4 justify-between">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-              <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="input-field pl-10 w-full" />
-            </div>
-            <button onClick={() => { setEditingItem(null); setShowModal(true); }} className="btn-primary flex items-center gap-2">
-              <Plus className="w-5 h-5" />
-              Crear Nuevo
+            <button className="p-3 bg-dark-800 rounded-lg hover:bg-dark-700 transition-colors">
+              <Menu className="w-6 h-6 text-gray-400" />
             </button>
           </div>
 
-          <div className="card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-dark-800">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-400">ID</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-400">Nombre</th>
-                    {activeTab !== 'services' && <th className="px-6 py-4 text-left text-sm font-medium text-gray-400">Email</th>}
-                    {activeTab === 'services' && <th className="px-6 py-4 text-left text-sm font-medium text-gray-400">Precio</th>}
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-400">Estado</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-400">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-anthracite-800">
-                  {filteredData.map(item => (
-                    <tr key={item.id} className="hover:bg-dark-800/50 transition-colors">
-                      <td className="px-6 py-4 text-sm text-gray-300">{item.id}</td>
-                      <td className="px-6 py-4 text-sm text-white font-medium">{item.name}</td>
-                      {activeTab !== 'services' && <td className="px-6 py-4 text-sm text-gray-300">{item.email}</td>}
-                      {activeTab === 'services' && <td className="px-6 py-4 text-sm text-gray-300">{item.price}</td>}
-                      <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${item.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                          {item.status === 'active' ? 'Activo' : 'Inactivo'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex gap-2">
-                          <button onClick={() => { setEditingItem(item); setShowModal(true); }} className="p-2 bg-gold-500/20 text-gold-400 rounded-lg hover:bg-gold-500/30 transition-colors">
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleDelete(item.id)} className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Monthly Services */}
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-gray-400 text-sm font-medium">Servicios Último Mes</h3>
+                <Calendar className="w-5 h-5 text-primary-500" />
+              </div>
+              <div className="space-y-2">
+                <p className="text-4xl font-bold text-white">125</p>
+                <p className="text-sm text-gray-500">SERVICIOS ULTIMO MES</p>
+              </div>
+            </div>
+
+            {/* User Recommendation */}
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-gray-400 text-sm font-medium">Recomendación</h3>
+                <Star className="w-5 h-5 text-yellow-500" />
+              </div>
+              <div className="flex items-center justify-center h-24">
+                <div className="relative">
+                  <svg className="w-24 h-24 transform -rotate-90">
+                    <circle
+                      cx="48"
+                      cy="48"
+                      r="40"
+                      stroke="currentColor"
+                      strokeWidth="8"
+                      fill="none"
+                      className="text-dark-800"
+                    />
+                    <circle
+                      cx="48"
+                      cy="48"
+                      r="40"
+                      stroke="currentColor"
+                      strokeWidth="8"
+                      fill="none"
+                      strokeDasharray={`${2 * Math.PI * 40}`}
+                      strokeDashoffset={`${2 * Math.PI * 40 * (1 - 0.98)}`}
+                      className="text-green-500"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-2xl font-bold text-white">98%</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-500 text-center mt-2">Recomendado por los usuarios</p>
+            </div>
+
+            {/* Active Mechanics */}
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-gray-400 text-sm font-medium">Mecánicos Activos</h3>
+                <Wrench className="w-5 h-5 text-purple-500" />
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center">
+                  <Wrench className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <p className="text-4xl font-bold text-white">423</p>
+                  <p className="text-sm text-gray-500">ACTIVOS</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Rating */}
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-gray-400 text-sm font-medium">Calificación</h3>
+                <Star className="w-5 h-5 text-yellow-500" />
+              </div>
+              <div className="text-center">
+                <p className="text-5xl font-bold text-white mb-2">4.8</p>
+                <div className="flex justify-center gap-1 mb-2">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`w-5 h-5 ${
+                        i < 4 ? 'text-yellow-500 fill-yellow-500' : 'text-gray-600'
+                      }`}
+                    />
                   ))}
-                </tbody>
-              </table>
+                </div>
+                <p className="text-sm text-gray-500">CALIFICACIÓN PROMEDIO DE SERVICIO</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Charts Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Monthly History Chart */}
+            <div className="card p-6">
+              <h3 className="text-xl font-bold text-white mb-4">HISTORIAL MESES</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="month" stroke="#9ca3af" />
+                  <YAxis stroke="#9ca3af" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#1f2937',
+                      border: '1px solid #374151',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Bar dataKey="services" fill="url(#colorGradient)" radius={[8, 8, 0, 0]} />
+                  <defs>
+                    <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#0ea5e9" />
+                      <stop offset="100%" stopColor="#a855f7" />
+                    </linearGradient>
+                  </defs>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Calendar */}
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-white">ENERO</h3>
+                <div className="flex gap-2">
+                  <button className="p-2 hover:bg-dark-800 rounded-lg transition-colors">
+                    <span className="text-gray-400">&lt;</span>
+                  </button>
+                  <button className="p-2 hover:bg-dark-800 rounded-lg transition-colors">
+                    <span className="text-gray-400">&gt;</span>
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-7 gap-2">
+                {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((day) => (
+                  <div key={day} className="text-center text-gray-500 text-sm font-medium">
+                    {day}
+                  </div>
+                ))}
+                {calendarDays.map((day) => (
+                  <div
+                    key={day}
+                    className="aspect-square flex items-center justify-center text-sm text-gray-400 hover:bg-dark-800 rounded-lg cursor-pointer transition-colors"
+                  >
+                    {day}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Comparison Chart */}
+          <div className="card p-6">
+            <h3 className="text-xl font-bold text-white mb-4">COMPARACIONES</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={comparisonData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis dataKey="year" stroke="#9ca3af" />
+                <YAxis stroke="#9ca3af" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#1f2937',
+                    border: '1px solid #374151',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#0ea5e9"
+                  strokeWidth={3}
+                  dot={{ fill: '#0ea5e9', r: 6 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+            <div className="mt-4 text-center">
+              <p className="text-3xl font-bold text-white">2025</p>
+              <p className="text-gray-400">Más servicios</p>
             </div>
           </div>
         </motion.div>

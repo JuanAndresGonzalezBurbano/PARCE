@@ -72,9 +72,14 @@ export default function Navbar({ isAuthenticated: propIsAuthenticated, userName:
             ) : (
               <>
                 {user?.role === 'admin' && (
-                  <Link to="/dashboard" className="text-gray-300 hover:text-white transition-colors">
-                    Dashboard
-                  </Link>
+                  <>
+                    <Link to="/dashboard" className="text-gray-300 hover:text-white transition-colors">
+                      Dashboard
+                    </Link>
+                    <Link to="/crud" className="text-gray-300 hover:text-white transition-colors">
+                      CRUD
+                    </Link>
+                  </>
                 )}
                 {user?.role === 'user' && (
                   <Link to="/services" className="text-gray-300 hover:text-white transition-colors">
@@ -184,9 +189,14 @@ export default function Navbar({ isAuthenticated: propIsAuthenticated, userName:
               ) : (
                 <>
                   {user?.role === 'admin' && (
-                    <Link to="/dashboard" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
-                      Dashboard
-                    </Link>
+                    <>
+                      <Link to="/dashboard" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
+                        Dashboard
+                      </Link>
+                      <Link to="/crud" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
+                        CRUD
+                      </Link>
+                    </>
                   )}
                   {user?.role === 'mechanic' && (
                     <Link to="/mechanic-dashboard" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">

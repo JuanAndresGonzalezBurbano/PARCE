@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import RoleSelectionPage from './pages/RoleSelectionPage';
 import DashboardPage from './pages/DashboardPage';
+import CRUDPage from './pages/CRUDPage';
 import MechanicDashboardPage from './pages/MechanicDashboardPage';
 import ServicesPage from './pages/ServicesPage';
 import ServiceInProgressPage from './pages/ServiceInProgressPage';
@@ -36,6 +37,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <DashboardPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/crud" 
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <CRUDPage />
               </ProtectedRoute>
             } 
           />

@@ -10,6 +10,12 @@
 $router = $app->getRouter();
 
 // ============================================================================
+// Global Middleware (runs on every request)
+// ============================================================================
+
+$router->middleware([\App\Middleware\RequestLoggerMiddleware::class]);
+
+// ============================================================================
 // Public Routes (No Authentication Required)
 // ============================================================================
 
@@ -73,6 +79,30 @@ $router->group(['prefix' => 'api/v1'], function($router) {
     });
     
 });
+
+// ============================================================================
+// Future Routes (to be implemented)
+// ============================================================================
+
+// ============================================================================
+// Authentication API Routes
+// ============================================================================
+
+// Public authentication routes
+$router->post('/api/auth/register', [\App\Controllers\Auth\AuthController::class, 'register'])
+    ->name('api.auth.register');
+
+$router->post('/api/auth/login', [\App\Controllers\Auth\AuthController::class, 'login'])
+    ->name('api.auth.login');
+
+// Protected authentication routes (require AuthMiddleware)
+$router->post('/api/auth/logout', [\App\Controllers\Auth\AuthController::class, 'logout'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.auth.logout');
+
+$router->get('/api/auth/me', [\App\Controllers\Auth\AuthController::class, 'me'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.auth.me');
 
 // ============================================================================
 // Future Routes (to be implemented)

@@ -14,6 +14,7 @@ class Router
     private array $middlewareStack = [];
     private array $groupMiddleware = [];
     private string $groupPrefix = '';
+    private array $globalMiddleware = [];
 
     /**
      * Register GET route
@@ -77,6 +78,18 @@ class Router
 
 
     /**
+     * Register global middleware (runs on every request)
+     * 
+     * @param string|array $middleware Middleware class name(s)
+     * @return void
+     */
+    public function middleware(string|array $middleware): void
+    {
+        $middleware = is_array($middleware) ? $middleware : [$middleware];
+        $this->globalMiddleware = array_merge($this->globalMiddleware, $middleware);
+    }
+
+    /**
      * Group routes with common prefix and middleware
      */
     public function group(array $attributes, callable $callback): void
@@ -115,16 +128,15 @@ class Router
 
         foreach ($this->routes as $route) {
             if ($route->matches($method, $uri)) {
-                $params = $route->extractParams($uri);
-                
-                // Execute middleware pipeline
+                // Execute middleware pipeline (which includes the route action)
                 $response = $this->runMiddleware($route, $request);
                 
                 if ($response !== null) {
                     return $response;
                 }
                 
-                // Execute route action
+                // If no middleware, execute route action directly
+                $params = $route->extractParams($uri);
                 return $this->executeAction($route->getAction(), $request, $params);
             }
         }
@@ -138,14 +150,38 @@ class Router
      */
     private function runMiddleware(Route $route, Request $request): ?Response
     {
-        $middleware = $route->getMiddleware();
+        // Merge global middleware with route middleware
+        $routeMiddleware = $route->getMiddleware();
+        $allMiddleware = array_merge($this->globalMiddleware, $routeMiddleware);
         
-        foreach ($middleware as $middlewareClass) {
-            // Middleware will be implemented later
-            // For now, just skip
+        if (empty($allMiddleware)) {
+            return null;
         }
         
-        return null;
+        // Build middleware pipeline
+        $pipeline = function($request) use ($route) {
+            // This is the final handler - execute the route action
+            $params = $route->extractParams($request->uri());
+            return $this->executeAction($route->getAction(), $request, $params);
+        };
+        
+        // Wrap each middleware around the pipeline (reverse order)
+        foreach (array_reverse($allMiddleware) as $middlewareClass) {
+            $pipeline = function($request) use ($middlewareClass, $pipeline) {
+                // Instantiate middleware
+                if (is_string($middlewareClass)) {
+                    $middlewareInstance = new $middlewareClass();
+                } else {
+                    $middlewareInstance = $middlewareClass;
+                }
+                
+                // Execute middleware
+                return $middlewareInstance->handle($request, $pipeline);
+            };
+        }
+        
+        // Execute the pipeline
+        return $pipeline($request);
     }
 
     /**

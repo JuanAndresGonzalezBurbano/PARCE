@@ -25,6 +25,14 @@ class Response
     }
 
     /**
+     * Get HTTP status code
+     */
+    public function getStatusCode(): int
+    {
+        return $this->statusCode;
+    }
+
+    /**
      * Set response header
      */
     public function setHeader(string $name, string $value): self

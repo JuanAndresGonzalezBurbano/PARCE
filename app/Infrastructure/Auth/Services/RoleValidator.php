@@ -9,18 +9,18 @@ use App\Core\Database;
  * 
  * Provides role validation and checking functionality for RBAC.
  * Queries user_roles and roles tables with active role filtering,
- * expiration checking, and caching for performance.
+ * expiration checking, and per-request caching for performance.
  * 
  * Requirements: Design RBAC Integration section
  */
 class RoleValidator
 {
     /**
-     * Role cache to avoid repeated database queries
+     * Role cache to avoid repeated database queries within a single request
      * 
      * @var array<int, array<string>>
      */
-    private static array $roleCache = [];
+    private array $roleCache = [];
 
     /**
      * Get all active roles for a user
@@ -35,9 +35,9 @@ class RoleValidator
      */
     public function getUserRoles(int $userId): array
     {
-        // Check cache first
-        if (isset(self::$roleCache[$userId])) {
-            return self::$roleCache[$userId];
+        // Check cache first (per-request cache, not static)
+        if (isset($this->roleCache[$userId])) {
+            return $this->roleCache[$userId];
         }
 
         try {
@@ -49,7 +49,6 @@ class RoleValidator
                    AND ur.is_active = TRUE
                    AND r.is_active = TRUE
                    AND (ur.expires_at IS NULL OR ur.expires_at > NOW())
-                   AND r.deleted_at IS NULL
                  ORDER BY r.slug',
                 [$userId]
             );
@@ -59,8 +58,8 @@ class RoleValidator
                 return $role['slug'];
             }, $roles);
 
-            // Cache the result
-            self::$roleCache[$userId] = $slugs;
+            // Cache the result (per-request, not static)
+            $this->roleCache[$userId] = $slugs;
 
             return $slugs;
 
@@ -141,7 +140,7 @@ class RoleValidator
      */
     public function clearCache(int $userId): void
     {
-        unset(self::$roleCache[$userId]);
+        unset($this->roleCache[$userId]);
     }
 
     /**
@@ -151,6 +150,6 @@ class RoleValidator
      */
     public function clearAllCaches(): void
     {
-        self::$roleCache = [];
+        $this->roleCache = [];
     }
 }

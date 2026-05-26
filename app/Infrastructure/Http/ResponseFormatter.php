@@ -117,21 +117,60 @@ class ResponseFormatter
             ? time() + self::REMEMBER_COOKIE_EXPIRATION 
             : time() + self::DEFAULT_COOKIE_EXPIRATION;
         
+        // Determine if we're in a secure context (HTTPS)
+        // In production, this should always be true
+        // In development (localhost), allow HTTP
+        $isSecure = self::isSecureContext();
+        
         $response->setCookie(
             name: self::SESSION_COOKIE_NAME,
             value: $sessionId,
             expires: $expiration,
             path: '/',
             domain: '',
-            secure: true,  // HTTPS only
+            secure: $isSecure,  // HTTPS only in production, HTTP allowed in dev
             httpOnly: true // Prevent JavaScript access
         );
         
-        // Note: SameSite=Strict is set via PHP ini or header
-        // For PHP 7.3+, we can add it via options array
-        // For now, we rely on server configuration
+        // Set SameSite header manually (PHP 7.3+ supports it in setCookie options)
+        // For now, we set it via header
+        $sameSite = 'Lax'; // Lax allows top-level navigation, Strict would block all cross-site
+        $response->setHeader('Set-Cookie', 
+            self::SESSION_COOKIE_NAME . '=' . $sessionId . 
+            '; Path=/; HttpOnly' . 
+            ($isSecure ? '; Secure' : '') . 
+            '; SameSite=' . $sameSite . 
+            '; Max-Age=' . ($remember ? self::REMEMBER_COOKIE_EXPIRATION : self::DEFAULT_COOKIE_EXPIRATION)
+        );
         
         return $response;
+    }
+    
+    /**
+     * Determine if we're in a secure context (HTTPS)
+     * 
+     * @return bool True if HTTPS or localhost, false otherwise
+     */
+    private static function isSecureContext(): bool
+    {
+        // Check if HTTPS
+        if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
+            return true;
+        }
+        
+        // Check if localhost (allow HTTP in development)
+        $host = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? '';
+        if (in_array($host, ['localhost', '127.0.0.1', '::1'], true)) {
+            return false; // Allow HTTP for localhost
+        }
+        
+        // Check for forwarded protocol (behind reverse proxy)
+        if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+            return true;
+        }
+        
+        // Default to secure in production
+        return true;
     }
 
     /**
@@ -144,14 +183,23 @@ class ResponseFormatter
      */
     public static function clearSessionCookie(Response $response): Response
     {
+        $isSecure = self::isSecureContext();
+        
         $response->setCookie(
             name: self::SESSION_COOKIE_NAME,
             value: '',
             expires: time() - 3600, // Expire in the past
             path: '/',
             domain: '',
-            secure: true,
+            secure: $isSecure,
             httpOnly: true
+        );
+        
+        // Set SameSite header manually for cookie clearing
+        $response->setHeader('Set-Cookie', 
+            self::SESSION_COOKIE_NAME . '=; Path=/; HttpOnly' . 
+            ($isSecure ? '; Secure' : '') . 
+            '; SameSite=Lax; Max-Age=0'
         );
         
         return $response;

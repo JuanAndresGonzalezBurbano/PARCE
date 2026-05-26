@@ -60,15 +60,18 @@ class RBACMiddleware
 
         // Return 403 Forbidden if user lacks required role
         if (!$hasRequiredRole) {
-            return ResponseFormatter::forbidden('Insufficient permissions')
-                ->json([
-                    'success' => false,
-                    'error' => 'Insufficient permissions',
-                    'details' => [
-                        'requiredRoles' => $this->allowedRoles,
-                        'userRoles' => $userRoles
-                    ]
-                ], 403);
+            $response = new Response();
+            $response->setHeader('Content-Type', 'application/json; charset=utf-8');
+            $response->setHeader('X-API-Version', '1.0.0');
+            
+            return $response->json([
+                'success' => false,
+                'error' => 'Insufficient permissions',
+                'details' => [
+                    'requiredRoles' => $this->allowedRoles,
+                    'userRoles' => $userRoles
+                ]
+            ], 403);
         }
 
         // Allow request to proceed if user has required role

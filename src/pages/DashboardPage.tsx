@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Calendar, TrendingUp, Users, Wrench, Star, Menu } from 'lucide-react';
+import { Calendar, Wrench, Star, Menu } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 

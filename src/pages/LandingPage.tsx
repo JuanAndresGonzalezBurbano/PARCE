@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Wrench, Clock, Headphones, Menu } from 'lucide-react';
+import { Wrench, Clock, Headphones } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Logo from '../components/Logo';
 

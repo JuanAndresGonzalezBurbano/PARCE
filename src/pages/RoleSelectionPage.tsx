@@ -30,7 +30,7 @@ export default function RoleSelectionPage() {
     },
   ];
 
-  const handleRoleSelect = (roleId: string) => {
+  const handleRoleSelect = () => {
     navigate('/dashboard');
   };
 
@@ -72,7 +72,7 @@ export default function RoleSelectionPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                onClick={() => handleRoleSelect(role.id)}
+                onClick={() => handleRoleSelect()}
                 className="card p-6 hover:scale-105 transition-all duration-300 group"
               >
                 <div className={`w-16 h-16 mx-auto mb-4 bg-gradient-to-br ${role.gradient} rounded-full flex items-center justify-center group-hover:shadow-glow-gold`}>

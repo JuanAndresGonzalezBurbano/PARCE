@@ -67,7 +67,7 @@ export default function ServicesPage() {
     (currentPage + 1) * itemsPerPage
   );
 
-  const handleServiceSelect = (serviceId: number) => {
+  const handleServiceSelect = () => {
     navigate('/service-in-progress');
   };
 
@@ -98,7 +98,7 @@ export default function ServicesPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: index * 0.1 }}
                   className="card overflow-hidden group cursor-pointer"
-                  onClick={() => handleServiceSelect(service.id)}
+                  onClick={() => handleServiceSelect()}
                 >
                   {/* Service Image Placeholder */}
                   <div className="relative h-48 bg-gradient-to-br from-dark-800 to-dark-900 flex items-center justify-center overflow-hidden">

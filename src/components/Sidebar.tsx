@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Wrench, Phone } from 'lucide-react';
+import { Home, Wrench, Phone, BarChart, User, CheckSquare } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -8,13 +9,37 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen = true }: SidebarProps) {
   const location = useLocation();
+  const { user } = useAuth();
 
-  const menuItems = [
-    { icon: Home, label: 'Inicio', path: '/dashboard' },
-    { icon: Wrench, label: 'Servicio', path: '/services' },
-    { icon: Phone, label: 'Contacto', path: '/contact' },
-  ];
+  // Menú según el rol del usuario
+  const getMenuItems = () => {
+    if (!user) return [];
 
+    switch (user.role) {
+      case 'admin':
+        return [
+          { icon: BarChart, label: 'Dashboard', path: '/dashboard' },
+          { icon: Wrench, label: 'Servicios', path: '/services' },
+          { icon: Phone, label: 'Contacto', path: '/contact' },
+          { icon: User, label: 'Perfil', path: '/profile' },
+        ];
+      case 'mechanic':
+        return [
+          { icon: Home, label: 'Inicio', path: '/mechanic-dashboard' },
+          { icon: CheckSquare, label: 'Solicitudes', path: '/mechanic-dashboard' },
+          { icon: User, label: 'Mi Perfil', path: '/mechanic-profile' },
+          { icon: Phone, label: 'Contacto', path: '/contact' },
+        ];
+      case 'user':
+      default:
+        return [
+          { icon: Wrench, label: 'Servicios', path: '/services' },
+          { icon: Phone, label: 'Contacto', path: '/contact' },
+        ];
+    }
+  };
+
+  const menuItems = getMenuItems();
   const isActive = (path: string) => location.pathname === path;
 
   return (

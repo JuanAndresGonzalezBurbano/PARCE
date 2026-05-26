@@ -2,27 +2,29 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, Wrench, Shield } from 'lucide-react';
 import Logo from '../components/Logo';
+import { useAuth, UserRole } from '../context/AuthContext';
 
 export default function RoleSelectionPage() {
   const navigate = useNavigate();
+  const { selectRole } = useAuth();
 
   const roles = [
     {
-      id: 'user',
+      id: 'user' as UserRole,
       title: 'Usuario',
       description: 'Solicita servicios de asistencia vehicular',
       icon: User,
       gradient: 'from-gold-500 to-gold-600',
     },
     {
-      id: 'mechanic',
+      id: 'mechanic' as UserRole,
       title: 'Mecánico',
       description: 'Ofrece servicios de reparación y asistencia',
       icon: Wrench,
       gradient: 'from-anthracite-500 to-anthracite-600',
     },
     {
-      id: 'admin',
+      id: 'admin' as UserRole,
       title: 'Administrador',
       description: 'Gestiona la plataforma y usuarios',
       icon: Shield,
@@ -30,8 +32,22 @@ export default function RoleSelectionPage() {
     },
   ];
 
-  const handleRoleSelect = () => {
-    navigate('/dashboard');
+  const handleRoleSelect = (roleId: UserRole) => {
+    selectRole(roleId);
+    
+    // Redirigir según el rol seleccionado
+    switch (roleId) {
+      case 'admin':
+        navigate('/dashboard');
+        break;
+      case 'mechanic':
+        navigate('/mechanic-dashboard');
+        break;
+      case 'user':
+      default:
+        navigate('/services');
+        break;
+    }
   };
 
   return (
@@ -72,7 +88,7 @@ export default function RoleSelectionPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                onClick={() => handleRoleSelect()}
+                onClick={() => handleRoleSelect(role.id)}
                 className="card p-6 hover:scale-105 transition-all duration-300 group"
               >
                 <div className={`w-16 h-16 mx-auto mb-4 bg-gradient-to-br ${role.gradient} rounded-full flex items-center justify-center group-hover:shadow-glow-gold`}>

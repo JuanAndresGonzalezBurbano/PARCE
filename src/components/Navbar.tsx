@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, User, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Logo from './Logo';
+import { useAuth } from '../context/AuthContext';
 
 interface NavbarProps {
   isAuthenticated?: boolean;
@@ -10,13 +11,33 @@ interface NavbarProps {
   userAvatar?: string;
 }
 
-export default function Navbar({ isAuthenticated = false, userName, userAvatar }: NavbarProps) {
+export default function Navbar({ isAuthenticated: propIsAuthenticated, userName: propUserName, userAvatar }: NavbarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const navigate = useNavigate();
+  const { user, logout, isAuthenticated: contextIsAuthenticated } = useAuth();
+
+  // Usar el contexto si está disponible, sino usar las props
+  const isAuthenticated = contextIsAuthenticated || propIsAuthenticated;
+  const userName = user?.name || propUserName;
 
   const handleLogout = () => {
+    logout();
     navigate('/');
+  };
+
+  // Obtener enlaces según el rol
+  const getDashboardLink = () => {
+    if (!user) return '/dashboard';
+    switch (user.role) {
+      case 'admin':
+        return '/dashboard';
+      case 'mechanic':
+        return '/mechanic-dashboard';
+      case 'user':
+      default:
+        return '/services';
+    }
   };
 
   return (
@@ -50,12 +71,21 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar }
               </>
             ) : (
               <>
-                <Link to="/dashboard" className="text-gray-300 hover:text-white transition-colors">
-                  Dashboard
-                </Link>
-                <Link to="/services" className="text-gray-300 hover:text-white transition-colors">
-                  Servicios
-                </Link>
+                {user?.role === 'admin' && (
+                  <Link to="/dashboard" className="text-gray-300 hover:text-white transition-colors">
+                    Dashboard
+                  </Link>
+                )}
+                {(user?.role === 'user' || user?.role === 'admin') && (
+                  <Link to="/services" className="text-gray-300 hover:text-white transition-colors">
+                    Servicios
+                  </Link>
+                )}
+                {user?.role === 'mechanic' && (
+                  <Link to="/mechanic-dashboard" className="text-gray-300 hover:text-white transition-colors">
+                    Solicitudes
+                  </Link>
+                )}
                 <Link to="/contact" className="text-gray-300 hover:text-white transition-colors">
                   Contacto
                 </Link>
@@ -151,12 +181,21 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar }
                 </>
               ) : (
                 <>
-                  <Link to="/dashboard" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
-                    Dashboard
-                  </Link>
-                  <Link to="/services" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
-                    Servicios
-                  </Link>
+                  {user?.role === 'admin' && (
+                    <Link to="/dashboard" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
+                      Dashboard
+                    </Link>
+                  )}
+                  {user?.role === 'mechanic' && (
+                    <Link to="/mechanic-dashboard" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
+                      Solicitudes
+                    </Link>
+                  )}
+                  {(user?.role === 'user' || user?.role === 'admin') && (
+                    <Link to="/services" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
+                      Servicios
+                    </Link>
+                  )}
                   <Link to="/contact" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
                     Contacto
                   </Link>

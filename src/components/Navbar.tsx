@@ -76,7 +76,7 @@ export default function Navbar({ isAuthenticated: propIsAuthenticated, userName:
                     Dashboard
                   </Link>
                 )}
-                {(user?.role === 'user' || user?.role === 'admin') && (
+                {user?.role === 'user' && (
                   <Link to="/services" className="text-gray-300 hover:text-white transition-colors">
                     Servicios
                   </Link>
@@ -86,9 +86,11 @@ export default function Navbar({ isAuthenticated: propIsAuthenticated, userName:
                     Solicitudes
                   </Link>
                 )}
-                <Link to="/contact" className="text-gray-300 hover:text-white transition-colors">
-                  Contacto
-                </Link>
+                {user?.role !== 'admin' && (
+                  <Link to="/contact" className="text-gray-300 hover:text-white transition-colors">
+                    Contacto
+                  </Link>
+                )}
                 
                 {/* User Menu */}
                 <div className="relative">
@@ -191,17 +193,21 @@ export default function Navbar({ isAuthenticated: propIsAuthenticated, userName:
                       Solicitudes
                     </Link>
                   )}
-                  {(user?.role === 'user' || user?.role === 'admin') && (
+                  {user?.role === 'user' && (
                     <Link to="/services" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
                       Servicios
                     </Link>
                   )}
-                  <Link to="/contact" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
-                    Contacto
-                  </Link>
-                  <Link to="/profile" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
-                    Perfil
-                  </Link>
+                  {user?.role !== 'admin' && (
+                    <>
+                      <Link to="/contact" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
+                        Contacto
+                      </Link>
+                      <Link to="/profile" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
+                        Perfil
+                      </Link>
+                    </>
+                  )}
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-4 py-2 text-red-400 hover:bg-dark-800 rounded-lg"

@@ -19,9 +19,6 @@ export default function Sidebar({ isOpen = true }: SidebarProps) {
       case 'admin':
         return [
           { icon: BarChart, label: 'Dashboard', path: '/dashboard' },
-          { icon: Wrench, label: 'Servicios', path: '/services' },
-          { icon: Phone, label: 'Contacto', path: '/contact' },
-          { icon: User, label: 'Perfil', path: '/profile' },
         ];
       case 'mechanic':
         return [

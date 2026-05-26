@@ -1,19 +1,28 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Wrench, Phone, User, BarChart3 } from 'lucide-react';
+import { Home, Wrench, Phone, ClipboardList, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface SidebarProps {
   isOpen?: boolean;
+  userRole?: 'user' | 'mechanic';
 }
 
-export default function Sidebar({ isOpen = true }: SidebarProps) {
+export default function Sidebar({ isOpen = true, userRole = 'user' }: SidebarProps) {
   const location = useLocation();
 
-  const menuItems = [
+  const userMenuItems = [
     { icon: Home, label: 'Inicio', path: '/dashboard' },
     { icon: Wrench, label: 'Servicio', path: '/services' },
     { icon: Phone, label: 'Contacto', path: '/contact' },
   ];
+
+  const mechanicMenuItems = [
+    { icon: Home, label: 'Inicio', path: '/mechanic-orders' },
+    { icon: ClipboardList, label: 'Solicitudes', path: '/mechanic-orders' },
+    { icon: User, label: 'Mi Perfil', path: '/mechanic-profile' },
+  ];
+
+  const menuItems = userRole === 'mechanic' ? mechanicMenuItems : userMenuItems;
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -21,7 +30,7 @@ export default function Sidebar({ isOpen = true }: SidebarProps) {
     <motion.aside
       initial={{ x: -300 }}
       animate={{ x: 0 }}
-      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-dark-900/50 backdrop-blur-sm border-r border-graphite-800 transition-all duration-300 ${
+      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-dark-900/50 backdrop-blur-sm border-r border-anthracite-800 transition-all duration-300 ${
         isOpen ? 'w-64' : 'w-20'
       }`}
     >

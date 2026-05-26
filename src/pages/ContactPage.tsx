@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Phone, Clock, Send } from 'lucide-react';
+import { Phone, Clock, Send } from 'lucide-react';
 import Navbar from '../components/Navbar';
 
 export default function ContactPage() {
@@ -96,7 +96,7 @@ export default function ContactPage() {
               </form>
 
               {/* Contact Info */}
-              <div className="pt-6 border-t border-graphite-800 space-y-4">
+              <div className="pt-6 border-t border-anthracite-800 space-y-4">
                 <div className="flex items-center gap-3 text-gray-300">
                   <Clock className="w-5 h-5 text-primary-500" />
                   <div>

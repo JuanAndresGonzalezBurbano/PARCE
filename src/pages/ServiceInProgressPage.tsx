@@ -42,7 +42,7 @@ export default function ServiceInProgressPage() {
                 
                 {/* Route indicator */}
                 <div className="absolute bottom-4 left-4 right-4">
-                  <div className="bg-dark-900/80 backdrop-blur-sm rounded-lg p-3 border border-graphite-800">
+                  <div className="bg-dark-900/80 backdrop-blur-sm rounded-lg p-3 border border-anthracite-800">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center">
                         <MapPin className="w-6 h-6 text-white" />

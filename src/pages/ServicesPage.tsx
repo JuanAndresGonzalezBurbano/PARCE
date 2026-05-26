@@ -67,7 +67,7 @@ export default function ServicesPage() {
     (currentPage + 1) * itemsPerPage
   );
 
-  const handleServiceSelect = (serviceId: number) => {
+  const handleServiceSelect = (_serviceId: number) => {
     navigate('/service-in-progress');
   };
 

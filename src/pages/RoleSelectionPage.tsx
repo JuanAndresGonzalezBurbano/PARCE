@@ -30,8 +30,14 @@ export default function RoleSelectionPage() {
     },
   ];
 
-  const handleRoleSelect = (roleId: string) => {
-    navigate('/dashboard');
+  const handleRoleSelect = (_roleId: string) => {
+    if (_roleId === 'mechanic') {
+      navigate('/mechanic-vehicle-info');
+    } else if (_roleId === 'user') {
+      navigate('/dashboard');
+    } else {
+      navigate('/dashboard');
+    }
   };
 
   return (

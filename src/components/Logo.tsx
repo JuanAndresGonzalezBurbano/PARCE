@@ -1,4 +1,3 @@
-import { Wrench } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface LogoProps {
@@ -26,9 +25,12 @@ export default function Logo({ size = 'md', showText = true }: LogoProps) {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5 }}
     >
-      <div className={`${sizes[size]} bg-gradient-to-br from-gold-500 to-gold-700 rounded-full flex items-center justify-center shadow-glow-gold`}>
-        <Wrench className="w-1/2 h-1/2 text-anthracite-950" />
-      </div>
+      <img 
+        src="/Logo.jpg" 
+        alt="P.A.R.C.E Logo" 
+        className={`${sizes[size]} object-contain mix-blend-lighten`}
+        style={{ filter: 'brightness(1.2) contrast(1.1)' }}
+      />
       {showText && (
         <span className={`${textSizes[size]} font-bold text-gradient`}>
           P.A.R.C.E

@@ -11,6 +11,8 @@ import MechanicProfilePage from './pages/MechanicProfilePage';
 import ContactPage from './pages/ContactPage';
 import PaymentPage from './pages/PaymentPage';
 import SatisfactionSurveyPage from './pages/SatisfactionSurveyPage';
+import MechanicVehicleInfoPage from './pages/MechanicVehicleInfoPage';
+import MechanicOrdersPage from './pages/MechanicOrdersPage';
 
 function App() {
   return (
@@ -28,6 +30,8 @@ function App() {
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/payment" element={<PaymentPage />} />
         <Route path="/survey" element={<SatisfactionSurveyPage />} />
+        <Route path="/mechanic-vehicle-info" element={<MechanicVehicleInfoPage />} />
+        <Route path="/mechanic-orders" element={<MechanicOrdersPage />} />
       </Routes>
     </Router>
   );

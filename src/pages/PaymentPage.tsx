@@ -178,7 +178,7 @@ export default function PaymentPage() {
               {/* Card Display */}
               <div className="grid md:grid-cols-2 gap-4 mb-6">
                 {['visa', 'mastercard', 'amex', 'discover'].map((card) => (
-                  <div key={card} className="h-32 bg-gradient-to-br from-dark-800 to-dark-900 rounded-lg p-4 flex items-center justify-center border border-graphite-800">
+                  <div key={card} className="h-32 bg-gradient-to-br from-dark-800 to-dark-900 rounded-lg p-4 flex items-center justify-center border border-anthracite-800">
                     <CreditCard className="w-12 h-12 text-gray-600" />
                   </div>
                 ))}

@@ -21,7 +21,7 @@ export default function Sidebar({ isOpen = true }: SidebarProps) {
     <motion.aside
       initial={{ x: -300 }}
       animate={{ x: 0 }}
-      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-dark-900/50 backdrop-blur-sm border-r border-graphite-800 transition-all duration-300 ${
+      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-dark-900/50 backdrop-blur-sm border-r border-anthracite-800 transition-all duration-300 ${
         isOpen ? 'w-64' : 'w-20'
       }`}
     >

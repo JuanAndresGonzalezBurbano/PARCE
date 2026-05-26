@@ -51,7 +51,7 @@ export default function LandingPage() {
             transition={{ duration: 1, delay: 0.3 }}
             className="mt-20 relative"
           >
-            <div className="w-full max-w-4xl mx-auto aspect-video bg-gradient-to-br from-dark-800/50 to-dark-900/50 rounded-2xl border border-graphite-800 flex items-center justify-center backdrop-blur-sm">
+            <div className="w-full max-w-4xl mx-auto aspect-video bg-gradient-to-br from-dark-800/50 to-dark-900/50 rounded-2xl border border-anthracite-800 flex items-center justify-center backdrop-blur-sm">
               <div className="text-center space-y-4">
                 <Wrench className="w-24 h-24 mx-auto text-primary-500" />
                 <p className="text-gray-400 text-lg">Asistencia vehicular 24/7</p>
@@ -125,7 +125,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-graphite-800 py-8 px-4">
+      <footer className="border-t border-anthracite-800 py-8 px-4">
         <div className="max-w-7xl mx-auto text-center text-gray-500">
           <p>&copy; 2026 P.A.R.C.E. Todos los derechos reservados.</p>
           <div className="mt-4 space-x-4">

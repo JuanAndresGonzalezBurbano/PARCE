@@ -130,7 +130,7 @@ export default function MechanicProfilePage() {
               <div className="card p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-bold text-white">PORTAFOLIO</h3>
-                  <button className="text-primary-400 hover:text-primary-300 flex items-center gap-1">
+                  <button className="text-gold-400 hover:text-gold-300 flex items-center gap-1">
                     Ver Más...
                     <ChevronRight className="w-4 h-4" />
                   </button>
@@ -140,13 +140,13 @@ export default function MechanicProfilePage() {
                   {services.map((service) => (
                     <div key={service.id} className="card overflow-hidden group">
                       <div className="relative h-32 bg-gradient-to-br from-dark-800 to-dark-900 flex items-center justify-center">
-                        <Wrench className="w-12 h-12 text-primary-500 group-hover:scale-110 transition-transform" />
+                        <Wrench className="w-12 h-12 text-gold-500 group-hover:scale-110 transition-transform" />
                       </div>
                       <div className="p-4 space-y-2">
                         <p className="text-sm text-white line-clamp-2">{service.title}</p>
                         <div className="flex items-center justify-between text-xs text-gray-400">
                           <span>{service.duration}</span>
-                          <span className="text-primary-400">{service.price}</span>
+                          <span className="text-gold-400">{service.price}</span>
                         </div>
                       </div>
                     </div>

@@ -4,7 +4,7 @@
 
 @layer base {
   * {
-    @apply border-graphite-800;
+    @apply border-anthracite-800;
   }
   
   body {

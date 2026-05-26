@@ -101,7 +101,7 @@ export default function LoginPage() {
           {/* Divider */}
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-graphite-800"></div>
+              <div className="w-full border-t border-anthracite-800"></div>
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="px-2 bg-dark-900 text-gray-500">¿No tienes cuenta?</span>

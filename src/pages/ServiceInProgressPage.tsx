@@ -30,10 +30,10 @@ export default function ServiceInProgressPage() {
               <div className="relative h-80 bg-gradient-to-br from-dark-800 to-dark-900 rounded-lg overflow-hidden mb-4">
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center space-y-4">
-                    <MapPin className="w-16 h-16 mx-auto text-primary-500" />
+                    <MapPin className="w-16 h-16 mx-auto text-gold-500" />
                     <p className="text-gray-400">Mapa de navegación</p>
                     <div className="flex items-center gap-2 justify-center">
-                      <Navigation className="w-5 h-5 text-primary-500" />
+                      <Navigation className="w-5 h-5 text-gold-500" />
                       <span className="text-white font-semibold">4 mi</span>
                       <span className="text-gray-400">405 Freeway</span>
                     </div>
@@ -42,10 +42,10 @@ export default function ServiceInProgressPage() {
                 
                 {/* Route indicator */}
                 <div className="absolute bottom-4 left-4 right-4">
-                  <div className="bg-dark-900/80 backdrop-blur-sm rounded-lg p-3 border border-graphite-800">
+                  <div className="bg-dark-900/80 backdrop-blur-sm rounded-lg p-3 border border-anthracite-800">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center">
-                        <MapPin className="w-6 h-6 text-white" />
+                      <div className="w-12 h-12 bg-gradient-to-br from-gold-500 to-gold-600 rounded-full flex items-center justify-center">
+                        <MapPin className="w-6 h-6 text-anthracite-950" />
                       </div>
                       <div className="flex-1">
                         <p className="text-white font-semibold">Ruta calculada</p>
@@ -87,7 +87,7 @@ export default function ServiceInProgressPage() {
                 {/* Service Details */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-3 p-4 bg-dark-800/50 rounded-lg">
-                    <Clock className="w-5 h-5 text-primary-500" />
+                    <Clock className="w-5 h-5 text-gold-500" />
                     <div className="flex-1">
                       <p className="text-sm text-gray-400">Tiempo estimado</p>
                       <p className="text-white font-semibold">12 min</p>
@@ -95,7 +95,7 @@ export default function ServiceInProgressPage() {
                   </div>
 
                   <div className="flex items-center gap-3 p-4 bg-dark-800/50 rounded-lg">
-                    <MapPin className="w-5 h-5 text-primary-500" />
+                    <MapPin className="w-5 h-5 text-gold-500" />
                     <div className="flex-1">
                       <p className="text-sm text-gray-400">Ubicación</p>
                       <p className="text-white font-semibold">Placa: XXX-XXX</p>
@@ -104,7 +104,7 @@ export default function ServiceInProgressPage() {
                 </div>
 
                 {/* Service Type */}
-                <div className="p-6 bg-gradient-to-br from-primary-600/20 to-purple-600/20 rounded-lg border border-primary-500/30">
+                <div className="p-6 bg-gradient-to-br from-gold-600/20 to-anthracite-600/20 rounded-lg border border-gold-500/30">
                   <h4 className="text-lg font-semibold text-white mb-2">Recarga de Gasolina</h4>
                   <p className="text-gray-300 text-sm">
                     El mecánico llegará con el combustible necesario para tu vehículo
@@ -115,14 +115,14 @@ export default function ServiceInProgressPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-400">Progreso del servicio</span>
-                    <span className="text-primary-400 font-semibold">En camino</span>
+                    <span className="text-gold-400 font-semibold">En camino</span>
                   </div>
                   <div className="h-2 bg-dark-800 rounded-full overflow-hidden">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: '60%' }}
                       transition={{ duration: 1, ease: 'easeOut' }}
-                      className="h-full bg-gradient-to-r from-primary-500 to-purple-500"
+                      className="h-full bg-gradient-to-r from-gold-500 to-anthracite-500"
                     />
                   </div>
                 </div>

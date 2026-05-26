@@ -20,7 +20,7 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar }
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-dark-950/80 backdrop-blur-lg border-b border-graphite-800">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-dark-950/80 backdrop-blur-lg border-b border-anthracite-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -82,7 +82,7 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar }
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="absolute right-0 mt-2 w-48 bg-dark-900 border border-graphite-800 rounded-lg shadow-xl overflow-hidden"
+                        className="absolute right-0 mt-2 w-48 bg-dark-900 border border-anthracite-800 rounded-lg shadow-xl overflow-hidden"
                       >
                         <Link
                           to="/profile"
@@ -128,7 +128,7 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar }
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-dark-900 border-t border-graphite-800"
+            className="md:hidden bg-dark-900 border-t border-anthracite-800"
           >
             <div className="px-4 py-4 space-y-2">
               {!isAuthenticated ? (

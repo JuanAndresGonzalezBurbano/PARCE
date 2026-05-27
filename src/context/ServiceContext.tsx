@@ -25,6 +25,8 @@ interface ServiceContextType {
   setActiveService: (s: ActiveService | null) => void;
   selectedService: ServiceData | null;
   setSelectedService: (s: ServiceData | null) => void;
+  serviceFinished: boolean;       // mecánico finalizó → redirige usuario a pagos
+  setServiceFinished: (v: boolean) => void;
 }
 
 const ServiceContext = createContext<ServiceContextType | undefined>(undefined);
@@ -32,9 +34,14 @@ const ServiceContext = createContext<ServiceContextType | undefined>(undefined);
 export function ServiceProvider({ children }: { children: ReactNode }) {
   const [activeService, setActiveService] = useState<ActiveService | null>(null);
   const [selectedService, setSelectedService] = useState<ServiceData | null>(null);
+  const [serviceFinished, setServiceFinished] = useState(false);
 
   return (
-    <ServiceContext.Provider value={{ activeService, setActiveService, selectedService, setSelectedService }}>
+    <ServiceContext.Provider value={{
+      activeService, setActiveService,
+      selectedService, setSelectedService,
+      serviceFinished, setServiceFinished,
+    }}>
       {children}
     </ServiceContext.Provider>
   );

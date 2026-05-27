@@ -5,9 +5,10 @@ import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
   isOpen?: boolean;
+  hidden?: boolean;
 }
 
-export default function Sidebar({ isOpen = true }: SidebarProps) {
+export default function Sidebar({ isOpen = true, hidden = false }: SidebarProps) {
   const location = useLocation();
   const { user } = useAuth();
 
@@ -21,8 +22,8 @@ export default function Sidebar({ isOpen = true }: SidebarProps) {
     { icon: Phone, label: 'Contacto', path: '/contact' },
   ];
 
+  // Sin Dashboard para el mecánico
   const mechanicMenuItems = [
-    { icon: Home, label: 'Dashboard', path: '/mechanic-dashboard' },
     { icon: ClipboardList, label: 'Solicitudes', path: '/mechanic-orders' },
     { icon: User, label: 'Mi Perfil', path: '/mechanic-profile' },
     { icon: Phone, label: 'Contacto', path: '/contact' },
@@ -35,8 +36,9 @@ export default function Sidebar({ isOpen = true }: SidebarProps) {
   };
 
   const menuItems = getMenuItems();
-
   const isActive = (path: string) => location.pathname === path;
+
+  if (hidden) return null;
 
   return (
     <motion.aside
@@ -48,15 +50,8 @@ export default function Sidebar({ isOpen = true }: SidebarProps) {
     >
       <nav className="p-4 space-y-2">
         {menuItems.map((item) => (
-          <Link
-            key={item.path}
-            to={item.path}
-            className={
-              isActive(item.path)
-                ? 'sidebar-link-active'
-                : 'sidebar-link'
-            }
-          >
+          <Link key={item.path} to={item.path}
+            className={isActive(item.path) ? 'sidebar-link-active' : 'sidebar-link'}>
             <item.icon className="w-5 h-5 flex-shrink-0" />
             {isOpen && <span>{item.label}</span>}
           </Link>

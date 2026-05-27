@@ -2,29 +2,27 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, Wrench, Shield } from 'lucide-react';
 import Logo from '../components/Logo';
-import { useAuth, UserRole } from '../context/AuthContext';
 
 export default function RoleSelectionPage() {
   const navigate = useNavigate();
-  const { selectRole } = useAuth();
 
   const roles = [
     {
-      id: 'user' as UserRole,
+      id: 'user',
       title: 'Usuario',
       description: 'Solicita servicios de asistencia vehicular',
       icon: User,
       gradient: 'from-gold-500 to-gold-600',
     },
     {
-      id: 'mechanic' as UserRole,
+      id: 'mechanic',
       title: 'Mecánico',
       description: 'Ofrece servicios de reparación y asistencia',
       icon: Wrench,
       gradient: 'from-anthracite-500 to-anthracite-600',
     },
     {
-      id: 'admin' as UserRole,
+      id: 'admin',
       title: 'Administrador',
       description: 'Gestiona la plataforma y usuarios',
       icon: Shield,
@@ -32,21 +30,13 @@ export default function RoleSelectionPage() {
     },
   ];
 
-  const handleRoleSelect = (roleId: UserRole) => {
-    selectRole(roleId);
-    
-    // Redirigir según el rol seleccionado
-    switch (roleId) {
-      case 'admin':
-        navigate('/dashboard');
-        break;
-      case 'mechanic':
-        navigate('/mechanic-dashboard');
-        break;
-      case 'user':
-      default:
-        navigate('/services');
-        break;
+  const handleRoleSelect = (_roleId: string) => {
+    if (_roleId === 'mechanic') {
+      navigate('/mechanic-vehicle-info');
+    } else if (_roleId === 'user') {
+      navigate('/dashboard');
+    } else {
+      navigate('/dashboard');
     }
   };
 

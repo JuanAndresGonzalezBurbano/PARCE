@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Wrench, Clock, Headphones } from 'lucide-react';
 import Navbar from '../components/Navbar';
-import Logo from '../components/Logo';
 
 export default function LandingPage() {
   return (
@@ -24,11 +23,21 @@ export default function LandingPage() {
             transition={{ duration: 0.8 }}
             className="text-center space-y-8"
           >
-            <Logo size="lg" showText={false} />
+            <div className="flex justify-center mb-8">
+              <img 
+                src="/Logo.jpg" 
+                alt="P.A.R.C.E Logo" 
+                className="w-32 h-32 md:w-40 md:h-40 object-contain"
+                style={{ 
+                  mixBlendMode: 'screen',
+                  filter: 'brightness(1.5) contrast(1.2)'
+                }}
+              />
+            </div>
             
-            <h1 className="text-5xl md:text-7xl font-bold">
-              <span className="text-gradient">P.A.R.C.E</span>
-            </h1>
+            <div className="flex justify-center">
+              <span className="text-6xl md:text-8xl font-bold text-gradient">P.A.R.C.E</span>
+            </div>
             
             <p className="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto">
               Plataforma de Asistencia Rápida Para Conductores en Emergencia
@@ -51,11 +60,12 @@ export default function LandingPage() {
             transition={{ duration: 1, delay: 0.3 }}
             className="mt-20 relative"
           >
-            <div className="w-full max-w-4xl mx-auto aspect-video bg-gradient-to-br from-dark-800/50 to-dark-900/50 rounded-2xl border border-anthracite-800 flex items-center justify-center backdrop-blur-sm">
-              <div className="text-center space-y-4">
-                <Wrench className="w-24 h-24 mx-auto text-primary-500" />
-                <p className="text-gray-400 text-lg">Asistencia vehicular 24/7</p>
-              </div>
+            <div className="w-full max-w-4xl mx-auto aspect-video rounded-2xl overflow-hidden border border-anthracite-800">
+              <img 
+                src="https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=1200&h=675&fit=crop&q=80" 
+                alt="Mecánico trabajando en vehículo" 
+                className="w-full h-full object-cover opacity-80"
+              />
             </div>
           </motion.div>
         </div>
@@ -64,6 +74,19 @@ export default function LandingPage() {
       {/* Features Section */}
       <section className="py-20 px-4 bg-dark-900/30">
         <div className="max-w-7xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl font-bold text-white mb-4">¿Quiénes Somos?</h2>
+            <p className="text-xl text-gray-400 max-w-3xl mx-auto">
+              Somos una plataforma innovadora que conecta conductores en emergencia con mecánicos profesionales certificados. 
+              Nuestra misión es brindar asistencia rápida, confiable y de calidad en cualquier momento y lugar.
+            </p>
+          </motion.div>
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}

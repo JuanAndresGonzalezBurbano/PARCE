@@ -67,7 +67,7 @@ export default function ServicesPage() {
     (currentPage + 1) * itemsPerPage
   );
 
-  const handleServiceSelect = () => {
+  const handleServiceSelect = (_serviceId: number) => {
     navigate('/service-in-progress');
   };
 
@@ -98,11 +98,11 @@ export default function ServicesPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: index * 0.1 }}
                   className="card overflow-hidden group cursor-pointer"
-                  onClick={() => handleServiceSelect()}
+                  onClick={() => handleServiceSelect(service.id)}
                 >
                   {/* Service Image Placeholder */}
                   <div className="relative h-48 bg-gradient-to-br from-dark-800 to-dark-900 flex items-center justify-center overflow-hidden">
-                    <service.icon className="w-24 h-24 text-gold-500 group-hover:scale-110 transition-transform duration-300" />
+                    <service.icon className="w-24 h-24 text-primary-500 group-hover:scale-110 transition-transform duration-300" />
                     <div className="absolute inset-0 bg-gradient-to-t from-dark-900 to-transparent"></div>
                   </div>
 
@@ -122,7 +122,7 @@ export default function ServicesPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-lg font-bold text-white">{service.duration}</span>
-                      <Wrench className="w-5 h-5 text-gold-500" />
+                      <Wrench className="w-5 h-5 text-primary-500" />
                     </div>
 
                     {/* Action Button */}

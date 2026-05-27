@@ -3,8 +3,10 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { Calendar, Wrench, Star, Menu } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
+import { useAuth } from '../context/AuthContext';
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   // Mock data for charts
   const monthlyData = [
     { month: 'ENE', services: 80 },
@@ -31,7 +33,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-dark-950">
-      <Navbar isAuthenticated userName="Juan Gustavo" />
+      <Navbar isAuthenticated userName={user?.name || 'Administrador'} hideNavLinks />
       <Sidebar />
 
       <main className="ml-64 pt-16 p-8">

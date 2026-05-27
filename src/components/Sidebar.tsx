@@ -1,28 +1,40 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Wrench, Phone, ClipboardList, User } from 'lucide-react';
+import { Home, Wrench, Phone, ClipboardList, User, Database } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
   isOpen?: boolean;
-  userRole?: 'user' | 'mechanic';
 }
 
-export default function Sidebar({ isOpen = true, userRole = 'user' }: SidebarProps) {
+export default function Sidebar({ isOpen = true }: SidebarProps) {
   const location = useLocation();
+  const { user } = useAuth();
+
+  const adminMenuItems = [
+    { icon: Home, label: 'Dashboard', path: '/dashboard' },
+    { icon: Database, label: 'CRUD', path: '/crud' },
+  ];
 
   const userMenuItems = [
-    { icon: Home, label: 'Inicio', path: '/dashboard' },
-    { icon: Wrench, label: 'Servicio', path: '/services' },
+    { icon: Wrench, label: 'Servicios', path: '/services' },
     { icon: Phone, label: 'Contacto', path: '/contact' },
   ];
 
   const mechanicMenuItems = [
-    { icon: Home, label: 'Inicio', path: '/mechanic-orders' },
+    { icon: Home, label: 'Dashboard', path: '/mechanic-dashboard' },
     { icon: ClipboardList, label: 'Solicitudes', path: '/mechanic-orders' },
     { icon: User, label: 'Mi Perfil', path: '/mechanic-profile' },
+    { icon: Phone, label: 'Contacto', path: '/contact' },
   ];
 
-  const menuItems = userRole === 'mechanic' ? mechanicMenuItems : userMenuItems;
+  const getMenuItems = () => {
+    if (user?.role === 'admin') return adminMenuItems;
+    if (user?.role === 'mechanic') return mechanicMenuItems;
+    return userMenuItems;
+  };
+
+  const menuItems = getMenuItems();
 
   const isActive = (path: string) => location.pathname === path;
 

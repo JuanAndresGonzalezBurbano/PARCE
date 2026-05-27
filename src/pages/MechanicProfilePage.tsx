@@ -3,8 +3,10 @@ import { motion } from 'framer-motion';
 import { User, Camera, Mail, Lock, Car, FileText, Calendar, CreditCard, Save, Star, Clock, MapPin } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
+import { useAuth } from '../context/AuthContext';
 
 export default function MechanicProfilePage() {
+  const { user } = useAuth();
   const [profileData, setProfileData] = useState({
     name: 'Juan Andrés',
     email: 'juanandres@example.com',
@@ -104,8 +106,8 @@ export default function MechanicProfilePage() {
 
   return (
     <div className="min-h-screen bg-dark-950">
-      <Navbar isAuthenticated userName="Juan Andrés" userRole="mechanic" />
-      <Sidebar userRole="mechanic" />
+      <Navbar isAuthenticated userName={user?.name || 'Mecánico'} hideNavLinks />
+      <Sidebar />
 
       <main className="ml-64 pt-16 p-8">
         <motion.div

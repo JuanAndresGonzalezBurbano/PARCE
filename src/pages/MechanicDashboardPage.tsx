@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { CheckCircle, XCircle, Clock, MapPin, Phone, User } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
+import { useAuth } from '../context/AuthContext';
 
 interface ServiceRequest {
   id: number;
@@ -16,6 +17,7 @@ interface ServiceRequest {
 }
 
 export default function MechanicDashboardPage() {
+  const { user } = useAuth();
   const [requests, setRequests] = useState<ServiceRequest[]>([
     {
       id: 1,
@@ -66,7 +68,7 @@ export default function MechanicDashboardPage() {
 
   return (
     <div className="min-h-screen bg-dark-950">
-      <Navbar isAuthenticated userName="Juan Gustavo" />
+      <Navbar isAuthenticated userName={user?.name || 'Mecánico'} hideNavLinks />
       <Sidebar />
 
       <main className="ml-64 pt-16 p-8">

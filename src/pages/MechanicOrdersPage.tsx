@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Check, X, MapPin, Clock, User, Phone, Star } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
+import { useAuth } from '../context/AuthContext';
 
 interface Order {
   id: number;
@@ -16,6 +17,7 @@ interface Order {
 }
 
 export default function MechanicOrdersPage() {
+  const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([
     {
       id: 1,
@@ -74,8 +76,8 @@ export default function MechanicOrdersPage() {
 
   return (
     <div className="min-h-screen bg-dark-950">
-      <Navbar isAuthenticated userName="Mecánico" userRole="mechanic" />
-      <Sidebar userRole="mechanic" />
+      <Navbar isAuthenticated userName={user?.name || 'Mecánico'} hideNavLinks />
+      <Sidebar />
 
       <main className="ml-64 pt-16 p-8">
         <motion.div

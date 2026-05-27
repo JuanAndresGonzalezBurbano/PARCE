@@ -4,8 +4,10 @@ import { motion } from 'framer-motion';
 import { Fuel, Battery, Wrench, Car, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
+import { useAuth } from '../context/AuthContext';
 
 export default function ServicesPage() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(0);
 
@@ -73,7 +75,7 @@ export default function ServicesPage() {
 
   return (
     <div className="min-h-screen bg-dark-950">
-      <Navbar isAuthenticated userName="Juan Gustavo" />
+      <Navbar isAuthenticated userName={user?.name || 'Usuario'} />
       <Sidebar />
 
       <main className="ml-64 pt-16 p-8">

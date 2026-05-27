@@ -2,16 +2,17 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, User, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 
 interface NavbarProps {
   isAuthenticated?: boolean;
   userName?: string;
   userAvatar?: string;
-  userRole?: 'user' | 'mechanic';
   hideNavLinks?: boolean;
 }
 
-export default function Navbar({ isAuthenticated = false, userName, userAvatar, userRole = 'user', hideNavLinks = false }: NavbarProps) {
+export default function Navbar({ isAuthenticated = false, userName, userAvatar, hideNavLinks = false }: NavbarProps) {
+  const { user, logout: authLogout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -23,6 +24,7 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar, 
   };
 
   const confirmLogout = () => {
+    authLogout();
     setShowLogoutModal(false);
     navigate('/');
   };
@@ -31,7 +33,13 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar, 
     setShowLogoutModal(false);
   };
 
-  const profilePath = userRole === 'mechanic' ? '/mechanic-profile' : '/profile';
+  const getProfilePath = () => {
+    if (user?.role === 'mechanic') return '/mechanic-profile';
+    if (user?.role === 'user') return '/profile';
+    return '/dashboard'; // Admin doesn't have profile, go to dashboard
+  };
+
+  const profilePath = getProfilePath();
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-dark-950/80 backdrop-blur-lg border-b border-anthracite-800">
@@ -62,7 +70,7 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar, 
                   Registro
                 </Link>
               </>
-            ) : userRole === 'mechanic' || hideNavLinks ? (
+            ) : user?.role === 'admin' || user?.role === 'mechanic' || hideNavLinks ? (
               <>
                 {/* User Menu for Mechanic or when hideNavLinks is true - No navigation links */}
                 <div className="relative ml-auto">

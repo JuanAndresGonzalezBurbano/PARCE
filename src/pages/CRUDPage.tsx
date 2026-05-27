@@ -3,8 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Wrench, FileText, Plus, Edit, Trash2, X, Search, Star } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
+import { useAuth } from '../context/AuthContext';
 
 export default function CRUDPage() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('users');
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -44,7 +46,7 @@ export default function CRUDPage() {
 
   return (
     <div className="min-h-screen bg-dark-950">
-      <Navbar isAuthenticated userName="Administrador" />
+      <Navbar isAuthenticated userName={user?.name || 'Administrador'} hideNavLinks />
       <Sidebar />
       <main className="ml-64 pt-16 p-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">

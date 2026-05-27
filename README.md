@@ -1,4 +1,4 @@
-# P.A.R.C.E - Plataforma de Asistencia Rápida Para Conductores en Emergencia
+# P.A.R.C.E - Plataforma de Asistencia Rápida - Plataforma de Asistencia Rápida Para Conductores en Emergencia
 
 Modern React + TypeScript + TailwindCSS application recreating the P.A.R.C.E mockups with a premium dark theme featuring ice blue, purple, and graphite gray accents.
 

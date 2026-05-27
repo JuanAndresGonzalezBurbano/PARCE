@@ -73,12 +73,13 @@ class SessionManager
     /**
      * Validate session and return session data
      * 
-     * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 6.1, 6.2, 6.3, 6.4, 6.5, 19.5
+     * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 6.1, 6.2, 6.3, 6.4, 6.5, 19.5, 20.7
      * 
      * @param string $sessionId Session ID
+     * @param string|null $currentIP Current client IP address for change detection
      * @return SessionData|null Session data if valid, null otherwise
      */
-    public function validate(string $sessionId): ?SessionData
+    public function validate(string $sessionId, ?string $currentIP = null): ?SessionData
     {
         // Requirement 5.1: Fetch session from database
         $session = Database::fetchOne(
@@ -117,6 +118,11 @@ class SessionManager
         if ($idleTime > $maxIdleSeconds) {
             Database::delete('sessions', 'id = ?', [$sessionId]);
             return null;
+        }
+        
+        // Requirement 20.7: Log warning for IP address changes
+        if ($currentIP !== null && $session['ip_address'] !== '' && $session['ip_address'] !== $currentIP) {
+            error_log("WARNING: IP address changed for session {$sessionId} (user {$session['user_id']}): {$session['ip_address']} -> {$currentIP}");
         }
         
         // Requirement 5.5: Update last_activity timestamp

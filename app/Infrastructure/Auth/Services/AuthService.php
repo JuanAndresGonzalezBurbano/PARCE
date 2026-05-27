@@ -40,15 +40,22 @@ class AuthService
      * Authenticate user with email and password
      * 
      * Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 16.1, 16.2, 16.3, 16.4,
-     *               18.1, 18.2, 18.3, 18.4, 24.1, 24.2, 24.3, 24.4
+     *               18.1, 18.2, 18.3, 18.4, 20.1, 20.2, 24.1, 24.2, 24.3, 24.4
      * 
      * @param string $email User email address
      * @param string $password Plain text password
      * @param bool $remember Enable "remember me" functionality
+     * @param string $ipAddress Client IP address for logging and session tracking
+     * @param string $userAgent Client user agent for session tracking
      * @return AuthResult Authentication result with session data
      */
-    public function authenticate(string $email, string $password, bool $remember = false): AuthResult
-    {
+    public function authenticate(
+        string $email, 
+        string $password, 
+        bool $remember = false,
+        string $ipAddress = '0.0.0.0',
+        string $userAgent = ''
+    ): AuthResult {
         // Requirement 18.2: Validate email format
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return AuthResult::failure('Invalid credentials');
@@ -72,12 +79,14 @@ class AuthService
             if ($user === null) {
                 // Requirement 24.1: Perform dummy hash to prevent timing attacks
                 $this->passwordHasher->hash('dummy_password_for_timing_safety_' . bin2hex(random_bytes(8)));
-                // Requirement 18.4: Generic error message (no user enumeration)
+                // Requirement 18.4, 20.2: Generic error message (no user enumeration) + log IP
+                error_log("Authentication failed: User not found for email {$email} from IP {$ipAddress}");
                 return AuthResult::failure('Invalid credentials');
             }
             
             // Requirement 3.4: Check account status
             if ($user['account_status'] !== 'active') {
+                error_log("Authentication failed: Inactive account for email {$email} from IP {$ipAddress}");
                 return AuthResult::failure('Account is not active');
             }
             
@@ -86,6 +95,7 @@ class AuthService
             
             // Requirement 3.7: If password invalid, return failure
             if (!$isValid) {
+                error_log("Authentication failed: Invalid password for email {$email} from IP {$ipAddress}");
                 return AuthResult::failure('Invalid credentials');
             }
             
@@ -100,16 +110,19 @@ class AuthService
             
             // Requirement 3.5: Create session using SessionManager
             $sessionId = $this->sessionManager->create((int)$user['id'], [
-                'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0',
-                'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
+                'ip_address' => $ipAddress,
+                'user_agent' => $userAgent,
                 'remember' => $remember
             ]);
             
-            // Requirement 3.6: Update user's last login timestamp and IP address
+            // Requirement 3.6, 20.2: Update user's last login timestamp and IP address
             Database::update('users', [
                 'last_login_at' => date('Y-m-d H:i:s'),
-                'last_login_ip' => $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0'
+                'last_login_ip' => $ipAddress
             ], 'id = ?', [$user['id']]);
+            
+            // Log successful authentication with IP
+            error_log("Authentication successful: User {$user['id']} ({$email}) logged in from IP {$ipAddress}");
             
             // Requirement 3.1: Return success with userId and sessionId
             return AuthResult::success((int)$user['id'], $sessionId);

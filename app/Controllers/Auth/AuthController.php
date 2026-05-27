@@ -13,6 +13,7 @@ use App\Infrastructure\Auth\Services\RoleValidator;
 use App\Infrastructure\Http\RequestValidator;
 use App\Infrastructure\Http\ResponseFormatter;
 use App\Infrastructure\Http\RateLimiter;
+use App\Infrastructure\Http\IPValidator;
 use App\Infrastructure\Auth\Exceptions\AuthenticationException;
 
 /**
@@ -133,7 +134,7 @@ class AuthController extends Controller
 
                 // Create session
                 $sessionId = $this->sessionManager->create($userId, [
-                    'ip_address' => $request->ip(),
+                    'ip_address' => IPValidator::getClientIP($request),
                     'user_agent' => $request->userAgent(),
                     'remember' => false
                 ]);
@@ -208,8 +209,8 @@ class AuthController extends Controller
     public function login(Request $request): Response
     {
         try {
-            // Get client IP address
-            $ipAddress = $request->ip();
+            // Requirement 20.1, 20.2: Get client IP address using IPValidator
+            $ipAddress = IPValidator::getClientIP($request);
 
             // Requirement 6.1, 6.2, 6.3: Check rate limit before authentication
             $rateLimitCheck = RateLimiter::check('login', $ipAddress);
@@ -256,8 +257,9 @@ class AuthController extends Controller
                 $remember = filter_var($remember, FILTER_VALIDATE_BOOLEAN);
             }
 
-            // Authenticate via AuthService
-            $authResult = $this->authService->authenticate($email, $password, $remember);
+            // Requirement 20.2: Authenticate via AuthService with IP address and user agent
+            $userAgent = $request->userAgent();
+            $authResult = $this->authService->authenticate($email, $password, $remember, $ipAddress, $userAgent);
 
             // Check authentication result
             if (!$authResult->success) {

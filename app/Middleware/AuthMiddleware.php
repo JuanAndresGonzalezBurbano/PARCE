@@ -7,6 +7,7 @@ use App\Core\Response;
 use App\Core\Database;
 use App\Infrastructure\Auth\Services\SessionManager;
 use App\Infrastructure\Http\ResponseFormatter;
+use App\Infrastructure\Http\IPValidator;
 
 /**
  * Authentication Middleware
@@ -44,8 +45,9 @@ class AuthMiddleware
             return ResponseFormatter::unauthorized('Authentication required');
         }
 
-        // Requirement 10.3: Validate session via SessionManager
-        $sessionData = $this->sessionManager->validate($sessionId);
+        // Requirement 10.3, 20.7: Validate session via SessionManager with IP change detection
+        $currentIP = IPValidator::getClientIP($request);
+        $sessionData = $this->sessionManager->validate($sessionId, $currentIP);
 
         // Requirement 10.4: Return 401 if session invalid
         if ($sessionData === null) {

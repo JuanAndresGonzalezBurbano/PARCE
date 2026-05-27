@@ -34,9 +34,11 @@ export default function RoleSelectionPage() {
     if (_roleId === 'mechanic') {
       navigate('/mechanic-vehicle-info');
     } else if (_roleId === 'user') {
+      navigate('/services');
+    } else if (_roleId === 'admin') {
       navigate('/dashboard');
     } else {
-      navigate('/dashboard');
+      navigate('/services');
     }
   };
 

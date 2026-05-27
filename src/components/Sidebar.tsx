@@ -22,6 +22,7 @@ export default function Sidebar({ isOpen = true }: SidebarProps) {
   ];
 
   const mechanicMenuItems = [
+    { icon: Home, label: 'Dashboard', path: '/mechanic-dashboard' },
     { icon: ClipboardList, label: 'Solicitudes', path: '/mechanic-orders' },
     { icon: User, label: 'Mi Perfil', path: '/mechanic-profile' },
     { icon: Phone, label: 'Contacto', path: '/contact' },

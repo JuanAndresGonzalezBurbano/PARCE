@@ -2,9 +2,11 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, Wrench, Shield } from 'lucide-react';
 import Logo from '../components/Logo';
+import { useAuth } from '../context/AuthContext';
 
 export default function RoleSelectionPage() {
   const navigate = useNavigate();
+  const { selectRole } = useAuth();
 
   const roles = [
     {
@@ -31,6 +33,12 @@ export default function RoleSelectionPage() {
   ];
 
   const handleRoleSelect = (_roleId: string) => {
+    // Asignar el rol al usuario
+    if (_roleId === 'admin' || _roleId === 'user' || _roleId === 'mechanic') {
+      selectRole(_roleId);
+    }
+
+    // Redirigir según el rol
     if (_roleId === 'mechanic') {
       navigate('/mechanic-vehicle-info');
     } else if (_roleId === 'user') {

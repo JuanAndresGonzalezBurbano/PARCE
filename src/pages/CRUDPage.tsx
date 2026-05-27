@@ -1,40 +1,67 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Wrench, FileText, Plus, Edit, Trash2, X, Search, Star } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Users, Wrench, FileText, Plus, Edit, Trash2, Search } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
 
+// Tipos para los datos
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  status: string;
+}
+
+interface Mechanic {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  status: string;
+  rating: number;
+}
+
+interface Service {
+  id: number;
+  name: string;
+  description: string;
+  duration: string;
+  price: string;
+  status: string;
+}
+
+type DataItem = User | Mechanic | Service;
+
 export default function CRUDPage() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('users');
-  const [showModal, setShowModal] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
+  const [activeTab, setActiveTab] = useState<'users' | 'mechanics' | 'services'>('users');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const [users, setUsers] = useState([
+  const [users, setUsers] = useState<User[]>([
     { id: 1, name: 'Carlos Rodríguez', email: 'carlos@email.com', phone: '+57 300 123 4567', status: 'active' },
     { id: 2, name: 'María González', email: 'maria@email.com', phone: '+57 301 987 6543', status: 'active' },
   ]);
 
-  const [mechanics, setMechanics] = useState([
+  const [mechanics, setMechanics] = useState<Mechanic[]>([
     { id: 1, name: 'Juan Burbano', email: 'juan@email.com', phone: '+57 310 111 2222', status: 'active', rating: 4.8 },
     { id: 2, name: 'Ana López', email: 'ana@email.com', phone: '+57 311 333 4444', status: 'active', rating: 4.9 },
   ]);
 
-  const [services, setServices] = useState([
+  const [services, setServices] = useState<Service[]>([
     { id: 1, name: 'Entrega de gasolina', description: 'Servicio de entrega de gasolina', duration: '30-45 min', price: '$50.000', status: 'active' },
     { id: 2, name: 'Cambio de llanta', description: 'Reparación o cambio de neumáticos', duration: '45-60 min', price: '$80.000', status: 'active' },
   ]);
 
-  const handleDelete = (id) => {
-    if (!confirm('¿Eliminar este elemento?')) return;
+  const handleDelete = (id: number) => {
+    if (!window.confirm('¿Eliminar este elemento?')) return;
     if (activeTab === 'users') setUsers(users.filter(u => u.id !== id));
     else if (activeTab === 'mechanics') setMechanics(mechanics.filter(m => m.id !== id));
     else setServices(services.filter(s => s.id !== id));
   };
 
-  const getCurrentData = () => {
+  const getCurrentData = (): DataItem[] => {
     if (activeTab === 'users') return users;
     if (activeTab === 'mechanics') return mechanics;
     return services;
@@ -80,8 +107,12 @@ export default function CRUDPage() {
           </div>
 
           <div className="flex gap-4 border-b border-anthracite-800">
-            {['users', 'mechanics', 'services'].map(tab => (
-              <button key={tab} onClick={() => setActiveTab(tab)} className={`px-6 py-3 font-medium transition-colors ${activeTab === tab ? 'text-gold-500 border-b-2 border-gold-500' : 'text-gray-400 hover:text-white'}`}>
+            {(['users', 'mechanics', 'services'] as const).map(tab => (
+              <button 
+                key={tab} 
+                onClick={() => setActiveTab(tab)} 
+                className={`px-6 py-3 font-medium transition-colors ${activeTab === tab ? 'text-gold-500 border-b-2 border-gold-500' : 'text-gray-400 hover:text-white'}`}
+              >
                 {tab === 'users' ? 'Usuarios' : tab === 'mechanics' ? 'Mecánicos' : 'Servicios'}
               </button>
             ))}
@@ -92,7 +123,7 @@ export default function CRUDPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
               <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="input-field pl-10 w-full" />
             </div>
-            <button onClick={() => { setEditingItem(null); setShowModal(true); }} className="btn-primary flex items-center gap-2">
+            <button onClick={() => alert('Funcionalidad de crear nuevo en desarrollo')} className="btn-primary flex items-center gap-2">
               <Plus className="w-5 h-5" />
               Crear Nuevo
             </button>
@@ -116,8 +147,16 @@ export default function CRUDPage() {
                     <tr key={item.id} className="hover:bg-dark-800/50 transition-colors">
                       <td className="px-6 py-4 text-sm text-gray-300">{item.id}</td>
                       <td className="px-6 py-4 text-sm text-white font-medium">{item.name}</td>
-                      {activeTab !== 'services' && <td className="px-6 py-4 text-sm text-gray-300">{item.email}</td>}
-                      {activeTab === 'services' && <td className="px-6 py-4 text-sm text-gray-300">{item.price}</td>}
+                      {activeTab !== 'services' && (
+                        <td className="px-6 py-4 text-sm text-gray-300">
+                          {'email' in item ? item.email : ''}
+                        </td>
+                      )}
+                      {activeTab === 'services' && (
+                        <td className="px-6 py-4 text-sm text-gray-300">
+                          {'price' in item ? item.price : ''}
+                        </td>
+                      )}
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${item.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                           {item.status === 'active' ? 'Activo' : 'Inactivo'}
@@ -125,10 +164,18 @@ export default function CRUDPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2">
-                          <button onClick={() => { setEditingItem(item); setShowModal(true); }} className="p-2 bg-gold-500/20 text-gold-400 rounded-lg hover:bg-gold-500/30 transition-colors">
+                          <button 
+                            onClick={() => alert('Funcionalidad de editar en desarrollo')} 
+                            className="p-2 bg-gold-500/20 text-gold-400 rounded-lg hover:bg-gold-500/30 transition-colors"
+                            title="Editar"
+                          >
                             <Edit className="w-4 h-4" />
                           </button>
-                          <button onClick={() => handleDelete(item.id)} className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors">
+                          <button 
+                            onClick={() => handleDelete(item.id)} 
+                            className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors"
+                            title="Eliminar"
+                          >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>

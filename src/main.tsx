@@ -2,8 +2,8 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
-import { AuthProvider } from './context/AuthContext'
-import { ServiceProvider } from './context/ServiceContext'
+import { AuthProvider } from './controllers/AuthContext.tsx'
+import { ServiceProvider } from './controllers/ServiceContext.tsx'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

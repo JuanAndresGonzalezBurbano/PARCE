@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Wrench, Phone, ClipboardList, User, Database } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../controllers/AuthContext';
 
 interface SidebarProps {
   isOpen?: boolean;

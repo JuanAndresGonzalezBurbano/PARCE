@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Phone, Clock, Send, MessageSquare } from 'lucide-react';
 import Navbar from '../components/Navbar';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../controllers/AuthContext';
 
 export default function ContactPage() {
   const { user } = useAuth();

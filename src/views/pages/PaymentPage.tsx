@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { CreditCard, Smartphone, QrCode, DollarSign, Check } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../controllers/AuthContext';
 
 export default function PaymentPage() {
   const { user } = useAuth();

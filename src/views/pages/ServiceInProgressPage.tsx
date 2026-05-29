@@ -4,8 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Clock, User, Star, MessageSquare, Navigation, Car, AlertTriangle, CheckCircle, Send, X } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
-import { useAuth } from '../context/AuthContext';
-import { useService } from '../context/ServiceContext';
+import { useAuth } from '../../controllers/AuthContext';
+import { useService } from '../../controllers/ServiceContext';
 
 // coordenadas reservadas para integración futura con Google Maps
 

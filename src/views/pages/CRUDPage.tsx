@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Users, Wrench, FileText, Plus, Edit, Trash2, Search } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../controllers/AuthContext';
 
 // Tipos para los datos
 interface User {

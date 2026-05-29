@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, Wrench, Shield } from 'lucide-react';
 import Logo from '../components/Logo';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../controllers/AuthContext';
 
 export default function RoleSelectionPage() {
   const navigate = useNavigate();

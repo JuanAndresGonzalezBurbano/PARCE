@@ -1,28 +1,21 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import Logo from '../components/Logo';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../controllers/AuthContext';
 
-export default function RegisterPage() {
+export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-  });
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const navigate = useNavigate();
   const { login } = useAuth();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      alert('Las contraseñas no coinciden');
-      return;
-    }
-    login(formData.email, formData.password);
+    // Simular login y redirigir a selección de rol
+    login(email, password);
     navigate('/role-selection');
   };
 
@@ -34,7 +27,7 @@ export default function RegisterPage() {
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
       </div>
 
-      {/* Background Image Placeholder */}
+      {/* Car Background Image Placeholder */}
       <div className="absolute inset-0 opacity-20">
         <div className="w-full h-full bg-gradient-to-br from-dark-900 to-dark-950"></div>
       </div>
@@ -45,15 +38,6 @@ export default function RegisterPage() {
         transition={{ duration: 0.5 }}
         className="relative w-full max-w-md"
       >
-        {/* Back Button */}
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-4 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          Volver
-        </Link>
-
         <div className="card p-8 space-y-6">
           {/* Logo */}
           <div className="flex justify-center">
@@ -61,8 +45,8 @@ export default function RegisterPage() {
           </div>
 
           <div className="text-center">
-            <h2 className="text-3xl font-bold text-white mb-2">REGISTRO</h2>
-            <p className="text-gray-400">Crea tu cuenta en P.A.R.C.E</p>
+            <h2 className="text-3xl font-bold text-white mb-2">Iniciar Sesión</h2>
+            <p className="text-gray-400">Accede a tu cuenta de P.A.R.C.E</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -76,8 +60,8 @@ export default function RegisterPage() {
                 <input
                   id="email"
                   type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="example@gmail.com"
                   className="input-field pl-10"
                   required
@@ -95,8 +79,8 @@ export default function RegisterPage() {
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••••••••••••••"
                   className="input-field pl-10 pr-10"
                   required
@@ -111,35 +95,9 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Confirm Password Input */}
-            <div className="space-y-2">
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300">
-                Confirm Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                <input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  placeholder="••••••••••••••••••••••••"
-                  className="input-field pl-10 pr-10"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
-                >
-                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
-            </div>
-
             {/* Submit Button */}
             <button type="submit" className="w-full btn-primary">
-              Siguiente
+              Iniciar Sesión
             </button>
           </form>
 
@@ -149,13 +107,18 @@ export default function RegisterPage() {
               <div className="w-full border-t border-anthracite-800"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-dark-900 text-gray-500">¿Ya tienes cuenta?</span>
+              <span className="px-2 bg-dark-900 text-gray-500">¿No tienes cuenta?</span>
             </div>
           </div>
 
-          {/* Login Link */}
-          <Link to="/login" className="block text-center text-gold-400 hover:text-gold-300 transition-colors">
-            Login
+          {/* Register Link */}
+          <Link to="/register" className="block text-center text-primary-400 hover:text-primary-300 transition-colors">
+            Crear una cuenta nueva
+          </Link>
+
+          {/* Back to Home */}
+          <Link to="/" className="block text-center text-gray-500 hover:text-gray-300 transition-colors text-sm">
+            Volver al inicio
           </Link>
         </div>
       </motion.div>

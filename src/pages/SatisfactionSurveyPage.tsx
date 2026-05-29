@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Star, Send } from 'lucide-react';
 import Navbar from '../components/Navbar';
+import Sidebar from '../components/Sidebar';
+import { useAuth } from '../context/AuthContext';
 
 export default function SatisfactionSurveyPage() {
+  const { user } = useAuth();
   const [ratings, setRatings] = useState({
     speed: 0,
     attention: 0,
@@ -30,10 +33,11 @@ export default function SatisfactionSurveyPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-dark">
-      <Navbar isAuthenticated userName="Juan Gustavo" />
+    <div className="min-h-screen bg-dark-950">
+      <Navbar isAuthenticated userName={user?.name || 'Usuario'} />
+      <Sidebar />
 
-      <main className="pt-24 pb-12 px-4">
+      <main className="ml-64 pt-16 p-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

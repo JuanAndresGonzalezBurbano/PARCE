@@ -24,7 +24,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-dark-950">
-      <Navbar isAuthenticated userName="Juan Burbano" />
+      <Navbar isAuthenticated userName={user?.name || 'Usuario'} />
       <Sidebar />
 
       <main className="ml-64 pt-16 p-8">

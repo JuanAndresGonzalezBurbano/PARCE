@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import Logo from '../components/Logo';
+import { useAuth } from '../context/AuthContext';
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -13,6 +14,7 @@ export default function RegisterPage() {
     confirmPassword: '',
   });
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,6 +22,7 @@ export default function RegisterPage() {
       alert('Las contraseñas no coinciden');
       return;
     }
+    login(formData.email, formData.password);
     navigate('/role-selection');
   };
 

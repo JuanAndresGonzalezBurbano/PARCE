@@ -3,8 +3,10 @@ import { motion } from 'framer-motion';
 import { CreditCard, Smartphone, QrCode, DollarSign, Check } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
+import { useAuth } from '../context/AuthContext';
 
 export default function PaymentPage() {
+  const { user } = useAuth();
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'transfer' | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -17,7 +19,7 @@ export default function PaymentPage() {
 
   return (
     <div className="min-h-screen bg-dark-950">
-      <Navbar isAuthenticated userName="Juan Gustavo" />
+      <Navbar isAuthenticated userName={user?.name || 'Usuario'} />
       <Sidebar />
 
       <main className="ml-64 pt-16 p-8">

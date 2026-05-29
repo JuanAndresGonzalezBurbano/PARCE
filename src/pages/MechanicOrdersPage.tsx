@@ -39,7 +39,7 @@ const INITIAL_ORDERS: Order[] = [
 ];
 
 // API key reservada para integración futura con Google Maps
-const _GMAPS_KEY = 'AIzaSyD-PLACEHOLDER';
+// const _GMAPS_KEY = 'AIzaSyD-PLACEHOLDER';
 
 function useProgress(totalSec: number, active: boolean) {
   const [elapsed, setElapsed] = useState(0);

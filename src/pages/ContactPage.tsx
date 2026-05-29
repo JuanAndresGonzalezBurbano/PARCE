@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Phone, Clock, Send, MessageSquare } from 'lucide-react';
 import Navbar from '../components/Navbar';
+import { useAuth } from '../context/AuthContext';
 
 export default function ContactPage() {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -40,7 +42,7 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen bg-gradient-dark">
-      <Navbar isAuthenticated userName="Juan Gustavo" hideNavLinks={true} />
+      <Navbar isAuthenticated userName={user?.name || 'Usuario'} hideNavLinks={true} />
 
       <main className="pt-24 pb-12 px-4">
         <motion.div

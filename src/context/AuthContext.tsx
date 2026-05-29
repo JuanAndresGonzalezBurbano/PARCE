@@ -22,7 +22,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
-  const login = (email: string, password: string) => {
+  const login = (email: string, _password: string) => {
     // Simulación de login - en producción esto haría una llamada a la API
     setUser({
       name: 'Juan Gustavo',

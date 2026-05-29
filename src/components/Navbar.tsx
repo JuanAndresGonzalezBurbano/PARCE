@@ -234,7 +234,7 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar, 
                   <Link to="/contact" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
                     Contacto
                   </Link>
-                  <Link to="/profile" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
+                  <Link to={profilePath} className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
                     Perfil
                   </Link>
                   <button

@@ -133,8 +133,27 @@ export default function ServiceInProgressPage() {
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMsgs]);
 
+  // RAMA: Soto - Filtro de groserías para el chat del usuario
+  const PROFANITY = ['mierda','hijueputa','puta','malparido','gonorrea','hp','marica',
+    'idiota','imbecil','estupido','pendejo','verga','coño','joder','cabron','perra',
+    'bobo','bruto','fuck','shit','bitch','damn','crap','bastard','asshole','dick',
+    'retrasado','inutil','maldito','hdp','ptm','ctm','webon','weon','huevon','tonto',
+  ];
+  const hasProfanity = (t: string) =>
+    PROFANITY.some(w => new RegExp(`\\b${w}\\b`, 'i').test(t));
+
   const sendChat = () => {
-    const t = chatInput.trim(); if (!t) return;
+    const t = chatInput.trim();
+    if (!t) return;
+    // Bloquea groserías y muestra aviso
+    if (hasProfanity(t)) {
+      setChatMsgs(p => [...p,
+        { role: 'user', text: t },
+        { role: 'mechanic', text: '⚠️ Por favor mantén un lenguaje respetuoso. Las groserías no están permitidas en este chat.' }
+      ]);
+      setChatInput('');
+      return;
+    }
     setChatMsgs(p => [...p, { role: 'user', text: t }]);
     setChatInput('');
     setTimeout(() => setChatMsgs(p => [...p, { role: 'mechanic', text: 'Entendido, en breve llego.' }]), 1200);
@@ -160,18 +179,25 @@ export default function ServiceInProgressPage() {
 
   return (
     <div className="min-h-screen bg-dark-950">
-      <Navbar isAuthenticated userName={user?.name || 'Usuario'} />
-      <Sidebar />
-      <main className="ml-64 pt-16 p-8">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto space-y-6">
-          <div className="text-center mb-6">
-            <h1 className="text-4xl font-bold text-white mb-2">SERVICIO EN CURSO</h1>
-            <p className="text-gray-400">Tu mecánico está en camino</p>
+      <Navbar isAuthenticated userName={user?.name || 'Usuario'} hideNavLinks />
+      {/* RAMA: Soto - Sidebar oculto en servicio en curso, igual que la vista del mecánico */}
+      <Sidebar hidden />
+      <main className="ml-0 pt-16 p-8">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+          {/* RAMA: Soto - Título con estado igual al del mecánico */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-white">Servicio en Curso</h1>
+              <p className="text-gray-400 text-sm mt-1">Tu mecánico está en camino</p>
+            </div>
+            <span className={`px-4 py-2 rounded-full text-sm font-bold ${arrived ? 'bg-green-500/20 text-green-400' : 'bg-primary-500/20 text-primary-400'}`}>
+              {arrived ? '¡Llegó!' : progress < 30 ? 'Mecánico asignado' : progress < 70 ? 'En camino' : 'Llegando...'}
+            </span>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-6">
+          <div className="grid lg:grid-cols-2 gap-4">
             {/* Mapa */}
-            <div className="card p-6 flex flex-col">
+            <div className="card p-5 flex flex-col">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold text-white">Navegación</h3>
                 <div className="flex items-center gap-3 text-sm text-gray-400">
@@ -181,7 +207,7 @@ export default function ServiceInProgressPage() {
                   <span>{arrived ? 'Llegó' : `~${remainingSeconds}s`}</span>
                 </div>
               </div>
-              <div className="flex-1 min-h-[420px]">
+              <div className="flex-1 min-h-[320px]">
                 <MapComponent progress={progress} arrived={arrived} distanceKm={DISTANCE_KM} remainingSeconds={remainingSeconds}/>
               </div>
               <div className="flex items-center justify-center gap-6 mt-4 text-xs text-gray-400">
@@ -255,37 +281,7 @@ export default function ServiceInProgressPage() {
                   </div>
                 </div>
 
-                {/* Mini chat */}
-                <AnimatePresence>
-                  {chatOpen && (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-                      className="border border-anthracite-700 rounded-xl overflow-hidden">
-                      <div className="flex items-center justify-between px-4 py-2.5 bg-dark-800">
-                        <span className="text-sm font-semibold text-white flex items-center gap-2">
-                          <MessageSquare className="w-4 h-4 text-gold-500"/>Chat con {mechanicName}
-                        </span>
-                        <button onClick={() => setChatOpen(false)} className="text-gray-400 hover:text-white"><X className="w-4 h-4"/></button>
-                      </div>
-                      <div className="h-36 overflow-y-auto p-3 space-y-2 bg-dark-900/50">
-                        {chatMsgs.map((m, i) => (
-                          <div key={i} className={`flex gap-2 ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                            <div className={`max-w-[80%] px-3 py-1.5 rounded-xl text-xs ${m.role === 'user' ? 'bg-gold-600 text-anthracite-950 rounded-tr-sm' : 'bg-dark-700 text-gray-200 rounded-tl-sm'}`}>{m.text}</div>
-                          </div>
-                        ))}
-                        <div ref={chatEndRef}/>
-                      </div>
-                      <div className="flex gap-2 p-2 bg-dark-800 border-t border-anthracite-700">
-                        <input value={chatInput} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setChatInput(e.target.value)}
-                          onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && sendChat()}
-                          placeholder="Escribe un mensaje..."
-                          className="flex-1 bg-dark-900 border border-anthracite-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-gold-500"/>
-                        <button onClick={sendChat} disabled={!chatInput.trim()} className="p-1.5 bg-gold-500 hover:bg-gold-600 disabled:opacity-40 rounded-lg">
-                          <Send className="w-3.5 h-3.5 text-anthracite-950"/>
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {/* Mini chat — eliminado de aquí, ahora es panel inferior */}
 
                 {/* Solo botón cancelar, centrado */}
                 <div className="pt-2">
@@ -299,6 +295,55 @@ export default function ServiceInProgressPage() {
           </div>
         </motion.div>
       </main>
+
+      {/* RAMA: Soto - Chat desplegable en panel inferior, igual al del mecánico */}
+      <AnimatePresence>
+        {chatOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-0 left-0 right-0 z-40 bg-dark-900 border-t border-anthracite-700 shadow-2xl"
+          >
+            <div className="max-w-6xl mx-auto p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-gold-500" />
+                  Chat con {mechanicName}
+                </h3>
+                <button onClick={() => setChatOpen(false)} className="text-gray-400 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="h-48 overflow-y-auto space-y-3 p-3 bg-dark-800/50 rounded-xl">
+                {chatMsgs.map((m, i) => (
+                  <div key={i} className={`flex gap-2 ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                    <div className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center ${m.role === 'user' ? 'bg-gold-500' : 'bg-dark-600'}`}>
+                      <User className="w-4 h-4 text-anthracite-950" />
+                    </div>
+                    <div className={`max-w-[75%] px-3 py-2 rounded-xl text-sm ${m.role === 'user' ? 'bg-gold-600/30 text-white rounded-tr-sm' : 'bg-dark-700 text-gray-200 rounded-tl-sm'}`}>
+                      {m.text}
+                    </div>
+                  </div>
+                ))}
+                <div ref={chatEndRef} />
+              </div>
+              <div className="flex gap-2">
+                <input
+                  value={chatInput}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setChatInput(e.target.value)}
+                  onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && sendChat()}
+                  placeholder="Escribe un mensaje..."
+                  className="flex-1 bg-dark-800 border border-anthracite-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gold-500"
+                />
+                <button onClick={sendChat} disabled={!chatInput.trim()} className="p-2.5 bg-gold-500 hover:bg-gold-600 disabled:opacity-40 rounded-xl">
+                  <Send className="w-4 h-4 text-anthracite-950" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showCancelModal && <CancelModal onConfirm={() => { setShowCancelModal(false); navigate('/services'); }} onClose={() => setShowCancelModal(false)}/>}

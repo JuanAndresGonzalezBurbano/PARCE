@@ -23,7 +23,7 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
         return <Navigate to="/mechanic-dashboard" replace />;
       case 'user':
       default:
-        return <Navigate to="/services" replace />;
+        return <Navigate to="/home" replace />;
     }
   }
 

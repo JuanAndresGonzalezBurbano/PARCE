@@ -1,12 +1,33 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, Wrench, Shield } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import Logo from '../components/Logo';
 import { useAuth } from '../context/AuthContext';
 
 export default function RoleSelectionPage() {
   const navigate = useNavigate();
-  const { selectRole } = useAuth();
+  const { selectRole, user } = useAuth();
+  const [pendingRole, setPendingRole] = useState<string | null>(null);
+
+  // RAMA: Soto - Espera a que el rol se actualice en el contexto antes de navegar
+  // Esto evita que ProtectedRoute bloquee la navegación por rol desactualizado
+  useEffect(() => {
+    if (!pendingRole || !user) return;
+    if (user.role === pendingRole) {
+      if (pendingRole === 'mechanic') navigate('/mechanic-vehicle-info');
+      else if (pendingRole === 'user') navigate('/home');
+      else if (pendingRole === 'admin') navigate('/dashboard');
+      setPendingRole(null);
+    }
+  }, [user, pendingRole, navigate]);
+
+  const handleRoleSelect = (_roleId: string) => {
+    if (_roleId === 'admin' || _roleId === 'user' || _roleId === 'mechanic') {
+      selectRole(_roleId);
+      setPendingRole(_roleId); // Guarda el rol pendiente hasta que el contexto lo confirme
+    }
+  };
 
   const roles = [
     {
@@ -32,24 +53,6 @@ export default function RoleSelectionPage() {
     },
   ];
 
-  const handleRoleSelect = (_roleId: string) => {
-    // Asignar el rol al usuario
-    if (_roleId === 'admin' || _roleId === 'user' || _roleId === 'mechanic') {
-      selectRole(_roleId);
-    }
-
-    // Redirigir según el rol
-    if (_roleId === 'mechanic') {
-      navigate('/mechanic-vehicle-info');
-    } else if (_roleId === 'user') {
-      navigate('/services');
-    } else if (_roleId === 'admin') {
-      navigate('/dashboard');
-    } else {
-      navigate('/services');
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-dark flex items-center justify-center px-4 relative overflow-hidden">
       {/* Animated Background */}
@@ -58,7 +61,6 @@ export default function RoleSelectionPage() {
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-anthracite-500/10 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
       </div>
 
-      {/* Car Background Placeholder */}
       <div className="absolute inset-0 opacity-20">
         <div className="w-full h-full bg-gradient-to-br from-dark-900 to-dark-950"></div>
       </div>

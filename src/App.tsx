@@ -3,6 +3,8 @@ import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import RoleSelectionPage from './pages/RoleSelectionPage';
+// RAMA: Soto - Home autenticado del usuario
+import UserHomePage from './pages/UserHomePage';
 import DashboardPage from './pages/DashboardPage';
 import CRUDPage from './pages/CRUDPage';
 import ServicesPage from './pages/ServicesPage';
@@ -46,6 +48,15 @@ function App() {
         />
 
         {/* User Routes */}
+        {/* RAMA: Soto - /home es el home autenticado del usuario después de elegir rol */}
+        <Route
+          path="/home"
+          element={
+            <ProtectedRoute allowedRoles={['user']}>
+              <UserHomePage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/services"
           element={

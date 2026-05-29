@@ -18,15 +18,16 @@ export default function Sidebar({ isOpen = true, hidden = false }: SidebarProps)
   ];
 
   const userMenuItems = [
+    // RAMA: Soto - Agregado "Inicio" encima de "Servicios" para ir al UserHomePage
+    { icon: Home, label: 'Inicio', path: '/home' },
     { icon: Wrench, label: 'Servicios', path: '/services' },
     { icon: Phone, label: 'Contacto', path: '/contact' },
   ];
 
-  // Sin Dashboard para el mecánico
+  // RAMA: Soto - Eliminado "Contacto" del sidebar del mecánico (es solo para usuarios)
   const mechanicMenuItems = [
     { icon: ClipboardList, label: 'Solicitudes', path: '/mechanic-orders' },
     { icon: User, label: 'Mi Perfil', path: '/mechanic-profile' },
-    { icon: Phone, label: 'Contacto', path: '/contact' },
   ];
 
   const getMenuItems = () => {

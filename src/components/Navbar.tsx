@@ -43,10 +43,11 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar, 
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-dark-950/80 backdrop-blur-lg border-b border-anthracite-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* RAMA: Soto - Navbar pegado a los bordes, sin max-width centrado */}
+      <div className="w-full px-4 sm:px-6">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link to="/" className="flex-shrink-0">
+          {/* Logo - RAMA: Soto - Redirige según rol: usuario→/home, mecánico→/mechanic-orders, resto→/ */}
+          <Link to={user?.role === 'user' ? '/home' : user?.role === 'mechanic' ? '/mechanic-orders' : '/'} className="flex-shrink-0">
             <span className="text-2xl font-bold text-gradient">P.A.R.C.E</span>
           </Link>
 
@@ -54,9 +55,7 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar, 
           <div className="hidden md:flex items-center gap-8">
             {!isAuthenticated ? (
               <>
-                <Link to="/" className="text-gray-300 hover:text-white transition-colors">
-                  Inicio
-                </Link>
+                {/* RAMA: Soto - Se eliminó el botón "Inicio" del navbar público */}
                 <Link to="/register" className="text-gray-300 hover:text-white transition-colors">
                   Servicios
                 </Link>
@@ -118,13 +117,17 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar, 
               </>
             ) : (
               <>
-                <Link to="/services" className="text-gray-300 hover:text-white transition-colors">
-                  Servicios
-                </Link>
-                <Link to="/contact" className="text-gray-300 hover:text-white transition-colors">
-                  Contacto
-                </Link>
-                
+                {/* RAMA: Soto - "Servicios" y "Contacto" solo aparecen cuando hideNavLinks es false (ej: UserHomePage) */}
+                {!hideNavLinks && (
+                  <>
+                    <Link to="/services" className="text-gray-300 hover:text-white transition-colors">
+                      Servicios
+                    </Link>
+                    <Link to="/contact" className="text-gray-300 hover:text-white transition-colors">
+                      Contacto
+                    </Link>
+                  </>
+                )}
                 {/* User Menu */}
                 <div className="relative">
                   <button
@@ -198,9 +201,7 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar, 
             <div className="px-4 py-4 space-y-2">
               {!isAuthenticated ? (
                 <>
-                  <Link to="/" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
-                    Inicio
-                  </Link>
+                  {/* RAMA: Soto - Se eliminó "Inicio" del menú móvil */}
                   <Link to="/register" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
                     Servicios
                   </Link>
@@ -228,12 +229,17 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar, 
                 </>
               ) : (
                 <>
-                  <Link to="/services" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
-                    Servicios
-                  </Link>
-                  <Link to="/contact" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
-                    Contacto
-                  </Link>
+                  {/* RAMA: Soto - En móvil también solo cuando hideNavLinks es false */}
+                  {!hideNavLinks && (
+                    <>
+                      <Link to="/services" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
+                        Servicios
+                      </Link>
+                      <Link to="/contact" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
+                        Contacto
+                      </Link>
+                    </>
+                  )}
                   <Link to={profilePath} className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
                     Perfil
                   </Link>

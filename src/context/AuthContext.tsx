@@ -19,25 +19,45 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// RAMA: Soto - Clave para guardar la sesión en localStorage
+const STORAGE_KEY = 'parce_user';
+
+// Recupera el usuario guardado al recargar la página
+function getSavedUser(): User | null {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? JSON.parse(saved) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  // RAMA: Soto - Inicializa el estado desde localStorage para persistir la sesión
+  const [user, setUser] = useState<User | null>(getSavedUser());
 
   const login = (email: string, _password: string) => {
-    // Simulación de login - en producción esto haría una llamada a la API
-    setUser({
+    const newUser: User = {
       name: 'Juan Gustavo',
       email: email,
       role: 'user', // Rol por defecto, se cambia en selectRole
-    });
+    };
+    setUser(newUser);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser));
   };
 
   const logout = () => {
     setUser(null);
+    // RAMA: Soto - Al cerrar sesión limpia el localStorage
+    localStorage.removeItem(STORAGE_KEY);
   };
 
   const selectRole = (role: UserRole) => {
     if (user) {
-      setUser({ ...user, role });
+      const updated = { ...user, role };
+      setUser(updated);
+      // RAMA: Soto - Actualiza el rol guardado en localStorage
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     }
   };
 

@@ -29,7 +29,7 @@ class CreateUsersAndRolesTables extends Migration
                 phone VARCHAR(20),
                 profile_picture_url VARCHAR(500) NULL,
                 account_status ENUM('active', 'suspended', 'deactivated', 'pending_verification') 
-                    NOT NULL DEFAULT 'pending_verification',
+                    NOT NULL DEFAULT 'active' COMMENT 'MVP: Users active by default. Email verification planned for production.',
                 email_verification_status ENUM('unverified', 'verified') 
                     NOT NULL DEFAULT 'unverified',
                 phone_verification_status ENUM('unverified', 'verified') 

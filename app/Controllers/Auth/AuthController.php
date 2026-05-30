@@ -14,6 +14,7 @@ use App\Infrastructure\Http\RequestValidator;
 use App\Infrastructure\Http\ResponseFormatter;
 use App\Infrastructure\Http\RateLimiter;
 use App\Infrastructure\Http\IPValidator;
+use App\Infrastructure\Http\ErrorHandler;
 use App\Infrastructure\Auth\Exceptions\AuthenticationException;
 
 /**
@@ -187,12 +188,10 @@ class AuthController extends Controller
             }
 
         } catch (AuthenticationException $e) {
-            error_log("Registration authentication error: " . $e->getMessage());
-            return ResponseFormatter::error('Registration failed', null, 400);
+            return ErrorHandler::handleException($e);
 
         } catch (\Exception $e) {
-            error_log("Registration error: " . $e->getMessage());
-            return ResponseFormatter::serverError('Registration service unavailable');
+            return ErrorHandler::handleException($e);
         }
     }
 
@@ -318,16 +317,13 @@ class AuthController extends Controller
             return $response;
 
         } catch (AuthenticationException $e) {
-            error_log("Login authentication error for {$request->input('email')}: " . $e->getMessage());
-            
             // Record failed attempt for rate limiting
-            RateLimiter::recordAttempt('login', $request->ip());
+            RateLimiter::recordAttempt('login', $ipAddress);
             
-            return ResponseFormatter::unauthorized('Invalid credentials');
+            return ErrorHandler::handleException($e);
 
         } catch (\Exception $e) {
-            error_log("Login error: " . $e->getMessage());
-            return ResponseFormatter::serverError('Authentication service unavailable');
+            return ErrorHandler::handleException($e);
         }
     }
 
@@ -364,8 +360,7 @@ class AuthController extends Controller
             return $response;
 
         } catch (\Exception $e) {
-            error_log("Logout error: " . $e->getMessage());
-            return ResponseFormatter::serverError('Logout service unavailable');
+            return ErrorHandler::handleException($e);
         }
     }
 
@@ -409,8 +404,69 @@ class AuthController extends Controller
             return ResponseFormatter::success($responseData, 'User retrieved successfully', 200);
 
         } catch (\Exception $e) {
-            error_log("Get current user error: " . $e->getMessage());
-            return ResponseFormatter::serverError('User service unavailable');
+            return ErrorHandler::handleException($e);
+        }
+    }
+
+    /**
+     * Health check endpoint
+     * 
+     * GET /api/auth/health
+     * 
+     * Requirements: 14.1-14.7
+     * 
+     * @param Request $request HTTP request
+     * @return Response HTTP response
+     */
+    public function health(Request $request): Response
+    {
+        $startTime = microtime(true);
+
+        try {
+            // Test database connectivity
+            $result = Database::fetchOne('SELECT 1 as test');
+
+            if ($result === null || $result['test'] !== 1) {
+                throw new \Exception('Database health check failed');
+            }
+
+            // Calculate response time in milliseconds
+            $responseTime = round((microtime(true) - $startTime) * 1000, 2);
+
+            // Prepare response data
+            $responseData = [
+                'status' => 'healthy',
+                'version' => '1.0.0',
+                'timestamp' => date('Y-m-d H:i:s'),
+                'responseTime' => $responseTime
+            ];
+
+            return ResponseFormatter::success($responseData, 'Service is healthy', 200);
+
+        } catch (\Exception $e) {
+            // Calculate response time even on failure
+            $responseTime = round((microtime(true) - $startTime) * 1000, 2);
+
+            // Prepare unhealthy response data
+            $responseData = [
+                'status' => 'unhealthy',
+                'version' => '1.0.0',
+                'timestamp' => date('Y-m-d H:i:s'),
+                'responseTime' => $responseTime
+            ];
+
+            // Log exception via ErrorHandler
+            ErrorHandler::logException($e);
+
+            $response = new Response();
+            $response->setHeader('Content-Type', 'application/json; charset=utf-8');
+            $response->setHeader('X-API-Version', '1.0.0');
+            
+            return $response->json([
+                'success' => false,
+                'data' => $responseData,
+                'error' => 'Service is unhealthy'
+            ], 503);
         }
     }
 }

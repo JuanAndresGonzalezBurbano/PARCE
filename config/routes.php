@@ -89,6 +89,9 @@ $router->group(['prefix' => 'api/v1'], function($router) {
 // ============================================================================
 
 // Public authentication routes
+$router->get('/api/auth/health', [\App\Controllers\Auth\AuthController::class, 'health'])
+    ->name('api.auth.health');
+
 $router->post('/api/auth/register', [\App\Controllers\Auth\AuthController::class, 'register'])
     ->name('api.auth.register');
 

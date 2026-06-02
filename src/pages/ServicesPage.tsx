@@ -70,9 +70,11 @@ const services = [
 ];
 
 /* ── CHATBOT ── */
-interface ChatMessage { role: 'user' | 'bot'; text: string; }
+// Define el tipo de mensaje del chat — puede ser del usuario o del bot
+// suggestedService: si el bot sugiere un servicio, guarda el nombre para mostrar el botón
+interface ChatMessage { role: 'user' | 'bot'; text: string; suggestedService?: string; }
 
-// Lista de groserías — usa coincidencia de palabra completa para evitar falsos positivos
+// Lista de palabras prohibidas — filtra groserías antes de enviar al bot
 const PROFANITY = [
   'mierda','hijueputa','puta','malparido','gonorrea','hp','marica',
   'idiota','imbecil','estupido','pendejo','verga','coño','joder','cabron','perra',
@@ -82,26 +84,36 @@ const PROFANITY = [
   'webon','weon','huevon','mamahuevo','tonto',
 ];
 
-// Usa \b para coincidir solo palabras completas, evitando falsos positivos como "vehículo" → "culo"
+// Función que detecta groserías usando expresiones regulares con límite de palabra (\b)
+// Esto evita falsos positivos como "vehículo" que contiene "culo"
 const hasProfanity = (t: string) =>
   PROFANITY.some(w => new RegExp(`\\b${w}\\b`, 'i').test(t));
 
-// Contexto del sistema para Gemini — especializado en PARCE
+// Prompt del sistema que le dice a Groq cómo debe comportarse el chatbot
+// Define el rol, los servicios disponibles y el formato exacto de respuesta esperado
 const SYSTEM_PROMPT = `Eres el asistente virtual de P.A.R.C.E (Plataforma de Asistencia Rápida Para Conductores en Emergencia).
-Tu rol es ayudar a los usuarios a identificar problemas con sus vehículos y recomendarles el servicio adecuado.
+Tu rol es diagnosticar problemas vehiculares y recomendar el servicio adecuado.
 
-Los servicios disponibles son:
-1. Suministro de Combustible a Domicilio (20-35 min)
-2. Reparación y Cambio de Neumáticos (25-45 min)
-3. Carga y Reemplazo de Batería (15-30 min)
-4. Diagnóstico y Reparación Mecánica (45-90 min)
-5. Cerrajería Automotriz (20-40 min)
-6. Grúa y Remolque de Vehículos (30-60 min)
+Los servicios disponibles en PARCE son EXACTAMENTE estos 6:
+1. Suministro de Combustible a Domicilio
+2. Reparación y Cambio de Neumáticos
+3. Carga y Reemplazo de Batería
+4. Diagnóstico y Reparación Mecánica
+5. Cerrajería Automotriz
+6. Grúa y Remolque de Vehículos
 
-Responde siempre en español, de forma clara y concisa. Si el usuario describe un problema con su vehículo, 
-identifica la causa probable y recomienda el servicio más adecuado. Si la pregunta no es sobre vehículos o 
-servicios de PARCE, redirige amablemente la conversación al tema de asistencia vehicular.
-Usa emojis relevantes para hacer las respuestas más amigables.`;
+Cuando el usuario describa un problema, responde SIEMPRE así:
+
+Si el problema corresponde a uno de los 6 servicios:
+- Explica brevemente qué causó el problema
+- Termina con exactamente: "SERVICIO_SUGERIDO: [nombre exacto del servicio de la lista]"
+
+Si el problema NO corresponde a ninguno de los 6 servicios:
+- Explica qué causó el problema
+- Di qué tipo de servicio especializado necesita (ej: taller de transmisión, servicio de AC, etc.)
+- Termina con exactamente: "SERVICIO_SUGERIDO: Diagnóstico y Reparación Mecánica"
+
+Responde siempre en español, de forma clara y breve. Usa emojis relevantes.`;
 
 export default function ServicesPage() {
   const { user } = useAuth();
@@ -113,7 +125,6 @@ export default function ServicesPage() {
     { role: 'bot', text: '👋 ¡Hola! Soy el asistente de PARCE. Si no sabes qué falla tiene tu vehículo, cuéntame los síntomas y te ayudo a identificar el problema.' },
   ]);
   const [inputText, setInputText] = useState('');
-  const [lastDiagnosis, setLastDiagnosis] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -124,63 +135,98 @@ export default function ServicesPage() {
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   const handleSend = async () => {
-    const text = inputText.trim();
-    if (!text || isLoading) return;
+    const text = inputText.trim(); // Elimina espacios al inicio y final
+    if (!text || isLoading) return; // No hace nada si está vacío o ya está cargando
 
-    // Filtro de groserías
+    // Verifica si el mensaje tiene groserías antes de enviarlo
     if (hasProfanity(text)) {
+      // Agrega el mensaje del usuario y la advertencia del bot
       setMessages(prev => [...prev,
         { role: 'user', text },
         { role: 'bot', text: '⚠️ Por favor mantén un lenguaje respetuoso. Las groserías no están permitidas en este chat. Estoy aquí para ayudarte con tu vehículo 😊' }
       ]);
-      setInputText('');
-      return;
+      setInputText(''); // Limpia el campo de texto
+      return; // No continúa al API
     }
 
+    // Agrega el mensaje del usuario al chat inmediatamente
     setMessages(prev => [...prev, { role: 'user', text }]);
-    setInputText('');
-    setIsLoading(true);
+    setInputText('');    // Limpia el campo de texto
+    setIsLoading(true);  // Activa el indicador de carga (3 puntitos)
 
     try {
-      // RAMA: Soto - Chatbot conectado a Groq (LLaMA) para respuestas con IA real
-      const apiKey = (import.meta as unknown as { env: { VITE_GROQ_API_KEY: string } }).env.VITE_GROQ_API_KEY || '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';
+      // Lee la API key de Groq desde las variables de entorno (.env)
+      const apiKey = (import.meta as unknown as { env: { VITE_GROQ_API_KEY: string } }).env.VITE_GROQ_API_KEY;
+      
+      // Hace la petición HTTP POST a la API de Groq
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',        // Le dice al servidor que enviamos JSON
+          'Authorization': `Bearer ${apiKey}`,        // Autenticación con la API key
         },
         body: JSON.stringify({
-          model: 'llama-3.1-8b-instant',
+          model: 'llama-3.1-8b-instant', // Modelo de IA de Groq (LLaMA 3.1 rápido)
           messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: text }
+            { role: 'system', content: SYSTEM_PROMPT }, // Instrucciones del sistema
+            { role: 'user', content: text }              // Mensaje del usuario
           ],
-          max_tokens: 500,
-          temperature: 0.7,
+          max_tokens: 500,    // Máximo de tokens en la respuesta
+          temperature: 0.7,   // Creatividad (0=conservador, 1=creativo)
         }),
       });
 
+      // Convierte la respuesta a JSON
       const data = await response.json();
-      const reply = data?.choices?.[0]?.message?.content
+      // Extrae el texto de la respuesta o usa mensaje de error si no hay
+      const rawReply = data?.choices?.[0]?.message?.content
         || '🤖 Lo siento, no pude procesar tu consulta. Intenta de nuevo.';
-      setLastDiagnosis(reply);
-      setMessages(prev => [...prev, { role: 'bot', text: reply }]);
+
+      // Busca el tag SERVICIO_SUGERIDO en la respuesta con una expresión regular
+      const serviceMatch = rawReply.match(/SERVICIO_SUGERIDO:\s*(.+)/);
+      // Si encontró el tag, extrae el nombre del servicio; si no, es undefined
+      const suggestedService = serviceMatch ? serviceMatch[1].trim() : undefined;
+      // Elimina el tag de la respuesta para que no se muestre al usuario
+      const cleanReply = rawReply.replace(/SERVICIO_SUGERIDO:\s*.+/, '').trim();
+
+      // Agrega la respuesta limpia del bot al chat, con el servicio sugerido para el botón
+      setMessages(prev => [...prev, { role: 'bot', text: cleanReply, suggestedService }]);
     } catch (err) {
-      console.error('Groq error:', err);
-      // Mostrar el error exacto en el chat para diagnosticar
+      console.error('Groq error:', err); // Registra el error en consola para debugging
+      // Convierte el error a string legible
       const errorMsg = err instanceof Error ? err.message : String(err);
+      // Muestra el error en el chat
       setMessages(prev => [...prev, {
         role: 'bot',
         text: `⚠️ Error: ${errorMsg}`
       }]);
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Desactiva el indicador de carga siempre, haya o no error
     }
   };
 
+  // Función que se ejecuta cuando el usuario hace click en "Pedir: [servicio]" en el chat
+  const handleRequestFromChat = (suggestedService: string, diagnosis: string) => {
+    // Busca el servicio en la lista comparando nombres (insensible a mayúsculas)
+    const found = services.find(s =>
+      s.title.toLowerCase().includes(suggestedService.toLowerCase()) ||
+      suggestedService.toLowerCase().includes(s.title.toLowerCase())
+    ) || services[3]; // Si no encuentra coincidencia, usa "Diagnóstico y Reparación Mecánica" (índice 3)
+    
+    // Configura el servicio seleccionado con el diagnóstico del chatbot como descripción
+    setSelectedService({
+      id: found.id,
+      title: found.title,
+      description: diagnosis,       // La descripción es el diagnóstico del chatbot
+      duration: found.duration,
+      chatbotDiagnosis: diagnosis,  // También lo guarda como diagnóstico del chatbot
+    });
+    // Navega a la página de servicio en curso
+    navigate('/service-in-progress');
+  };
+
   const handleServiceSelect = (service: typeof services[0]) => {
-    setSelectedService({ id: service.id, title: service.title, description: service.description, duration: service.duration, chatbotDiagnosis: lastDiagnosis || undefined });
+    setSelectedService({ id: service.id, title: service.title, description: service.description, duration: service.duration });
     navigate('/service-in-progress');
   };
 
@@ -278,12 +324,24 @@ export default function ServicesPage() {
                   <div className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center ${msg.role === 'bot' ? 'bg-gradient-to-br from-gold-500 to-gold-600' : 'bg-dark-600'}`}>
                     {msg.role === 'bot' ? <Bot className="w-4 h-4 text-anthracite-950" /> : <UserIcon className="w-4 h-4 text-white" />}
                   </div>
-                  <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${msg.role === 'bot' ? 'bg-dark-800 text-gray-200 rounded-tl-sm' : 'bg-gold-600 text-anthracite-950 rounded-tr-sm'}`}>
-                    {msg.text}
+                  <div className={`max-w-[75%] flex flex-col gap-2`}>
+                    <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${msg.role === 'bot' ? 'bg-dark-800 text-gray-200 rounded-tl-sm' : 'bg-gold-600 text-anthracite-950 rounded-tr-sm'}`}>
+                      {msg.text}
+                    </div>
+                    {/* RAMA: Soto - Botón "Pedir servicio" cuando el bot sugiere uno */}
+                    {msg.role === 'bot' && msg.suggestedService && (
+                      <button
+                        onClick={() => handleRequestFromChat(msg.suggestedService!, msg.text)}
+                        className="self-start flex items-center gap-2 px-4 py-2 bg-gold-500 hover:bg-gold-600 text-anthracite-950 text-xs font-bold rounded-xl transition-colors"
+                      >
+                        <Wrench className="w-3.5 h-3.5" />
+                        Pedir: {msg.suggestedService}
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
-              {/* Indicador de escritura mientras Gemini responde */}
+              {/* Indicador de escritura mientras Groq (LLaMA) responde */}
               {isLoading && (
                 <div className="flex gap-2">
                   <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-gold-500 to-gold-600">

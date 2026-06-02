@@ -6,8 +6,8 @@ import {
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
-import { useAuth } from '../context/AuthContext';
-import { useService } from '../context/ServiceContext';
+import { useAuth } from '../../controllers/AuthContext';
+import { useService } from '../../controllers/ServiceContext';
 import { useNavigate } from 'react-router-dom';
 
 interface Order {

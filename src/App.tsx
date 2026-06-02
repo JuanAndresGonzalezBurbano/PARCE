@@ -1,23 +1,24 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import LandingPage from './pages/LandingPage';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import RoleSelectionPage from './pages/RoleSelectionPage';
-// RAMA: Soto - Home autenticado del usuario
-import UserHomePage from './pages/UserHomePage';
-import DashboardPage from './pages/DashboardPage';
-import CRUDPage from './pages/CRUDPage';
-import ServicesPage from './pages/ServicesPage';
-import ServiceInProgressPage from './pages/ServiceInProgressPage';
-import ProfilePage from './pages/ProfilePage';
-import MechanicProfilePage from './pages/MechanicProfilePage';
-import MechanicDashboardPage from './pages/MechanicDashboardPage';
-import ContactPage from './pages/ContactPage';
-import PaymentPage from './pages/PaymentPage';
-import SatisfactionSurveyPage from './pages/SatisfactionSurveyPage';
-import MechanicVehicleInfoPage from './pages/MechanicVehicleInfoPage';
-import MechanicOrdersPage from './pages/MechanicOrdersPage';
-import ProtectedRoute from './components/ProtectedRoute';
+// VISTAS - Páginas
+import LandingPage from './views/pages/LandingPage';
+import LoginPage from './views/pages/LoginPage';
+import RegisterPage from './views/pages/RegisterPage';
+import RoleSelectionPage from './views/pages/RoleSelectionPage';
+import UserHomePage from './views/pages/UserHomePage';
+import DashboardPage from './views/pages/DashboardPage';
+import CRUDPage from './views/pages/CRUDPage';
+import ServicesPage from './views/pages/ServicesPage';
+import ServiceInProgressPage from './views/pages/ServiceInProgressPage';
+import ProfilePage from './views/pages/ProfilePage';
+import MechanicProfilePage from './views/pages/MechanicProfilePage';
+import MechanicDashboardPage from './views/pages/MechanicDashboardPage';
+import ContactPage from './views/pages/ContactPage';
+import PaymentPage from './views/pages/PaymentPage';
+import SatisfactionSurveyPage from './views/pages/SatisfactionSurveyPage';
+import MechanicVehicleInfoPage from './views/pages/MechanicVehicleInfoPage';
+import MechanicOrdersPage from './views/pages/MechanicOrdersPage';
+// VISTAS - Componentes
+import ProtectedRoute from './views/components/ProtectedRoute';
 
 function App() {
   return (
@@ -48,7 +49,6 @@ function App() {
         />
 
         {/* User Routes */}
-        {/* RAMA: Soto - /home es el home autenticado del usuario después de elegir rol */}
         <Route
           path="/home"
           element={
@@ -132,7 +132,7 @@ function App() {
           }
         />
 
-        {/* Shared Routes (User & Mechanic) */}
+        {/* Shared Routes */}
         <Route
           path="/contact"
           element={

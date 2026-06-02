@@ -4,8 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Fuel, Battery, Wrench, Clock, ChevronLeft, ChevronRight, MessageCircle, X, Send, Bot, User as UserIcon, Zap, Truck, Key } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
-import { useAuth } from '../context/AuthContext';
-import { useService } from '../context/ServiceContext';
+import { useAuth } from '../../controllers/AuthContext';
+import { useService } from '../../controllers/ServiceContext';
 const services = [
   {
     id: 1,

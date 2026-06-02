@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 // Importa el componente del logo
 import Logo from '../components/Logo';
 // Importa el hook de autenticación para seleccionar el rol y acceder al usuario
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../controllers/AuthContext';
 
 export default function RoleSelectionPage() {
   // Hook para navegar programáticamente a otra ruta

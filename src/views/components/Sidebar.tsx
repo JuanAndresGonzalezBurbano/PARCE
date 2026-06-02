@@ -5,7 +5,7 @@ import { Home, Wrench, Phone, ClipboardList, User, Database } from 'lucide-react
 // Importa motion para la animación de entrada del sidebar
 import { motion } from 'framer-motion';
 // Importa el hook de autenticación para saber el rol del usuario actual
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../controllers/AuthContext';
 
 // Define las propiedades del Sidebar
 interface SidebarProps {

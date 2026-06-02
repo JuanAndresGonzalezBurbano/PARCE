@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { CheckCircle, XCircle, Clock, MapPin, Phone, User } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../controllers/AuthContext';
 
 interface ServiceRequest {
   id: number;

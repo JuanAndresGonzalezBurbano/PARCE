@@ -7,7 +7,7 @@ import { Menu, X, User, LogOut } from 'lucide-react';
 // Importa motion para animaciones y AnimatePresence para animar entrada/salida de elementos
 import { motion, AnimatePresence } from 'framer-motion';
 // Importa el hook de autenticación para acceder al usuario actual y función de logout
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../controllers/AuthContext';
 
 // Define las propiedades que puede recibir el Navbar desde otros componentes
 interface NavbarProps {

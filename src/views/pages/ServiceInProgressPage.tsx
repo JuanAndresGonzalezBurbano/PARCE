@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Clock, User, Star, MessageSquare, Navigation, Car, AlertTriangle, CheckCircle, Send, X } from 'lucide-react';
+import { MapPin, Clock, User, Star, MessageSquare, Navigation, Car, AlertTriangle, CheckCircle, Send, X, CreditCard, DollarSign, Smartphone, QrCode, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../../controllers/AuthContext';
@@ -125,6 +125,9 @@ export default function ServiceInProgressPage() {
   const { progress, remainingSeconds, arrived } = useServiceProgress();
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'transfer' | null>(null);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [chatMsgs, setChatMsgs] = useState<{role:'user'|'mechanic';text:string}[]>([
     { role: 'mechanic', text: 'Hola, ya voy en camino. Estaré contigo pronto.' },
   ]);
@@ -283,12 +286,169 @@ export default function ServiceInProgressPage() {
 
                 {/* Mini chat — eliminado de aquí, ahora es panel inferior */}
 
-                {/* Solo botón cancelar, centrado */}
-                <div className="pt-2">
+                {/* Botones: Cancelar + Pago */}
+                <div className="pt-2 space-y-3">
+                  {/* Botón cancelar */}
                   <button onClick={() => setShowCancelModal(true)}
                     className="w-full py-3 bg-dark-700 hover:bg-red-900/40 border border-dark-600 hover:border-red-700 text-gray-300 hover:text-red-300 rounded-xl font-semibold transition-all duration-200">
                     Cancelar servicio
                   </button>
+
+                  {/* Módulo de pago expandible */}
+                  <div className="border border-anthracite-700 rounded-xl overflow-hidden">
+                    {/* Header del módulo */}
+                    <button
+                      onClick={() => setPaymentOpen(p => !p)}
+                      className="w-full flex items-center justify-between px-4 py-3 bg-dark-800/60 hover:bg-dark-700/60 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="w-4 h-4 text-gold-400" />
+                        <span className="text-white font-semibold text-sm">Formas de pago</span>
+                        {paymentSuccess && (
+                          <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full font-semibold">Pagado</span>
+                        )}
+                      </div>
+                      {paymentOpen
+                        ? <ChevronUp className="w-4 h-4 text-gray-400" />
+                        : <ChevronDown className="w-4 h-4 text-gray-400" />
+                      }
+                    </button>
+
+                    {/* Contenido expandible */}
+                    <AnimatePresence>
+                      {paymentOpen && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.25 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="p-4 space-y-4 bg-dark-900/40">
+
+                            {/* Success inline */}
+                            {paymentSuccess && (
+                              <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="flex items-center justify-center gap-2 p-3 bg-green-500/20 border border-green-500/30 rounded-xl"
+                              >
+                                <Check className="w-5 h-5 text-green-400" />
+                                <span className="text-green-400 font-semibold text-sm">¡Pago realizado con éxito!</span>
+                              </motion.div>
+                            )}
+
+                            {/* Selector de método */}
+                            {!paymentSuccess && (
+                              <>
+                                <p className="text-xs text-gray-400">Selecciona tu método de pago</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                  {/* Efectivo */}
+                                  <button
+                                    onClick={() => setPaymentMethod('cash')}
+                                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
+                                      paymentMethod === 'cash'
+                                        ? 'border-green-500 bg-green-500/10'
+                                        : 'border-anthracite-700 bg-dark-800/50 hover:border-anthracite-600'
+                                    }`}
+                                  >
+                                    <div className={`w-9 h-9 rounded-full flex items-center justify-center ${paymentMethod === 'cash' ? 'bg-green-500/20' : 'bg-dark-700'}`}>
+                                      <DollarSign className={`w-5 h-5 ${paymentMethod === 'cash' ? 'text-green-400' : 'text-gray-400'}`} />
+                                    </div>
+                                    <span className={`text-xs font-semibold ${paymentMethod === 'cash' ? 'text-green-400' : 'text-gray-300'}`}>Efectivo</span>
+                                  </button>
+
+                                  {/* Tarjeta */}
+                                  <button
+                                    onClick={() => setPaymentMethod('card')}
+                                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
+                                      paymentMethod === 'card'
+                                        ? 'border-gold-500 bg-gold-500/10'
+                                        : 'border-anthracite-700 bg-dark-800/50 hover:border-anthracite-600'
+                                    }`}
+                                  >
+                                    <div className={`w-9 h-9 rounded-full flex items-center justify-center ${paymentMethod === 'card' ? 'bg-gold-500/20' : 'bg-dark-700'}`}>
+                                      <CreditCard className={`w-5 h-5 ${paymentMethod === 'card' ? 'text-gold-400' : 'text-gray-400'}`} />
+                                    </div>
+                                    <span className={`text-xs font-semibold ${paymentMethod === 'card' ? 'text-gold-400' : 'text-gray-300'}`}>Tarjeta</span>
+                                  </button>
+
+                                  {/* Transferencia */}
+                                  <button
+                                    onClick={() => setPaymentMethod('transfer')}
+                                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
+                                      paymentMethod === 'transfer'
+                                        ? 'border-purple-500 bg-purple-500/10'
+                                        : 'border-anthracite-700 bg-dark-800/50 hover:border-anthracite-600'
+                                    }`}
+                                  >
+                                    <div className={`w-9 h-9 rounded-full flex items-center justify-center ${paymentMethod === 'transfer' ? 'bg-purple-500/20' : 'bg-dark-700'}`}>
+                                      <Smartphone className={`w-5 h-5 ${paymentMethod === 'transfer' ? 'text-purple-400' : 'text-gray-400'}`} />
+                                    </div>
+                                    <span className={`text-xs font-semibold ${paymentMethod === 'transfer' ? 'text-purple-400' : 'text-gray-300'}`}>QR / PSE</span>
+                                  </button>
+                                </div>
+
+                                {/* Detalle según método */}
+                                <AnimatePresence mode="wait">
+                                  {paymentMethod === 'cash' && (
+                                    <motion.div key="cash" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="space-y-2">
+                                      <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                                        <p className="text-green-300 text-xs">Paga directamente al mecánico cuando llegue. Ten el monto exacto disponible.</p>
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <input type="text" placeholder="Subtotal $$$" className="input-field text-sm py-2" />
+                                        <input type="text" placeholder="Total $$$" className="input-field text-sm py-2" />
+                                      </div>
+                                      <button
+                                        onClick={() => setPaymentSuccess(true)}
+                                        className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-colors text-sm"
+                                      >
+                                        Confirmar pago en efectivo
+                                      </button>
+                                    </motion.div>
+                                  )}
+
+                                  {paymentMethod === 'card' && (
+                                    <motion.div key="card" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="space-y-2">
+                                      <input type="text" placeholder="#### #### #### ####" className="input-field text-sm py-2" />
+                                      <input type="text" placeholder="Nombre del titular" className="input-field text-sm py-2" />
+                                      <div className="grid grid-cols-3 gap-2">
+                                        <input type="text" placeholder="MM/AA" className="input-field text-sm py-2" />
+                                        <input type="text" placeholder="CVV" className="input-field text-sm py-2" />
+                                        <input type="text" placeholder="C.P." className="input-field text-sm py-2" />
+                                      </div>
+                                      <button
+                                        onClick={() => setPaymentSuccess(true)}
+                                        className="w-full py-2.5 btn-primary text-sm"
+                                      >
+                                        Pagar con tarjeta
+                                      </button>
+                                    </motion.div>
+                                  )}
+
+                                  {paymentMethod === 'transfer' && (
+                                    <motion.div key="transfer" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="space-y-3 text-center">
+                                      <div className="w-32 h-32 mx-auto bg-white rounded-xl p-2 flex items-center justify-center">
+                                        <QrCode className="w-full h-full text-dark-950" />
+                                      </div>
+                                      <p className="text-gray-400 text-xs">Escanea el QR con tu app bancaria</p>
+                                      <button
+                                        onClick={() => setPaymentSuccess(true)}
+                                        className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl transition-colors text-sm"
+                                      >
+                                        Confirmar transferencia
+                                      </button>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
               </div>
             </div>

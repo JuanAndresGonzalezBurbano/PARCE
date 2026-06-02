@@ -2,13 +2,13 @@ import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CreditCard, DollarSign, Building2, Check, ArrowRight,
-  AlertCircle, CheckCircle2, User, Wallet, Clock
+  AlertCircle, CheckCircle2, User, Wallet, Clock, Loader2
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
 
-type PaymentStatus = 'card_pending' | 'pse_paid' | 'pse_pending' | 'cash_pending' | 'completed';
+type PaymentStatus = 'card_pending' | 'pse_paid' | 'pse_pending' | 'cash_pending' | 'completed' | 'card_rejected';
 
 interface ServiceOrder {
   id: string;
@@ -92,6 +92,7 @@ export default function MechanicPaymentDashboard() {
 
   const [balance, setBalance] = useState(385000);
   const [justConfirmed, setJustConfirmed] = useState<string | null>(null);
+  const [pendingCharge, setPendingCharge] = useState<string | null>(null); // Fix 2: esperando respuesta del cliente
 
   const [orders, setOrders] = useState<ServiceOrder[]>([
     { id: '1', reference: 'PARCE-2024-00142', client: 'María López',   service: 'Cambio de aceite y filtros', amount: 140000, paymentMethod: 'card', status: 'card_pending',  date: '15 ene · 10:30' },
@@ -113,17 +114,36 @@ export default function MechanicPaymentDashboard() {
     setTimeout(() => setJustConfirmed(null), 3000);
   };
 
+  // Fix 2: cobro con tarjeta — simula esperar respuesta del cliente
+  const requestCardCharge = (order: ServiceOrder) => {
+    setPendingCharge(order.id);
+    // Simula que el cliente responde después de 4 segundos (en producción sería un websocket)
+    setTimeout(() => {
+      const accepted = Math.random() > 0.3; // 70% acepta para la demo
+      setPendingCharge(null);
+      if (accepted) {
+        setOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, status: 'completed' } : o));
+        setBalance((prev) => prev + order.amount);
+        setJustConfirmed(order.id);
+        setTimeout(() => setJustConfirmed(null), 3000);
+      } else {
+        setOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, status: 'card_rejected' } : o));
+      }
+    }, 4000);
+  };
+
   const active = orders.filter((o) => o.status !== 'completed');
 
   const METHOD_ICON: Record<string, React.ElementType> = { card: CreditCard, pse: Building2, cash: DollarSign };
   const METHOD_LABEL: Record<string, string> = { card: 'Tarjeta', pse: 'PSE', cash: 'Efectivo' };
 
   const STATUS_CFG: Record<PaymentStatus, { label: string; color: string; bg: string }> = {
-    card_pending:  { label: 'Tarjeta guardada',   color: 'text-blue-400',  bg: 'bg-blue-500/10 border-blue-500/30'  },
-    pse_paid:      { label: 'PSE pagado',          color: 'text-green-400', bg: 'bg-green-500/10 border-green-500/30' },
-    pse_pending:   { label: 'PSE pendiente',       color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30' },
-    cash_pending:  { label: 'Efectivo pendiente',  color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30' },
-    completed:     { label: 'Completado',          color: 'text-green-400', bg: 'bg-green-500/10 border-green-500/30' },
+    card_pending:   { label: 'Tarjeta guardada',   color: 'text-blue-400',  bg: 'bg-blue-500/10 border-blue-500/30'  },
+    pse_paid:       { label: 'PSE pagado',          color: 'text-green-400', bg: 'bg-green-500/10 border-green-500/30' },
+    pse_pending:    { label: 'PSE pendiente',       color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30' },
+    cash_pending:   { label: 'Efectivo pendiente',  color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30' },
+    completed:      { label: 'Completado',          color: 'text-green-400', bg: 'bg-green-500/10 border-green-500/30' },
+    card_rejected:  { label: 'Cobro rechazado',     color: 'text-red-400',   bg: 'bg-red-500/10 border-red-500/30'    },
   };
 
   return (
@@ -236,9 +256,20 @@ export default function MechanicPaymentDashboard() {
                           <Check className="w-5 h-5 text-green-400" />
                           <span className="text-green-400 font-semibold">¡Pago confirmado! +{formatCOP(order.amount)} acreditado</span>
                         </motion.div>
+                      ) : order.status === 'card_rejected' ? (
+                        <motion.div key="rejected" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                          className="flex items-center justify-center gap-2 p-3 bg-red-500/20 border border-red-500/30 rounded-xl">
+                          <span className="text-red-400 font-semibold">El cliente rechazó el cobro</span>
+                        </motion.div>
+                      ) : order.status === 'card_pending' && pendingCharge === order.id ? (
+                        <motion.div key="waiting" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                          className="flex items-center justify-center gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+                          <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
+                          <span className="text-blue-300 font-semibold">Esperando respuesta del cliente...</span>
+                        </motion.div>
                       ) : order.status === 'card_pending' ? (
                         <motion.button key="card-btn" whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-                          onClick={() => confirm(order)}
+                          onClick={() => requestCardCharge(order)}
                           className="w-full btn-primary flex items-center justify-center gap-2">
                           <CreditCard className="w-4 h-4" />
                           Finalizar servicio y cobrar {formatCOP(order.amount)}

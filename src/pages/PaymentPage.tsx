@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CreditCard, DollarSign, Building2, Check, ChevronRight,
-  ChevronLeft, Loader2, Shield, AlertCircle, CheckCircle2
+  ChevronLeft, Loader2, Shield, AlertCircle, CheckCircle2, X, XCircle
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
@@ -31,16 +32,25 @@ const formatCOP = (val: number) =>
 
 export default function PaymentPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [step, setStep] = useState<Step>(1);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null);
   const [pseOption, setPseOption] = useState<PSEOption>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isConfirmed, setIsConfirmed] = useState(false);
 
-  // Card form
+  // Fix 2: modal cobro tarjeta
+  const [showChargeModal, setShowChargeModal] = useState(false);
+  const [chargeResult, setChargeResult] = useState<'accepted' | 'rejected' | null>(null);
+
+  // Fix 3: tarjetas guardadas
+  const [savedCards, setSavedCards] = useState([
+    { id: '1', number: '**** **** **** 4521', name: 'Juan Gustavo', type: 'Visa' }
+  ]);
+  const [selectedCardId, setSelectedCardId] = useState('1');
+  const [showNewCardForm, setShowNewCardForm] = useState(false);
   const [cardData, setCardData] = useState({ number: '', name: '', expiry: '', cvv: '', type: 'credit' as 'credit' | 'debit' });
-  const [useSavedCard, setUseSavedCard] = useState(true);
-  const savedCard = { number: '**** **** **** 4521', name: 'Juan Gustavo', type: 'Visa' };
+  const [cardSaved, setCardSaved] = useState(false);
 
   // PSE form
   const [pseData, setPseData] = useState({ bank: '', personType: 'natural', document: '' });
@@ -53,9 +63,30 @@ export default function PaymentPage() {
   const formatExpiry = (val: string) =>
     val.replace(/\D/g, '').slice(0, 4).replace(/(.{2})/, '$1/');
 
+  const handleSaveNewCard = () => {
+    if (!cardData.number || !cardData.name || !cardData.expiry || !cardData.cvv) return;
+    const newCard = {
+      id: Date.now().toString(),
+      number: '**** **** **** ' + cardData.number.replace(/\s/g, '').slice(-4),
+      name: cardData.name,
+      type: cardData.type === 'credit' ? 'Crédito' : 'Débito',
+    };
+    setSavedCards(prev => [...prev, newCard]);
+    setSelectedCardId(newCard.id);
+    setShowNewCardForm(false);
+    setCardSaved(true);
+    setCardData({ number: '', name: '', expiry: '', cvv: '', type: 'credit' });
+    setTimeout(() => setCardSaved(false), 2000);
+  };
+
   const handleProcess = () => {
     setIsProcessing(true);
-    setTimeout(() => { setIsProcessing(false); setIsConfirmed(true); setStep(3); }, 2500);
+    setTimeout(() => { setIsProcessing(false); setIsConfirmed(true); setStep(3); }, 2000);
+  };
+
+  const handleChargeResponse = (accepted: boolean) => {
+    setShowChargeModal(false);
+    setChargeResult(accepted ? 'accepted' : 'rejected');
   };
 
   const getStatusBadge = () => {
@@ -70,13 +101,80 @@ export default function PaymentPage() {
       <Navbar isAuthenticated userName={user?.name || 'Usuario'} />
       <Sidebar />
 
+      {/* Modal: cliente acepta/rechaza cobro */}
+      <AnimatePresence>
+        {showChargeModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
+              className="bg-anthracite-950 border-2 border-anthracite-700 rounded-2xl p-8 w-full max-w-md shadow-2xl space-y-6">
+              <div className="text-center space-y-2">
+                <div className="w-16 h-16 mx-auto bg-blue-500/20 rounded-full flex items-center justify-center">
+                  <CreditCard className="w-8 h-8 text-blue-400" />
+                </div>
+                <h3 className="text-xl font-bold text-white">Cobro con tarjeta</h3>
+                <p className="text-gray-400 text-sm">El mecánico solicita cobrar:</p>
+                <p className="text-3xl font-bold text-gold-400">{formatCOP(total)}</p>
+                <p className="text-gray-500 text-xs">Tarjeta: {savedCards.find(c => c.id === selectedCardId)?.number}</p>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => handleChargeResponse(false)}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-red-600/20 border border-red-500/40 hover:bg-red-600/30 text-red-400 font-semibold rounded-xl transition-colors">
+                  <XCircle className="w-4 h-4" /> Rechazar
+                </button>
+                <button onClick={() => handleChargeResponse(true)}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-colors">
+                  <Check className="w-4 h-4" /> Aceptar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal: resultado del cobro */}
+      <AnimatePresence>
+        {chargeResult && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }}
+              className="bg-anthracite-950 border-2 border-anthracite-700 rounded-2xl p-8 w-full max-w-sm text-center space-y-4">
+              {chargeResult === 'accepted' ? (
+                <>
+                  <div className="w-16 h-16 mx-auto bg-green-500 rounded-full flex items-center justify-center">
+                    <Check className="w-8 h-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white">¡Pago aceptado!</h3>
+                  <p className="text-gray-400 text-sm">El mecánico ha sido notificado. El monto fue debitado de tu tarjeta.</p>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 mx-auto bg-red-500 rounded-full flex items-center justify-center">
+                    <X className="w-8 h-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white">Cobro rechazado</h3>
+                  <p className="text-gray-400 text-sm">El mecánico ha sido notificado. No se realizó ningún cobro.</p>
+                </>
+              )}
+              <button onClick={() => setChargeResult(null)} className="w-full btn-primary">Cerrar</button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <main className="ml-64 pt-16 p-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl mx-auto space-y-6">
 
-          {/* Header */}
-          <div>
-            <h1 className="text-3xl font-bold text-white">Formas de Pago</h1>
-            <p className="text-gray-400 mt-1">Gestiona el pago de tu servicio mecánico</p>
+          {/* Header con botón atrás */}
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate(-1)}
+              className="p-2 rounded-lg bg-anthracite-800 hover:bg-anthracite-700 text-gray-400 hover:text-white transition-colors">
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-3xl font-bold text-white">Formas de Pago</h1>
+              <p className="text-gray-400 mt-1">Gestiona el pago de tu servicio mecánico</p>
+            </div>
           </div>
 
           {/* Steps */}
@@ -97,7 +195,7 @@ export default function PaymentPage() {
 
           <AnimatePresence mode="wait">
 
-            {/* ── PASO 1: Resumen ── */}
+            {/* PASO 1 */}
             {step === 1 && (
               <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
                 <div className="card p-6 space-y-4">
@@ -111,17 +209,14 @@ export default function PaymentPage() {
                       <p className="text-gray-400 text-sm">Mecánico asignado</p>
                     </div>
                   </div>
-                  <div className="space-y-3">
-                    <p className="text-gray-300">{SERVICE_DATA.description}</p>
-                    <div className="space-y-2 text-sm">
-                      {[['Mano de obra', SERVICE_DATA.labor], ['Materiales', SERVICE_DATA.materials], ['Domicilio', SERVICE_DATA.delivery]].map(([l, v]) => (
-                        <div key={l as string} className="flex justify-between text-gray-400">
-                          <span>{l}</span><span>{formatCOP(v as number)}</span>
-                        </div>
-                      ))}
-                      <div className="flex justify-between text-white font-bold text-base pt-2 border-t border-anthracite-800">
-                        <span>Total</span><span className="text-gold-400">{formatCOP(total)}</span>
+                  <div className="space-y-2 text-sm">
+                    {[['Mano de obra', SERVICE_DATA.labor], ['Materiales', SERVICE_DATA.materials], ['Domicilio', SERVICE_DATA.delivery]].map(([l, v]) => (
+                      <div key={l as string} className="flex justify-between text-gray-400">
+                        <span>{l}</span><span>{formatCOP(v as number)}</span>
                       </div>
+                    ))}
+                    <div className="flex justify-between text-white font-bold text-base pt-2 border-t border-anthracite-800">
+                      <span>Total</span><span className="text-gold-400">{formatCOP(total)}</span>
                     </div>
                   </div>
                 </div>
@@ -154,35 +249,42 @@ export default function PaymentPage() {
               </motion.div>
             )}
 
-            {/* ── PASO 2: Formulario ── */}
+            {/* PASO 2 */}
             {step === 2 && (
               <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
 
                 {/* TARJETA */}
                 {paymentMethod === 'card' && (
-                  <div className="card p-6 space-y-6">
+                  <div className="card p-6 space-y-5">
                     <h2 className="text-xl font-bold text-white flex items-center gap-2">
                       <CreditCard className="w-5 h-5 text-gold-400" /> Pago con Tarjeta
                     </h2>
-                    <div className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${useSavedCard ? 'border-gold-500 bg-gold-500/10' : 'border-anthracite-700'}`}
-                      onClick={() => setUseSavedCard(true)}>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <CreditCard className="w-5 h-5 text-gold-400" />
-                          <div>
-                            <p className="text-white font-semibold">{savedCard.number}</p>
-                            <p className="text-gray-400 text-sm">{savedCard.name} · {savedCard.type}</p>
+                    {/* Tarjetas guardadas */}
+                    <div className="space-y-3">
+                      {savedCards.map((card) => (
+                        <div key={card.id}
+                          onClick={() => { setSelectedCardId(card.id); setShowNewCardForm(false); }}
+                          className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedCardId === card.id && !showNewCardForm ? 'border-gold-500 bg-gold-500/10' : 'border-anthracite-700 hover:border-anthracite-600'}`}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <CreditCard className="w-5 h-5 text-gold-400" />
+                              <div>
+                                <p className="text-white font-semibold">{card.number}</p>
+                                <p className="text-gray-400 text-sm">{card.name} · {card.type}</p>
+                              </div>
+                            </div>
+                            {selectedCardId === card.id && !showNewCardForm && <Check className="w-5 h-5 text-gold-400" />}
                           </div>
                         </div>
-                        {useSavedCard && <Check className="w-5 h-5 text-gold-400" />}
-                      </div>
+                      ))}
                     </div>
-                    <button onClick={() => setUseSavedCard(false)}
-                      className={`w-full p-3 rounded-xl border-2 text-sm transition-all ${!useSavedCard ? 'border-gold-500 bg-gold-500/10 text-gold-400' : 'border-anthracite-700 text-gray-400 hover:border-anthracite-600'}`}>
-                      + Usar otra tarjeta
+                    {/* Agregar nueva tarjeta */}
+                    <button onClick={() => { setShowNewCardForm(!showNewCardForm); setSelectedCardId(''); }}
+                      className={`w-full p-3 rounded-xl border-2 text-sm transition-all ${showNewCardForm ? 'border-gold-500 bg-gold-500/10 text-gold-400' : 'border-anthracite-700 text-gray-400 hover:border-anthracite-600'}`}>
+                      + Agregar nueva tarjeta
                     </button>
-                    {!useSavedCard && (
-                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                    {showNewCardForm && (
+                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 p-4 bg-anthracite-900/50 rounded-xl border border-anthracite-700">
                         <div className="flex gap-3">
                           {['credit', 'debit'].map((t) => (
                             <button key={t} onClick={() => setCardData({ ...cardData, type: t as 'credit' | 'debit' })}
@@ -213,8 +315,22 @@ export default function PaymentPage() {
                               value={cardData.cvv} onChange={(e) => setCardData({ ...cardData, cvv: e.target.value.replace(/\D/g, '') })} />
                           </div>
                         </div>
+                        <button onClick={handleSaveNewCard}
+                          disabled={!cardData.number || !cardData.name || !cardData.expiry || !cardData.cvv}
+                          className="w-full btn-primary disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                          <Check className="w-4 h-4" /> Guardar tarjeta
+                        </button>
                       </motion.div>
                     )}
+                    <AnimatePresence>
+                      {cardSaved && (
+                        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                          className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                          <CheckCircle2 className="w-4 h-4 text-green-400" />
+                          <p className="text-green-300 text-sm">¡Tarjeta agregada exitosamente!</p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                     <div className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                       <Shield className="w-4 h-4 text-blue-400 flex-shrink-0" />
                       <p className="text-blue-300 text-sm">Tu tarjeta se guarda de forma segura. El cobro lo realiza el mecánico al finalizar el servicio.</p>
@@ -224,7 +340,7 @@ export default function PaymentPage() {
 
                 {/* PSE */}
                 {paymentMethod === 'pse' && (
-                  <div className="card p-6 space-y-6">
+                  <div className="card p-6 space-y-5">
                     <h2 className="text-xl font-bold text-white flex items-center gap-2">
                       <Building2 className="w-5 h-5 text-blue-400" /> Pago PSE
                     </h2>
@@ -276,7 +392,7 @@ export default function PaymentPage() {
                           <AlertCircle className="w-5 h-5 text-amber-400" />
                           <p className="text-amber-300 font-semibold">Instrucciones</p>
                         </div>
-                        <p className="text-gray-300 text-sm">Cuando el mecánico llegue, realiza la transferencia PSE desde tu app bancaria por:</p>
+                        <p className="text-gray-300 text-sm">Cuando el mecánico llegue, realiza la transferencia PSE por:</p>
                         <p className="text-2xl font-bold text-gold-400">{formatCOP(total)}</p>
                         <p className="text-gray-400 text-xs">Referencia: {SERVICE_DATA.reference}</p>
                       </motion.div>
@@ -286,13 +402,13 @@ export default function PaymentPage() {
 
                 {/* EFECTIVO */}
                 {paymentMethod === 'cash' && (
-                  <div className="card p-6 space-y-6">
+                  <div className="card p-6 space-y-5">
                     <h2 className="text-xl font-bold text-white flex items-center gap-2">
                       <DollarSign className="w-5 h-5 text-green-400" /> Pago en Efectivo
                     </h2>
                     <div className="p-6 bg-green-500/10 border border-green-500/30 rounded-xl text-center space-y-3">
                       <DollarSign className="w-12 h-12 text-green-400 mx-auto" />
-                      <p className="text-gray-300">Ten listo el siguiente monto en efectivo:</p>
+                      <p className="text-gray-300">Ten listo el siguiente monto:</p>
                       <p className="text-4xl font-bold text-green-400">{formatCOP(total)}</p>
                       <p className="text-gray-400 text-sm">Entrega el dinero directamente al mecánico al finalizar el servicio.</p>
                     </div>
@@ -303,7 +419,7 @@ export default function PaymentPage() {
                         </div>
                       ))}
                       <div className="flex justify-between text-white font-bold pt-2 border-t border-anthracite-800">
-                        <span>Total a preparar</span><span className="text-green-400">{formatCOP(total)}</span>
+                        <span>Total</span><span className="text-green-400">{formatCOP(total)}</span>
                       </div>
                     </div>
                   </div>
@@ -313,47 +429,99 @@ export default function PaymentPage() {
                   <button onClick={() => setStep(1)} className="btn-secondary flex items-center gap-2">
                     <ChevronLeft className="w-4 h-4" /> Volver
                   </button>
-                  <button onClick={handleProcess}
-                    disabled={isProcessing || (paymentMethod === 'pse' && !pseOption) || (paymentMethod === 'pse' && pseOption === 'now' && (!pseData.bank || !pseData.document))}
+                  <button
+                    onClick={paymentMethod === 'card' ? handleProcess : handleProcess}
+                    disabled={isProcessing || (paymentMethod === 'card' && !selectedCardId) || (paymentMethod === 'pse' && !pseOption) || (paymentMethod === 'pse' && pseOption === 'now' && (!pseData.bank || !pseData.document))}
                     className="flex-1 btn-primary disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
                     {isProcessing
                       ? <><Loader2 className="w-4 h-4 animate-spin" /> Procesando...</>
-                      : <>{paymentMethod === 'card' ? 'Guardar tarjeta' : paymentMethod === 'cash' ? 'Confirmar' : 'Continuar'} <ChevronRight className="w-4 h-4" /></>}
+                      : <>{paymentMethod === 'card' ? 'Confirmar método' : paymentMethod === 'cash' ? 'Confirmar' : 'Continuar'} <ChevronRight className="w-4 h-4" /></>}
                   </button>
                 </div>
               </motion.div>
             )}
 
-            {/* ── PASO 3: Confirmación ── */}
+            {/* PASO 3 */}
             {step === 3 && isConfirmed && (
               <motion.div key="step3" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
-                <div className="card p-8 text-center space-y-4">
-                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.2 }}
-                    className="w-20 h-20 mx-auto bg-green-500 rounded-full flex items-center justify-center">
-                    <Check className="w-10 h-10 text-white" />
-                  </motion.div>
-                  <h2 className="text-2xl font-bold text-white">
-                    {paymentMethod === 'card' ? '¡Tarjeta guardada!' : paymentMethod === 'pse' && pseOption === 'now' ? '¡Pago procesado!' : '¡Confirmado!'}
-                  </h2>
-                  <p className="text-gray-400">
-                    {paymentMethod === 'card' && 'Tu tarjeta ha sido guardada. El cobro lo realizará el mecánico al finalizar el servicio.'}
-                    {paymentMethod === 'pse' && pseOption === 'now' && 'Tu pago PSE fue procesado exitosamente.'}
-                    {paymentMethod === 'pse' && pseOption === 'on_arrival' && 'Recuerda realizar la transferencia PSE cuando llegue el mecánico.'}
-                    {paymentMethod === 'cash' && 'Ten listo el efectivo para cuando el mecánico finalice el servicio.'}
-                  </p>
-                </div>
 
+                {/* Tarjeta: esperar que el mecánico cobre, usuario acepta o rechaza */}
+                {paymentMethod === 'card' && chargeResult === null && !showChargeModal && (
+                  <div className="card p-8 text-center space-y-6">
+                    <div className="w-20 h-20 mx-auto bg-blue-500/20 rounded-full flex items-center justify-center">
+                      <Loader2 className="w-10 h-10 text-blue-400 animate-spin" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white">Tarjeta guardada</h2>
+                    <p className="text-gray-400">Cuando el mecánico finalice el servicio recibirás una notificación para <strong className="text-white">aceptar o rechazar</strong> el cobro.</p>
+                    <div className="p-4 bg-anthracite-900/50 border border-anthracite-700 rounded-xl space-y-2 text-sm">
+                      <div className="flex justify-between text-gray-400"><span>Tarjeta</span><span>{savedCards.find(c => c.id === selectedCardId)?.number}</span></div>
+                      <div className="flex justify-between text-gray-400"><span>Monto</span><span className="text-gold-400 font-bold">{formatCOP(total)}</span></div>
+                    </div>
+                    {/* Simulación: botón que representa cuando el mecánico cobra */}
+                    <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-3">
+                      <p className="text-amber-300 text-sm font-semibold">⚡ Simulación — El mecánico presionó "Cobrar"</p>
+                      <div className="flex gap-3">
+                        <button onClick={() => handleChargeResponse(false)}
+                          className="flex-1 flex items-center justify-center gap-2 py-3 bg-red-600/20 border border-red-500/40 hover:bg-red-600/30 text-red-400 font-semibold rounded-xl transition-colors">
+                          <XCircle className="w-4 h-4" /> Rechazar cobro
+                        </button>
+                        <button onClick={() => handleChargeResponse(true)}
+                          className="flex-1 flex items-center justify-center gap-2 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-colors">
+                          <Check className="w-4 h-4" /> Aceptar cobro
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Resultado del cobro con tarjeta */}
+                {paymentMethod === 'card' && chargeResult !== null && (
+                  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                    className="card p-8 text-center space-y-4">
+                    {chargeResult === 'accepted' ? (
+                      <>
+                        <div className="w-20 h-20 mx-auto bg-green-500 rounded-full flex items-center justify-center">
+                          <Check className="w-10 h-10 text-white" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-white">¡Pago aceptado!</h2>
+                        <p className="text-gray-400">El mecánico ha sido notificado. El monto fue debitado de tu tarjeta.</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-20 h-20 mx-auto bg-red-500 rounded-full flex items-center justify-center">
+                          <X className="w-8 h-8 text-white" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-white">Cobro rechazado</h2>
+                        <p className="text-gray-400">El mecánico ha sido notificado. No se realizó ningún cobro.</p>
+                      </>
+                    )}
+                  </motion.div>
+                )}
+
+                {/* PSE / Efectivo: confirmación normal */}
+                {paymentMethod !== 'card' && (
+                  <div className="card p-8 text-center space-y-4">
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.2 }}
+                      className="w-20 h-20 mx-auto bg-green-500 rounded-full flex items-center justify-center">
+                      <Check className="w-10 h-10 text-white" />
+                    </motion.div>
+                    <h2 className="text-2xl font-bold text-white">
+                      {paymentMethod === 'pse' && pseOption === 'now' ? '¡Pago procesado!' : '¡Confirmado!'}
+                    </h2>
+                    <p className="text-gray-400">
+                      {paymentMethod === 'pse' && pseOption === 'now' && 'Tu pago PSE fue procesado exitosamente.'}
+                      {paymentMethod === 'pse' && pseOption === 'on_arrival' && 'Recuerda realizar la transferencia PSE cuando llegue el mecánico.'}
+                      {paymentMethod === 'cash' && 'Ten listo el efectivo para cuando el mecánico finalice el servicio.'}
+                    </p>
+                  </div>
+                )}
                 <div className="card p-6 space-y-4">
                   <h3 className="text-lg font-bold text-white">Recibo</h3>
                   <div className="space-y-3 text-sm">
-                    {[
-                      ['Referencia', SERVICE_DATA.reference],
-                      ['Mecánico', SERVICE_DATA.mechanic],
-                      ['Servicio', SERVICE_DATA.description],
-                    ].map(([l, v]) => (
+                    {[['Referencia', SERVICE_DATA.reference], ['Mecánico', SERVICE_DATA.mechanic], ['Servicio', SERVICE_DATA.description]].map(([l, v]) => (
                       <div key={l} className="flex justify-between">
                         <span className="text-gray-400">{l}</span>
-                        <span className="text-white font-mono">{v}</span>
+                        <span className="text-white">{v}</span>
                       </div>
                     ))}
                     <div className="flex justify-between">
@@ -363,7 +531,7 @@ export default function PaymentPage() {
                     <div className="flex justify-between">
                       <span className="text-gray-400">Método</span>
                       <span className="text-white">
-                        {paymentMethod === 'card' ? 'Tarjeta bancaria' : paymentMethod === 'pse' ? `PSE (${pseOption === 'now' ? 'Pagado' : 'Al llegar'})` : 'Efectivo'}
+                        {paymentMethod === 'pse' ? `PSE (${pseOption === 'now' ? 'Pagado' : 'Al llegar'})` : 'Efectivo'}
                       </span>
                     </div>
                     <div className="flex justify-between items-center pt-2 border-t border-anthracite-800">
@@ -376,6 +544,7 @@ export default function PaymentPage() {
                 </div>
               </motion.div>
             )}
+
           </AnimatePresence>
         </motion.div>
       </main>

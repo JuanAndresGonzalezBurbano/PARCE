@@ -9,11 +9,39 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const navigate = useNavigate();
   const { login } = useAuth();
 
+  // Función que valida la contraseña
+  const validatePassword = (pwd: string): boolean => {
+    // Mínimo 8 caracteres
+    if (pwd.length < 8) {
+      setPasswordError('La contraseña debe tener mínimo 8 caracteres');
+      return false;
+    }
+    
+    // Debe tener al menos una mayúscula O un número
+    const hasUpperCase = /[A-Z]/.test(pwd);
+    const hasNumber = /[0-9]/.test(pwd);
+    
+    if (!hasUpperCase && !hasNumber) {
+      setPasswordError('La contraseña debe contener al menos una mayúscula o un número');
+      return false;
+    }
+    
+    setPasswordError('');
+    return true;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validar contraseña antes de enviar
+    if (!validatePassword(password)) {
+      return;
+    }
+    
     // Simular login y redirigir a selección de rol
     login(email, password);
     navigate('/role-selection');
@@ -80,10 +108,14 @@ export default function LoginPage() {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setPasswordError(''); // Limpiar error al escribir
+                  }}
                   placeholder="••••••••••••••••••••••••"
-                  className="input-field pl-10 pr-10"
+                  className={`input-field pl-10 pr-10 ${passwordError ? 'border-red-500' : ''}`}
                   required
+                  minLength={8}
                 />
                 <button
                   type="button"
@@ -93,6 +125,12 @@ export default function LoginPage() {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              {passwordError && (
+                <p className="text-xs text-red-400">{passwordError}</p>
+              )}
+              <p className="text-xs text-gray-500">
+                Mínimo 8 caracteres, con al menos una mayúscula o un número
+              </p>
             </div>
 
             {/* Submit Button */}

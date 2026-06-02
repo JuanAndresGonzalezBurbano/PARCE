@@ -77,9 +77,10 @@ class SessionManager
      * 
      * @param string $sessionId Session ID
      * @param string|null $currentIP Current client IP address for change detection
+     * @param bool $autoRegenerate Automatically regenerate session if needed
      * @return SessionData|null Session data if valid, null otherwise
      */
-    public function validate(string $sessionId, ?string $currentIP = null): ?SessionData
+    public function validate(string $sessionId, ?string $currentIP = null, bool $autoRegenerate = false): ?SessionData
     {
         // Requirement 5.1: Fetch session from database
         $session = Database::fetchOne(
@@ -125,13 +126,25 @@ class SessionManager
             error_log("WARNING: IP address changed for session {$sessionId} (user {$session['user_id']}): {$session['ip_address']} -> {$currentIP}");
         }
         
+        // Check if session should be regenerated (anti-fixation)
+        $shouldRegenerate = false;
+        if ($autoRegenerate) {
+            $regenerateInterval = (int)($_ENV['SESSION_REGENERATE_INTERVAL'] ?? 600); // 10 minutes default
+            $timeSinceCreation = time() - $session['last_activity'];
+            
+            // Regenerate if last activity was more than regenerate interval ago
+            if ($timeSinceCreation >= $regenerateInterval) {
+                $shouldRegenerate = true;
+            }
+        }
+        
         // Requirement 5.5: Update last_activity timestamp
         Database::update('sessions', [
             'last_activity' => time()
         ], 'id = ?', [$sessionId]);
         
-        // Requirement 5.6: Return SessionData object
-        return new SessionData(
+        // Requirement 5.6: Return SessionData object with regeneration flag
+        $sessionData = new SessionData(
             id: $session['id'],
             userId: (int)$session['user_id'],
             ipAddress: $session['ip_address'],
@@ -140,6 +153,15 @@ class SessionManager
             createdAt: strtotime($session['created_at']),
             expiresAt: $expiresAt
         );
+        
+        // Store regeneration flag in a way the caller can check
+        // (We'll add this to SessionData in the next step)
+        if ($shouldRegenerate) {
+            // For now, we'll log it
+            error_log("INFO: Session {$sessionId} should be regenerated");
+        }
+        
+        return $sessionData;
     }
     
     /**
@@ -248,5 +270,44 @@ class SessionManager
         
         // Requirement 8.3: Return count of deleted sessions
         return $deletedCount;
+    }
+    
+    /**
+     * Check if session needs regeneration for security
+     * 
+     * Implements session fixation protection by checking if session
+     * has been active for longer than the regeneration interval.
+     * 
+     * @param string $sessionId Session ID
+     * @return bool True if session should be regenerated
+     */
+    public function shouldRegenerate(string $sessionId): bool
+    {
+        $session = Database::fetchOne(
+            'SELECT last_activity FROM sessions WHERE id = ?',
+            [$sessionId]
+        );
+        
+        if ($session === null) {
+            return false;
+        }
+        
+        $regenerateInterval = (int)($_ENV['SESSION_REGENERATE_INTERVAL'] ?? 600); // 10 minutes
+        $timeSinceLastActivity = time() - $session['last_activity'];
+        
+        return $timeSinceLastActivity >= $regenerateInterval;
+    }
+    
+    /**
+     * Get session timeout configuration from environment
+     * 
+     * @return array Timeout configuration [idle_timeout, absolute_timeout]
+     */
+    public static function getTimeoutConfig(): array
+    {
+        return [
+            'idle_timeout' => (int)($_ENV['SESSION_IDLE_TIMEOUT'] ?? self::DEFAULT_IDLE_TIMEOUT),
+            'absolute_timeout' => (int)($_ENV['SESSION_LIFETIME'] ?? self::DEFAULT_ABSOLUTE_TIMEOUT)
+        ];
     }
 }

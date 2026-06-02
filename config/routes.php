@@ -13,7 +13,11 @@ $router = $app->getRouter();
 // Global Middleware (runs on every request)
 // ============================================================================
 
-$router->middleware([\App\Middleware\RequestLoggerMiddleware::class]);
+// CORS must run first to handle preflight requests
+$router->middleware([
+    \App\Middleware\CORSMiddleware::class,
+    \App\Middleware\RequestLoggerMiddleware::class
+]);
 
 // ============================================================================
 // Public Routes (No Authentication Required)
@@ -108,25 +112,46 @@ $router->get('/api/auth/me', [\App\Controllers\Auth\AuthController::class, 'me']
     ->name('api.auth.me');
 
 // ============================================================================
+// Vehicle API Routes (Protected)
+// ============================================================================
+
+$router->get('/api/vehicles', [\App\Controllers\VehicleController::class, 'index'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.vehicles.index');
+
+$router->post('/api/vehicles', [\App\Controllers\VehicleController::class, 'store'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.vehicles.store');
+
+$router->get('/api/vehicles/{id}', [\App\Controllers\VehicleController::class, 'show'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.vehicles.show');
+
+$router->put('/api/vehicles/{id}', [\App\Controllers\VehicleController::class, 'update'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.vehicles.update');
+
+$router->delete('/api/vehicles/{id}', [\App\Controllers\VehicleController::class, 'destroy'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.vehicles.destroy');
+
+$router->put('/api/vehicles/{id}/primary', [\App\Controllers\VehicleController::class, 'setPrimary'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.vehicles.setPrimary');
+
+// ============================================================================
 // Future Routes (to be implemented)
 // ============================================================================
 
-// Authentication routes will be added here
-// - POST /auth/login
-// - POST /auth/logout
-// - POST /auth/register
-// - POST /auth/forgot-password
-// - POST /auth/reset-password
-
-// Customer routes will be added here
-// - GET /services/request
-// - POST /services/request
-// - GET /services/my-services
+// Service Request routes will be added here
+// - GET /api/service-requests
+// - POST /api/service-requests
+// - GET /api/service-requests/{id}
 
 // Mechanic routes will be added here
-// - GET /mechanic/services
-// - POST /mechanic/services/{id}/accept
+// - GET /api/mechanics/service-requests
+// - PUT /api/mechanics/service-requests/{id}/accept
 
 // Admin routes will be added here
-// - GET /admin/dashboard
-// - GET /admin/users
+// - GET /api/admin/dashboard
+// - GET /api/admin/users

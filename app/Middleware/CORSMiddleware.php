@@ -79,17 +79,18 @@ class CORSMiddleware
      */
     private function handlePreflight(string $origin): Response
     {
-        $response = new Response('', 204); // No Content
+        $response = new Response();
+        $response->setStatusCode(204); // No Content
 
         // Add CORS headers
-        $response->header('Access-Control-Allow-Origin', $origin);
-        $response->header('Access-Control-Allow-Methods', self::ALLOWED_METHODS);
-        $response->header('Access-Control-Allow-Headers', self::ALLOWED_HEADERS);
-        $response->header('Access-Control-Max-Age', $this->getMaxAge());
+        $response->setHeader('Access-Control-Allow-Origin', $origin);
+        $response->setHeader('Access-Control-Allow-Methods', self::ALLOWED_METHODS);
+        $response->setHeader('Access-Control-Allow-Headers', self::ALLOWED_HEADERS);
+        $response->setHeader('Access-Control-Max-Age', $this->getMaxAge());
 
         // Enable credentials if configured
         if ($this->allowCredentials()) {
-            $response->header('Access-Control-Allow-Credentials', 'true');
+            $response->setHeader('Access-Control-Allow-Credentials', 'true');
         }
 
         return $response;
@@ -105,18 +106,18 @@ class CORSMiddleware
     private function addCORSHeaders(Response $response, string $origin): Response
     {
         // Set allowed origin (must be specific when using credentials)
-        $response->header('Access-Control-Allow-Origin', $origin);
+        $response->setHeader('Access-Control-Allow-Origin', $origin);
 
         // Enable credentials (required for session cookies)
         if ($this->allowCredentials()) {
-            $response->header('Access-Control-Allow-Credentials', 'true');
+            $response->setHeader('Access-Control-Allow-Credentials', 'true');
         }
 
         // Expose headers to frontend
-        $response->header('Access-Control-Expose-Headers', self::EXPOSED_HEADERS);
+        $response->setHeader('Access-Control-Expose-Headers', self::EXPOSED_HEADERS);
 
         // Add Vary header for proper caching
-        $response->header('Vary', 'Origin');
+        $response->setHeader('Vary', 'Origin');
 
         return $response;
     }

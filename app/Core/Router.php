@@ -126,6 +126,21 @@ class Router
         $method = $request->method();
         $uri = $request->uri();
 
+        // Handle OPTIONS preflight through global middleware first
+        // This allows CORS middleware to intercept without route registration
+        if ($method === 'OPTIONS' && !empty($this->globalMiddleware)) {
+            // Create a dummy route for OPTIONS to pass through middleware
+            $dummyRoute = new Route('OPTIONS', $uri, function($request) {
+                // If no middleware handled it, return 204 No Content
+                return (new Response())->setStatusCode(204);
+            });
+            
+            $response = $this->runMiddleware($dummyRoute, $request);
+            if ($response !== null) {
+                return $response;
+            }
+        }
+
         foreach ($this->routes as $route) {
             if ($route->matches($method, $uri)) {
                 // Execute middleware pipeline (which includes the route action)

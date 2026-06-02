@@ -84,4 +84,38 @@ readonly class CookieConfig
             sameSite: 'Lax' // Requirement 12.3
         );
     }
+    
+    /**
+     * Create cookie configuration from environment variables
+     * 
+     * Loads configuration from .env with production-safe defaults.
+     * Auto-detects HTTPS when SESSION_COOKIE_SECURE=auto.
+     * 
+     * @return self
+     */
+    public static function fromEnv(): self
+    {
+        // Auto-detect secure flag based on HTTPS
+        $secureConfig = $_ENV['SESSION_COOKIE_SECURE'] ?? 'auto';
+        $secure = match (strtolower($secureConfig)) {
+            'true', '1', 'yes' => true,
+            'false', '0', 'no' => false,
+            'auto' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on',
+            default => false
+        };
+        
+        // Parse HttpOnly flag
+        $httpOnlyConfig = $_ENV['SESSION_COOKIE_HTTPONLY'] ?? 'true';
+        $httpOnly = in_array(strtolower($httpOnlyConfig), ['true', '1', 'yes'], true);
+        
+        return new self(
+            name: $_ENV['SESSION_COOKIE_NAME'] ?? 'parce_session',
+            lifetime: (int)($_ENV['SESSION_LIFETIME'] ?? 7200),
+            path: $_ENV['SESSION_COOKIE_PATH'] ?? '/',
+            domain: $_ENV['SESSION_COOKIE_DOMAIN'] ?? '',
+            secure: $secure,
+            httpOnly: $httpOnly,
+            sameSite: $_ENV['SESSION_COOKIE_SAMESITE'] ?? 'Lax'
+        );
+    }
 }

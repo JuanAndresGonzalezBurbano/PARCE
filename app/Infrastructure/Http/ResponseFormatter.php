@@ -3,6 +3,7 @@
 namespace App\Infrastructure\Http;
 
 use App\Core\Response;
+use App\Infrastructure\Auth\DTO\CookieConfig;
 
 /**
  * Response Formatter
@@ -104,6 +105,9 @@ class ResponseFormatter
     /**
      * Set session cookie with security attributes
      * 
+     * Uses environment-aware cookie configuration for production-safe behavior.
+     * Automatically detects HTTPS and applies secure flags accordingly.
+     * 
      * Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.7
      * 
      * @param Response $response Response object
@@ -113,35 +117,34 @@ class ResponseFormatter
      */
     public static function setSessionCookie(Response $response, string $sessionId, bool $remember = false): Response
     {
+        // Load cookie configuration from environment
+        $cookieConfig = CookieConfig::fromEnv();
+        
+        // Calculate expiration based on remember flag
         $expiration = $remember 
             ? time() + self::REMEMBER_COOKIE_EXPIRATION 
-            : time() + self::DEFAULT_COOKIE_EXPIRATION;
+            : time() + $cookieConfig->lifetime;
         
-        // Determine if we're in a secure context (HTTPS)
-        // In production, this should always be true
-        // In development (localhost), allow HTTP
-        $isSecure = self::isSecureContext();
-        
+        // Set cookie using environment configuration
         $response->setCookie(
-            name: self::SESSION_COOKIE_NAME,
+            name: $cookieConfig->name,
             value: $sessionId,
             expires: $expiration,
-            path: '/',
-            domain: '',
-            secure: $isSecure,  // HTTPS only in production, HTTP allowed in dev
-            httpOnly: true // Prevent JavaScript access
+            path: $cookieConfig->path,
+            domain: $cookieConfig->domain,
+            secure: $cookieConfig->secure,
+            httpOnly: $cookieConfig->httpOnly
         );
         
-        // Set SameSite header manually (PHP 7.3+ supports it in setCookie options)
-        // For now, we set it via header
-        $sameSite = 'Lax'; // Lax allows top-level navigation, Strict would block all cross-site
-        $response->setHeader('Set-Cookie', 
-            self::SESSION_COOKIE_NAME . '=' . $sessionId . 
-            '; Path=/; HttpOnly' . 
-            ($isSecure ? '; Secure' : '') . 
-            '; SameSite=' . $sameSite . 
-            '; Max-Age=' . ($remember ? self::REMEMBER_COOKIE_EXPIRATION : self::DEFAULT_COOKIE_EXPIRATION)
-        );
+        // Set SameSite header manually for broader compatibility
+        $cookieString = $cookieConfig->name . '=' . $sessionId . 
+            '; Path=' . $cookieConfig->path . 
+            ($cookieConfig->httpOnly ? '; HttpOnly' : '') . 
+            ($cookieConfig->secure ? '; Secure' : '') . 
+            '; SameSite=' . $cookieConfig->sameSite . 
+            '; Max-Age=' . ($remember ? self::REMEMBER_COOKIE_EXPIRATION : $cookieConfig->lifetime);
+        
+        $response->setHeader('Set-Cookie', $cookieString);
         
         return $response;
     }
@@ -176,6 +179,8 @@ class ResponseFormatter
     /**
      * Clear session cookie
      * 
+     * Uses environment-aware cookie configuration to properly clear cookies.
+     * 
      * Requirement 8.6: Set maxAge to 0 to clear cookie
      * 
      * @param Response $response Response object
@@ -183,24 +188,27 @@ class ResponseFormatter
      */
     public static function clearSessionCookie(Response $response): Response
     {
-        $isSecure = self::isSecureContext();
+        // Load cookie configuration from environment
+        $cookieConfig = CookieConfig::fromEnv();
         
         $response->setCookie(
-            name: self::SESSION_COOKIE_NAME,
+            name: $cookieConfig->name,
             value: '',
             expires: time() - 3600, // Expire in the past
-            path: '/',
-            domain: '',
-            secure: $isSecure,
-            httpOnly: true
+            path: $cookieConfig->path,
+            domain: $cookieConfig->domain,
+            secure: $cookieConfig->secure,
+            httpOnly: $cookieConfig->httpOnly
         );
         
         // Set SameSite header manually for cookie clearing
-        $response->setHeader('Set-Cookie', 
-            self::SESSION_COOKIE_NAME . '=; Path=/; HttpOnly' . 
-            ($isSecure ? '; Secure' : '') . 
-            '; SameSite=Lax; Max-Age=0'
-        );
+        $cookieString = $cookieConfig->name . '=; Path=' . $cookieConfig->path . 
+            ($cookieConfig->httpOnly ? '; HttpOnly' : '') . 
+            ($cookieConfig->secure ? '; Secure' : '') . 
+            '; SameSite=' . $cookieConfig->sameSite . 
+            '; Max-Age=0';
+        
+        $response->setHeader('Set-Cookie', $cookieString);
         
         return $response;
     }
@@ -362,12 +370,12 @@ class ResponseFormatter
     }
 
     /**
-     * Get session cookie name
+     * Get session cookie name from environment configuration
      * 
      * @return string Cookie name
      */
     public static function getSessionCookieName(): string
     {
-        return self::SESSION_COOKIE_NAME;
+        return $_ENV['SESSION_COOKIE_NAME'] ?? self::SESSION_COOKIE_NAME;
     }
 }

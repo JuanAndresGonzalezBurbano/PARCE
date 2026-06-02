@@ -29,6 +29,9 @@ class AuthMiddleware
     /**
      * Handle incoming request
      * 
+     * Validates authentication and implements automatic session regeneration
+     * for session fixation protection.
+     * 
      * Requirements: 10.1-10.7
      * 
      * @param Request $request HTTP request object
@@ -52,6 +55,24 @@ class AuthMiddleware
         // Requirement 10.4: Return 401 if session invalid
         if ($sessionData === null) {
             return ResponseFormatter::unauthorized('Invalid or expired session');
+        }
+
+        // Check if session should be regenerated for security (anti-fixation)
+        $shouldRegenerate = $this->sessionManager->shouldRegenerate($sessionId);
+        
+        if ($shouldRegenerate) {
+            // Regenerate session ID
+            $newSessionId = $this->sessionManager->regenerate($sessionId);
+            
+            if (!empty($newSessionId)) {
+                // Update session ID in request context
+                $sessionId = $newSessionId;
+                
+                // Note: We'll set the new cookie in the response after calling $next()
+                // Store flag for response modification
+                $request->setAttribute('session_regenerated', true);
+                $request->setAttribute('new_session_id', $newSessionId);
+            }
         }
 
         // Requirement 10.5: Fetch user data from database
@@ -79,7 +100,15 @@ class AuthMiddleware
             $request->setAttribute('userId', (int)$user['id']);
 
             // Requirement 10.7: Continue to next middleware/controller
-            return $next($request);
+            $response = $next($request);
+            
+            // If session was regenerated, update the cookie in the response
+            if ($request->getAttribute('session_regenerated') === true) {
+                $newSessionId = $request->getAttribute('new_session_id');
+                ResponseFormatter::setSessionCookie($response, $newSessionId, false);
+            }
+            
+            return $response;
 
         } catch (\Exception $e) {
             // Log error

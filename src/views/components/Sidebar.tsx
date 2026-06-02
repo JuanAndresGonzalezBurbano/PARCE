@@ -1,7 +1,7 @@
 // Importa Link para navegación y useLocation para saber en qué ruta está el usuario
 import { Link, useLocation } from 'react-router-dom';
 // Importa los íconos usados en el sidebar
-import { Home, Wrench, Phone, ClipboardList, User, Database } from 'lucide-react';
+import { Home, Wrench, Phone, ClipboardList, User, Database, CreditCard } from 'lucide-react';
 // Importa motion para la animación de entrada del sidebar
 import { motion } from 'framer-motion';
 // Importa el hook de autenticación para saber el rol del usuario actual
@@ -25,11 +25,12 @@ export default function Sidebar({ isOpen = true, hidden = false }: SidebarProps)
     { icon: Database, label: 'CRUD', path: '/crud' },
   ];
 
-  // Menú para usuario: Inicio (UserHomePage), Servicios y Contacto
+  // Menú para usuario: Inicio (UserHomePage), Servicios, Pagos y Contacto
   // RAMA: Soto - Agregado "Inicio" encima de "Servicios" para ir al UserHomePage
   const userMenuItems = [
     { icon: Home, label: 'Inicio', path: '/home' },       // Va al home autenticado del usuario
     { icon: Wrench, label: 'Servicios', path: '/services' }, // Va a la página de servicios
+    { icon: CreditCard, label: 'Métodos de Pago', path: '/payment' }, // Va al módulo de pagos del usuario
     { icon: Phone, label: 'Contacto', path: '/contact' },    // Va a la página de contacto
   ];
 

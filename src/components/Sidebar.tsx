@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Wrench, Phone, ClipboardList, User, Database, Wallet } from 'lucide-react';
+import { Home, Wrench, Phone, ClipboardList, User, Database, Wallet, CreditCard } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 
@@ -19,6 +19,7 @@ export default function Sidebar({ isOpen = true, hidden = false }: SidebarProps)
 
   const userMenuItems = [
     { icon: Wrench, label: 'Servicios', path: '/services' },
+    { icon: CreditCard, label: 'Métodos de Pago', path: '/payment' },
     { icon: Phone, label: 'Contacto', path: '/contact' },
   ];
 

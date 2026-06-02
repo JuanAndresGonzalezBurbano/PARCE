@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, User, LogOut } from 'lucide-react';
+import { Menu, X, User, LogOut, CreditCard } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 
@@ -104,6 +104,16 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar, 
                           <User className="w-4 h-4" />
                           Perfil
                         </Link>
+                        {user?.role === 'user' && (
+                          <Link
+                            to="/payment"
+                            className="flex items-center gap-2 px-4 py-3 text-gray-300 hover:bg-dark-800 transition-colors"
+                            onClick={() => setShowUserMenu(false)}
+                          >
+                            <CreditCard className="w-4 h-4" />
+                            Métodos de Pago
+                          </Link>
+                        )}
                         <button
                           onClick={handleLogout}
                           className="w-full flex items-center gap-2 px-4 py-3 text-red-400 hover:bg-dark-800 transition-colors"
@@ -120,6 +130,9 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar, 
               <>
                 <Link to="/services" className="text-gray-300 hover:text-white transition-colors">
                   Servicios
+                </Link>
+                <Link to="/payment" className="text-gray-300 hover:text-white transition-colors">
+                  Pagos
                 </Link>
                 <Link to="/contact" className="text-gray-300 hover:text-white transition-colors">
                   Contacto
@@ -157,6 +170,16 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar, 
                           <User className="w-4 h-4" />
                           Perfil
                         </Link>
+                        {user?.role === 'user' && (
+                          <Link
+                            to="/payment"
+                            className="flex items-center gap-2 px-4 py-3 text-gray-300 hover:bg-dark-800 transition-colors"
+                            onClick={() => setShowUserMenu(false)}
+                          >
+                            <CreditCard className="w-4 h-4" />
+                            Métodos de Pago
+                          </Link>
+                        )}
                         <button
                           onClick={handleLogout}
                           className="w-full flex items-center gap-2 px-4 py-3 text-red-400 hover:bg-dark-800 transition-colors"
@@ -231,12 +254,20 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar, 
                   <Link to="/services" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
                     Servicios
                   </Link>
+                  <Link to="/payment" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
+                    Pagos
+                  </Link>
                   <Link to="/contact" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
                     Contacto
                   </Link>
                   <Link to="/profile" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
                     Perfil
                   </Link>
+                  {user?.role === 'user' && (
+                    <Link to="/payment" className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
+                      Métodos de Pago
+                    </Link>
+                  )}
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-4 py-2 text-red-400 hover:bg-dark-800 rounded-lg"

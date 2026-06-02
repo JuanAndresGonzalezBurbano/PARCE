@@ -288,7 +288,15 @@ export default function ServiceInProgressPage() {
                 </AnimatePresence>
 
                 {/* Solo botón cancelar, centrado */}
-                <div className="pt-2">
+                <div className="pt-2 space-y-3">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => navigate('/payment')}
+                    className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-gold-600 to-gold-500 text-anthracite-950 font-bold rounded-xl shadow-lg hover:shadow-glow-gold transition-all duration-300"
+                  >
+                    💳 Formas de pago
+                  </motion.button>
                   <button onClick={() => setShowCancelModal(true)}
                     className="w-full py-3 bg-dark-700 hover:bg-red-900/40 border border-dark-600 hover:border-red-700 text-gray-300 hover:text-red-300 rounded-xl font-semibold transition-all duration-200">
                     Cancelar servicio

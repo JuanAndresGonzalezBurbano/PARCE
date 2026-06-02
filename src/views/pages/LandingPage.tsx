@@ -2,21 +2,24 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Wrench, Clock, Headphones } from 'lucide-react';
 import Navbar from '../components/Navbar';
+import WaveBackground from '../components/WaveBackground';
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-dark">
+    <div className="min-h-screen bg-[#050505]">
+      {/* Fondo de ondas animadas — ocupa toda la pantalla */}
+      <WaveBackground />
+
       <Navbar />
 
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 px-4 overflow-hidden">
-        {/* Animated Background */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gold-500/10 rounded-full blur-3xl animate-pulse-slow"></div>
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-anthracite-500/10 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
+        {/* Glow sutil encima de las ondas */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gold-500/5 rounded-full blur-3xl animate-pulse-slow"></div>
         </div>
 
-        <div className="relative max-w-7xl mx-auto">
+        <div className="relative max-w-7xl mx-auto" style={{ zIndex: 1 }}>
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -68,7 +71,7 @@ export default function LandingPage() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-4 bg-dark-900/30">
+      <section className="py-20 px-4 bg-dark-900/60 relative" style={{ zIndex: 1 }}>
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -123,7 +126,7 @@ export default function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-4">
+      <section className="py-20 px-4 relative" style={{ zIndex: 1 }}>
         <div className="max-w-4xl mx-auto text-center space-y-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -144,7 +147,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-anthracite-800 py-8 px-4">
+      <footer className="border-t border-anthracite-800 py-8 px-4 relative" style={{ zIndex: 1 }}>
         <div className="max-w-7xl mx-auto text-center text-gray-500">
           <p>&copy; 2026 P.A.R.C.E. Todos los derechos reservados.</p>
           <div className="mt-4 space-x-4">

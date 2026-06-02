@@ -17,6 +17,8 @@ import PaymentPage from './views/pages/PaymentPage';
 import SatisfactionSurveyPage from './views/pages/SatisfactionSurveyPage';
 import MechanicVehicleInfoPage from './views/pages/MechanicVehicleInfoPage';
 import MechanicOrdersPage from './views/pages/MechanicOrdersPage';
+import MechanicPaymentDashboard from './views/pages/MechanicPaymentDashboard';
+import MechanicPaymentPage from './views/pages/MechanicPaymentPage';
 // VISTAS - Componentes
 import ProtectedRoute from './views/components/ProtectedRoute';
 
@@ -104,6 +106,22 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['mechanic']}>
               <MechanicDashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mechanic-payments"
+          element={
+            <ProtectedRoute allowedRoles={['mechanic']}>
+              <MechanicPaymentDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mechanic-payment-page"
+          element={
+            <ProtectedRoute allowedRoles={['mechanic']}>
+              <MechanicPaymentPage />
             </ProtectedRoute>
           }
         />

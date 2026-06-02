@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import Logo from '../components/Logo';
-import { useAuth } from '../../controllers/AuthContext';
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -14,7 +13,7 @@ export default function RegisterPage() {
     confirmPassword: '',
   });
   const navigate = useNavigate();
-  const { login } = useAuth();
+  // RAMA: Soto - El registro solo crea la cuenta y redirige a /login, no inicia sesión automáticamente
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,8 +21,9 @@ export default function RegisterPage() {
       alert('Las contraseñas no coinciden');
       return;
     }
-    login(formData.email, formData.password);
-    navigate('/role-selection');
+    // RAMA: Soto - Al registrarse, redirige a login para que el usuario inicie sesión
+    // No se llama a login() aquí porque el registro es un paso separado al inicio de sesión
+    navigate('/login');
   };
 
   return (

@@ -140,17 +140,58 @@ $router->put('/api/vehicles/{id}/primary', [\App\Controllers\VehicleController::
     ->name('api.vehicles.setPrimary');
 
 // ============================================================================
-// Future Routes (to be implemented)
+// Service Request API Routes (Protected)
 // ============================================================================
 
-// Service Request routes will be added here
-// - GET /api/service-requests
-// - POST /api/service-requests
-// - GET /api/service-requests/{id}
+// Customer endpoints
+$router->get('/api/service-requests', [\App\Controllers\ServiceRequestController::class, 'index'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.service-requests.index');
 
-// Mechanic routes will be added here
-// - GET /api/mechanics/service-requests
-// - PUT /api/mechanics/service-requests/{id}/accept
+$router->post('/api/service-requests', [\App\Controllers\ServiceRequestController::class, 'store'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.service-requests.store');
+
+$router->get('/api/service-requests/{id}', [\App\Controllers\ServiceRequestController::class, 'show'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.service-requests.show');
+
+$router->put('/api/service-requests/{id}', [\App\Controllers\ServiceRequestController::class, 'update'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.service-requests.update');
+
+$router->post('/api/service-requests/{id}/cancel', [\App\Controllers\ServiceRequestController::class, 'cancel'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.service-requests.cancel');
+
+$router->post('/api/service-requests/{id}/rate', [\App\Controllers\ServiceRequestController::class, 'rate'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.service-requests.rate');
+
+// Mechanic endpoints
+$router->get('/api/mechanic/requests', [\App\Controllers\ServiceRequestController::class, 'mechanicIndex'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.mechanic.requests.index');
+
+$router->get('/api/mechanic/requests/available', [\App\Controllers\ServiceRequestController::class, 'availableForMechanic'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.mechanic.requests.available');
+
+$router->post('/api/mechanic/requests/{id}/accept', [\App\Controllers\ServiceRequestController::class, 'accept'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.mechanic.requests.accept');
+
+$router->put('/api/mechanic/requests/{id}/start', [\App\Controllers\ServiceRequestController::class, 'start'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.mechanic.requests.start');
+
+$router->put('/api/mechanic/requests/{id}/complete', [\App\Controllers\ServiceRequestController::class, 'complete'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.mechanic.requests.complete');
+
+// ============================================================================
+// Future Routes (to be implemented)
+// ============================================================================
 
 // Admin routes will be added here
 // - GET /api/admin/dashboard

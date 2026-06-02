@@ -31,6 +31,9 @@ class DatabaseSeeder extends Seeder
             // Seed vehicles (depends on users existing)
             $this->callSeeder(VehiclesSeeder::class);
 
+            // Seed service requests (depends on users and vehicles existing)
+            $this->callSeeder(ServiceRequestsSeeder::class);
+
             $duration = round(microtime(true) - $startTime, 2);
 
             $this->log("===========================================");

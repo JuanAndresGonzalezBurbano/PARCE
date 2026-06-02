@@ -128,12 +128,16 @@ export default function RegisterPage() {
                   value={formData.password}
                   onChange={(e) => {
                     setFormData({ ...formData, password: e.target.value });
-                    setPasswordError(''); // Limpiar error al escribir
+                    // Validar mientras escribe para mostrar errores inmediatamente
+                    if (e.target.value.length > 0) {
+                      validatePassword(e.target.value);
+                    } else {
+                      setPasswordError('');
+                    }
                   }}
                   placeholder="••••••••••••••••••••••••"
                   className={`input-field pl-10 pr-10 ${passwordError && formData.password ? 'border-red-500' : ''}`}
                   required
-                  minLength={8}
                 />
                 <button
                   type="button"
@@ -143,9 +147,17 @@ export default function RegisterPage() {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              <p className="text-xs text-gray-500">
-                Mínimo 8 caracteres, con al menos una mayúscula o un número
-              </p>
+              {passwordError && formData.password && (
+                <p className="text-xs text-red-400">{passwordError}</p>
+              )}
+              {!passwordError && formData.password && (
+                <p className="text-xs text-green-400">✓ Contraseña válida</p>
+              )}
+              {!formData.password && (
+                <p className="text-xs text-gray-500">
+                  Mínimo 8 caracteres, con al menos una mayúscula o un número
+                </p>
+              )}
             </div>
 
             {/* Confirm Password Input */}
@@ -161,12 +173,16 @@ export default function RegisterPage() {
                   value={formData.confirmPassword}
                   onChange={(e) => {
                     setFormData({ ...formData, confirmPassword: e.target.value });
-                    setPasswordError(''); // Limpiar error al escribir
+                    // Verificar si coinciden mientras escribe
+                    if (e.target.value.length > 0 && formData.password !== e.target.value) {
+                      setPasswordError('Las contraseñas no coinciden');
+                    } else if (e.target.value === formData.password && e.target.value.length > 0) {
+                      setPasswordError('');
+                    }
                   }}
                   placeholder="••••••••••••••••••••••••"
                   className={`input-field pl-10 pr-10 ${passwordError && formData.confirmPassword ? 'border-red-500' : ''}`}
                   required
-                  minLength={8}
                 />
                 <button
                   type="button"
@@ -176,8 +192,11 @@ export default function RegisterPage() {
                   {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              {passwordError && (
+              {passwordError && formData.confirmPassword && (
                 <p className="text-xs text-red-400">{passwordError}</p>
+              )}
+              {!passwordError && formData.confirmPassword && formData.password === formData.confirmPassword && (
+                <p className="text-xs text-green-400">✓ Las contraseñas coinciden</p>
               )}
             </div>
 

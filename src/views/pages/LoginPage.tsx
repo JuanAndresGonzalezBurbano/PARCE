@@ -110,12 +110,16 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value);
-                    setPasswordError(''); // Limpiar error al escribir
+                    // Validar mientras escribe
+                    if (e.target.value.length > 0) {
+                      validatePassword(e.target.value);
+                    } else {
+                      setPasswordError('');
+                    }
                   }}
                   placeholder="••••••••••••••••••••••••"
                   className={`input-field pl-10 pr-10 ${passwordError ? 'border-red-500' : ''}`}
                   required
-                  minLength={8}
                 />
                 <button
                   type="button"
@@ -128,9 +132,14 @@ export default function LoginPage() {
               {passwordError && (
                 <p className="text-xs text-red-400">{passwordError}</p>
               )}
-              <p className="text-xs text-gray-500">
-                Mínimo 8 caracteres, con al menos una mayúscula o un número
-              </p>
+              {!passwordError && password.length > 0 && (
+                <p className="text-xs text-green-400">✓ Contraseña válida</p>
+              )}
+              {!password && (
+                <p className="text-xs text-gray-500">
+                  Mínimo 8 caracteres, con al menos una mayúscula o un número
+                </p>
+              )}
             </div>
 
             {/* Submit Button */}

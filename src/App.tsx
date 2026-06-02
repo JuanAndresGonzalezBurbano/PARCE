@@ -1,22 +1,24 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import LandingPage from './pages/LandingPage';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import RoleSelectionPage from './pages/RoleSelectionPage';
-import DashboardPage from './pages/DashboardPage';
-import CRUDPage from './pages/CRUDPage';
-import ServicesPage from './pages/ServicesPage';
-import ServiceInProgressPage from './pages/ServiceInProgressPage';
-import ProfilePage from './pages/ProfilePage';
-import MechanicProfilePage from './pages/MechanicProfilePage';
-import MechanicDashboardPage from './pages/MechanicDashboardPage';
-import MechanicPaymentDashboard from './pages/MechanicPaymentDashboard';
-import ContactPage from './pages/ContactPage';
-import PaymentPage from './pages/PaymentPage';
-import SatisfactionSurveyPage from './pages/SatisfactionSurveyPage';
-import MechanicVehicleInfoPage from './pages/MechanicVehicleInfoPage';
-import MechanicOrdersPage from './pages/MechanicOrdersPage';
-import ProtectedRoute from './components/ProtectedRoute';
+// VISTAS - Páginas
+import LandingPage from './views/pages/LandingPage';
+import LoginPage from './views/pages/LoginPage';
+import RegisterPage from './views/pages/RegisterPage';
+import RoleSelectionPage from './views/pages/RoleSelectionPage';
+import UserHomePage from './views/pages/UserHomePage';
+import DashboardPage from './views/pages/DashboardPage';
+import CRUDPage from './views/pages/CRUDPage';
+import ServicesPage from './views/pages/ServicesPage';
+import ServiceInProgressPage from './views/pages/ServiceInProgressPage';
+import ProfilePage from './views/pages/ProfilePage';
+import MechanicProfilePage from './views/pages/MechanicProfilePage';
+import MechanicDashboardPage from './views/pages/MechanicDashboardPage';
+import ContactPage from './views/pages/ContactPage';
+import PaymentPage from './views/pages/PaymentPage';
+import SatisfactionSurveyPage from './views/pages/SatisfactionSurveyPage';
+import MechanicVehicleInfoPage from './views/pages/MechanicVehicleInfoPage';
+import MechanicOrdersPage from './views/pages/MechanicOrdersPage';
+// VISTAS - Componentes
+import ProtectedRoute from './views/components/ProtectedRoute';
 
 function App() {
   return (
@@ -48,6 +50,14 @@ function App() {
 
         {/* User Routes */}
         <Route
+          path="/home"
+          element={
+            <ProtectedRoute allowedRoles={['user']}>
+              <UserHomePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/services"
           element={
             <ProtectedRoute allowedRoles={['user']}>
@@ -73,7 +83,11 @@ function App() {
         />
         <Route
           path="/payment"
-          element={<PaymentPage />}
+          element={
+            <ProtectedRoute allowedRoles={['user']}>
+              <PaymentPage />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/survey"
@@ -93,7 +107,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="/mechanic-payments" element={<MechanicPaymentDashboard />} />
         <Route
           path="/mechanic-profile"
           element={

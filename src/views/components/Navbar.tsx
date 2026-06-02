@@ -124,15 +124,17 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar, 
                         exit={{ opacity: 0, y: -10 }}
                         className="absolute right-0 mt-2 w-48 bg-dark-900 border border-anthracite-800 rounded-lg shadow-xl overflow-hidden"
                       >
-                        {/* Link al perfil del usuario */}
-                        <Link
-                          to={profilePath}
-                          className="flex items-center gap-2 px-4 py-3 text-gray-300 hover:bg-dark-800 transition-colors"
-                          onClick={() => setShowUserMenu(false)}
-                        >
-                          <User className="w-4 h-4" />
-                          Perfil
-                        </Link>
+                        {/* Solo mostrar Perfil para mecánicos, no para admin */}
+                        {user?.role === 'mechanic' && (
+                          <Link
+                            to={profilePath}
+                            className="flex items-center gap-2 px-4 py-3 text-gray-300 hover:bg-dark-800 transition-colors"
+                            onClick={() => setShowUserMenu(false)}
+                          >
+                            <User className="w-4 h-4" />
+                            Perfil
+                          </Link>
+                        )}
                         {/* Botón de cerrar sesión en rojo */}
                         <button
                           onClick={handleLogout}
@@ -252,11 +254,13 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar, 
                   </Link>
                 </>
               ) : hideNavLinks ? (
-                // Si hideNavLinks: solo perfil y cerrar sesión
+                // Si hideNavLinks: mostrar Perfil solo para mecánicos, no para admin
                 <>
-                  <Link to={profilePath} className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
-                    Perfil
-                  </Link>
+                  {user?.role === 'mechanic' && (
+                    <Link to={profilePath} className="block px-4 py-2 text-gray-300 hover:bg-dark-800 rounded-lg">
+                      Perfil
+                    </Link>
+                  )}
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-4 py-2 text-red-400 hover:bg-dark-800 rounded-lg"

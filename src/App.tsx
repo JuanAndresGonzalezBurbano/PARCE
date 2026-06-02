@@ -47,18 +47,77 @@ function App() {
         />
 
         {/* User Routes */}
-        <Route path="/services" element={<ProtectedRoute allowedRoles={['user']}><ServicesPage /></ProtectedRoute>} />
-        <Route path="/service-in-progress" element={<ProtectedRoute allowedRoles={['user']}><ServiceInProgressPage /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute allowedRoles={['user']}><ProfilePage /></ProtectedRoute>} />
-        <Route path="/payment" element={<PaymentPage />} />
-        <Route path="/survey" element={<ProtectedRoute allowedRoles={['user']}><SatisfactionSurveyPage /></ProtectedRoute>} />
+        <Route
+          path="/services"
+          element={
+            <ProtectedRoute allowedRoles={['user']}>
+              <ServicesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/service-in-progress"
+          element={
+            <ProtectedRoute allowedRoles={['user']}>
+              <ServiceInProgressPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute allowedRoles={['user']}>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payment"
+          element={<PaymentPage />}
+        />
+        <Route
+          path="/survey"
+          element={
+            <ProtectedRoute allowedRoles={['user']}>
+              <SatisfactionSurveyPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Mechanic Routes */}
-        <Route path="/mechanic-dashboard" element={<ProtectedRoute allowedRoles={['mechanic']}><MechanicDashboardPage /></ProtectedRoute>} />
+        <Route
+          path="/mechanic-dashboard"
+          element={
+            <ProtectedRoute allowedRoles={['mechanic']}>
+              <MechanicDashboardPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/mechanic-payments" element={<MechanicPaymentDashboard />} />
-        <Route path="/mechanic-profile" element={<ProtectedRoute allowedRoles={['mechanic']}><MechanicProfilePage /></ProtectedRoute>} />
-        <Route path="/mechanic-orders" element={<ProtectedRoute allowedRoles={['mechanic']}><MechanicOrdersPage /></ProtectedRoute>} />
-        <Route path="/mechanic-vehicle-info" element={<ProtectedRoute allowedRoles={['mechanic']}><MechanicVehicleInfoPage /></ProtectedRoute>} />
+        <Route
+          path="/mechanic-profile"
+          element={
+            <ProtectedRoute allowedRoles={['mechanic']}>
+              <MechanicProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mechanic-orders"
+          element={
+            <ProtectedRoute allowedRoles={['mechanic']}>
+              <MechanicOrdersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mechanic-vehicle-info"
+          element={
+            <ProtectedRoute allowedRoles={['mechanic']}>
+              <MechanicVehicleInfoPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Shared Routes (User & Mechanic) */}
         <Route

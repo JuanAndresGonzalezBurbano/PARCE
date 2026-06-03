@@ -148,12 +148,20 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Forgot Password Link */}
-          <div className="text-center">
-            <Link to="/forgot-password" className="text-sm text-gold-400 hover:text-gold-300 transition-colors">
-              ¿Olvidaste tu contraseña?
-            </Link>
+          {/* Divider */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-anthracite-800"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-dark-900 text-gray-500">¿No tienes cuenta?</span>
+            </div>
           </div>
+
+          {/* Register Link */}
+          <Link to="/register" className="block text-center text-primary-400 hover:text-primary-300 transition-colors">
+            Crear una cuenta nueva
+          </Link>
 
           {/* Back to Home */}
           <Link to="/" className="block text-center text-gray-500 hover:text-gray-300 transition-colors text-sm">

@@ -1,197 +1,182 @@
-// Importar hooks de React para efectos, referencias y estado
+// Importa hooks de React: useEffect para efectos secundarios, useRef para referencias persistentes y useState para manejar estado
 import { useEffect, useRef, useState } from 'react';
 
-// Componente que renderiza un fondo animado con ondas interactivas
+// Componente principal que renderiza un fondo animado con ondas que brillan al pasar el mouse
 export default function WaveBackground() {
-  // Referencia al elemento canvas HTML donde se dibujan las ondas
+  // Referencia al elemento canvas donde se dibujará la animación
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  // Referencia para rastrear la posición del mouse (x, y)
+  // Almacena la posición actual del mouse (inicializada fuera del área visible)
   const mouseRef = useRef({ x: -1, y: -1 });
-  // Referencia para almacenar el ID de la animación
+  // Almacena el ID del frame de animación para poder cancelarlo después
   const animRef = useRef<number>(0);
-  // Estado para saber si el mouse está sobre el canvas
+  // Estado que indica si el mouse está sobre el canvas
   const [hovered, setHovered] = useState(false);
 
-  // Hook de efecto que se ejecuta al montar el componente
+  // Effect hook que se ejecuta al montar el componente
   useEffect(() => {
-    // Obtener el elemento canvas desde la referencia
+    // Obtiene la referencia al elemento canvas
     const canvas = canvasRef.current;
-    // Si no existe el canvas, salir
+    // Si no existe el canvas, termina la ejecución
     if (!canvas) return;
-    // Obtener el contexto 2D del canvas para poder dibujar
+    // Obtiene el contexto 2D del canvas para poder dibujar
     const ctx = canvas.getContext('2d');
-    // Si no existe el contexto, salir
+    // Si no se puede obtener el contexto, termina la ejecución
     if (!ctx) return;
 
-    // Variables para almacenar las dimensiones del canvas
+    // Variables que almacenan las dimensiones del canvas
     let width = 0;
     let height = 0;
-    // Variable de tiempo para animar las ondas
+    // Variable que controla el tiempo de la animación (se incrementa en cada frame)
     let t = 0;
 
-    // Función para ajustar el tamaño del canvas al tamaño de la ventana
+    // Función que ajusta el tamaño del canvas al tamaño de la ventana
     const resize = () => {
-      // Establecer el ancho del canvas al ancho de la ventana
+      // Establece el ancho y altura del canvas iguales a las dimensiones de la ventana
       width = canvas.width = window.innerWidth;
-      // Establecer la altura del canvas a la altura de la ventana
       height = canvas.height = window.innerHeight;
     };
-    // Ejecutar resize al inicio
+    // Ejecuta el redimensionamiento inicial
     resize();
-    // Escuchar eventos de cambio de tamaño de ventana
+    // Agrega un listener para redimensionar el canvas cuando cambie el tamaño de la ventana
     window.addEventListener('resize', resize);
 
-    // Número de ondas a dibujar
+    // Define el número total de ondas a dibujar
     const WAVE_COUNT = 8;
 
-    // Función principal de dibujo que se ejecuta en cada frame
+    // Función principal de animación que se ejecuta en cada frame
     const draw = () => {
-      // Limpiar todo el canvas antes de dibujar el nuevo frame
+      // Limpia el canvas en cada frame para redibujar
       ctx.clearRect(0, 0, width, height);
 
-      // Obtener la posición X del mouse desde la referencia
+      // Obtiene las coordenadas actuales del mouse
       const mx = mouseRef.current.x;
-      // Obtener la posición Y del mouse desde la referencia
       const my = mouseRef.current.y;
-      // Verificar si el mouse está dentro del canvas (coordenadas válidas)
+      // Determina si el mouse está dentro del área visible del canvas
       const isHovering = mx >= 0 && my >= 0;
 
-      // Establecer color de fondo negro profundo
+      // Dibuja el fondo negro profundo
       ctx.fillStyle = '#050505';
-      // Dibujar el rectángulo de fondo que cubre todo el canvas
       ctx.fillRect(0, 0, width, height);
 
-      // Bucle para dibujar cada una de las ondas
+      // Recorre cada onda para dibujarla con propiedades únicas
       for (let i = 0; i < WAVE_COUNT; i++) {
-        // Calcular el progreso de la onda actual (de 0 a 1)
+        // Calcula el progreso de 0 a 1 para cada onda
         const progress = i / (WAVE_COUNT - 1); // 0..1
-        // Calcular la posición vertical base de la onda (entre 25% y 75% de la altura)
+        // Calcula la posición vertical base de cada onda (distribuidas verticalmente)
         const yBase = height * (0.25 + progress * 0.5);
-        // Calcular la amplitud de la onda (altura de la ondulación)
+        // Amplitud de la onda: qué tan alto oscila (aumenta con cada onda)
         const amp = 38 + i * 6;
-        // Calcular la frecuencia de la onda (qué tan apretadas están las ondulaciones)
+        // Frecuencia: qué tan rápido oscila horizontalmente (aumenta con cada onda)
         const freq = 0.0018 + i * 0.0003;
-        // Calcular la velocidad de movimiento de la onda
+        // Velocidad de animación: qué tan rápido se mueve en el tiempo (aumenta con cada onda)
         const speed = 0.004 + i * 0.0008;
-        // Calcular el desfase de fase para animar la onda
+        // Desfase inicial para que las ondas no estén sincronizadas
         const phase = t * speed + i * 0.7;
 
-        // Variable para almacenar el factor de brillo basado en proximidad del mouse
+        // Calcula el factor de brillo basado en la distancia del mouse a esta onda
         let glowFactor = 0;
-        // Si el mouse está sobre el canvas
         if (isHovering) {
-          // Calcular la distancia vertical entre el mouse y la onda
+          // Distancia vertical entre el mouse y la posición base de esta onda
           const dist = Math.abs(my - yBase);
-          // Calcular el factor de brillo inversamente proporcional a la distancia
+          // Factor de brillo que disminuye con la distancia (máximo 1, mínimo 0)
           glowFactor = Math.max(0, 1 - dist / 160);
         }
 
-        // Calcular la luminosidad base de la onda (cada onda más clara)
-        const baseL = 14 + i * 2;
-        // Calcular el componente rojo (gris base + amarillo al hacer hover)
-        const r = Math.round(baseL * 2.2 + glowFactor * 210);
-        // Calcular el componente verde (gris base + amarillo al hacer hover)
-        const g = Math.round(baseL * 2.2 + glowFactor * 165);
-        // Calcular el componente azul (se mantiene bajo para lograr amarillo)
-        const b = Math.round(baseL * 2.2 + glowFactor * 0);
-        // Calcular la transparencia de la onda (aumenta con hover)
+        // Calcula el color base: gris antracita oscuro que transiciona a amarillo dorado al pasar el mouse
+        const baseL = 14 + i * 2; // Luminosidad base que aumenta con cada onda
+        // Calcula los componentes RGB: gris oscuro base + amarillo dorado según glowFactor
+        const r = Math.round(baseL * 2.2 + glowFactor * 210); // Rojo aumenta con brillo
+        const g = Math.round(baseL * 2.2 + glowFactor * 165); // Verde aumenta con brillo
+        const b = Math.round(baseL * 2.2 + glowFactor * 0);    // Azul permanece bajo
+        // Opacidad que aumenta con cada onda y con el brillo del mouse
         const alpha = 0.45 + i * 0.05 + glowFactor * 0.35;
 
-        // Iniciar un nuevo trazo para dibujar la onda
+        // Inicia un nuevo camino de dibujo para la onda
         ctx.beginPath();
-        // Mover el punto de inicio al borde izquierdo en la posición base
+        // Mueve el punto inicial a la posición base vertical de la onda
         ctx.moveTo(0, yBase);
 
-        // Bucle para dibujar cada punto de la onda a lo ancho del canvas
+        // Dibuja la forma de la onda recorriendo el ancho del canvas
         for (let x = 0; x <= width; x += 4) {
-          // Variable para el efecto de deformación por el mouse
+          // Calcula el desplazamiento vertical causado por el mouse (la onda se eleva cerca del cursor)
           let mouseWarp = 0;
-          // Si el mouse está sobre el canvas
           if (isHovering) {
-            // Calcular la distancia horizontal entre el punto actual y el mouse
+            // Distancia horizontal entre el punto actual y el mouse
             const dx = x - mx;
-            // Calcular el efecto de elevación de la onda cerca del cursor (distribución gaussiana)
+            // Desplazamiento que disminuye exponencialmente con la distancia al mouse
             mouseWarp = glowFactor * 22 * Math.exp(-dx * dx / (2 * 12000));
           }
-          // Calcular la posición Y del punto usando funciones seno combinadas para crear ondulación compleja
-          const y = yBase + Math.sin(x * freq + phase) * amp
-                          + Math.sin(x * freq * 1.7 + phase * 0.6) * (amp * 0.4)
-                          - mouseWarp;
-          // Agregar el punto calculado al trazo de la onda
+          // Calcula la posición Y final usando dos funciones seno superpuestas y el efecto del mouse
+          const y = yBase + Math.sin(x * freq + phase) * amp                    // Onda principal
+                          + Math.sin(x * freq * 1.7 + phase * 0.6) * (amp * 0.4) // Onda secundaria para complejidad
+                          - mouseWarp;                                              // Desplazamiento por mouse
+          // Dibuja una línea hasta el punto calculado
           ctx.lineTo(x, y);
         }
 
-        // Establecer el color del trazo usando los valores RGB calculados
+        // Aplica el estilo de línea con el color calculado
         ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
-        // Establecer el grosor de la línea (aumenta con hover)
+        // Grosor de línea que aumenta con el brillo del mouse
         ctx.lineWidth = 1.2 + glowFactor * 1.8;
-        // Establecer el color de la sombra si hay efecto de brillo
+        // Aplica sombra amarilla si hay brillo por el mouse
         ctx.shadowColor = glowFactor > 0.1
-          ? `rgba(212,170,0,${glowFactor * 0.6})`
-          : 'transparent';
-        // Establecer el desenfoque de la sombra
+          ? `rgba(212,170,0,${glowFactor * 0.6})` // Color amarillo dorado con opacidad basada en brillo
+          : 'transparent';                         // Sin sombra si no hay brillo
+        // Intensidad del desenfoque de la sombra
         ctx.shadowBlur = glowFactor * 18;
-        // Dibujar el trazo de la onda
+        // Dibuja el trazo de la onda
         ctx.stroke();
-        // Resetear el desenfoque de sombra
+        // Resetea el desenfoque de sombra para la siguiente onda
         ctx.shadowBlur = 0;
       }
 
-      // Incrementar la variable de tiempo para animar
+      // Incrementa el contador de tiempo para animar las ondas
       t++;
-      // Solicitar el siguiente frame de animación
+      // Solicita el siguiente frame de animación y almacena su ID
       animRef.current = requestAnimationFrame(draw);
     };
 
-    // Iniciar el loop de animación
+    // Inicia la animación
     animRef.current = requestAnimationFrame(draw);
 
-    // Función de limpieza que se ejecuta al desmontar el componente
+    // Función de limpieza que se ejecuta cuando el componente se desmonta
     return () => {
-      // Cancelar la animación
+      // Cancela el frame de animación para detener el loop
       cancelAnimationFrame(animRef.current);
-      // Remover el listener de resize
+      // Remueve el listener del evento resize
       window.removeEventListener('resize', resize);
     };
-  }, []);
+  }, []); // Array vacío significa que el effect solo se ejecuta al montar/desmontar
 
-  // Función que se ejecuta cuando el mouse se mueve sobre el canvas
+  // Manejador que captura la posición del mouse cuando se mueve sobre el canvas
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    // Obtener las dimensiones y posición del canvas en la ventana
+    // Obtiene las dimensiones y posición del canvas en la ventana
     const rect = canvasRef.current?.getBoundingClientRect();
-    // Si no se obtiene el rectángulo, salir
     if (!rect) return;
-    // Actualizar la referencia de posición del mouse con coordenadas relativas al canvas
+    // Actualiza la posición del mouse relativa al canvas
     mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    // Actualizar el estado de hover a verdadero
+    // Marca que el mouse está sobre el canvas
     setHovered(true);
   };
 
-  // Función que se ejecuta cuando el mouse sale del canvas
+  // Manejador que se ejecuta cuando el mouse sale del canvas
   const handleMouseLeave = () => {
-    // Resetear la posición del mouse a valores inválidos
+    // Resetea la posición del mouse fuera del área visible
     mouseRef.current = { x: -1, y: -1 };
-    // Actualizar el estado de hover a falso
+    // Marca que el mouse ya no está sobre el canvas
     setHovered(false);
   };
 
-  // Retornar el elemento canvas con sus propiedades y eventos
+  // Renderiza el elemento canvas con estilos para que cubra toda la pantalla
   return (
     <canvas
-      // Asignar la referencia al canvas
-      ref={canvasRef}
-      // Agregar manejador de movimiento del mouse
-      onMouseMove={handleMouseMove}
-      // Agregar manejador de salida del mouse
-      onMouseLeave={handleMouseLeave}
-      // Clases de Tailwind: posición fija, cubrir toda la pantalla, permitir eventos del mouse
-      className="fixed inset-0 w-full h-full pointer-events-auto"
-      // Estilos inline
+      ref={canvasRef}                     // Asigna la referencia al canvas
+      onMouseMove={handleMouseMove}        // Captura el movimiento del mouse
+      onMouseLeave={handleMouseLeave}      // Detecta cuando el mouse sale
+      className="fixed inset-0 w-full h-full pointer-events-auto" // Posicionamiento fijo, tamaño completo, intercepta eventos del mouse
       style={{
-        // Z-index 0 para que esté detrás de otros elementos
-        zIndex: 0,
-        // Cambiar cursor a cruz cuando está en hover, por defecto normal
-        cursor: hovered ? 'crosshair' : 'default',
+        zIndex: 0,                         // Coloca el canvas detrás de todos los demás elementos
+        cursor: hovered ? 'crosshair' : 'default', // Cambia el cursor cuando está sobre el canvas
       }}
     />
   );

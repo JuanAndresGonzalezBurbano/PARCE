@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Home, Wrench, Phone, ClipboardList, User, Database } from 'lucide-react';
 // Importa motion para la animación de entrada del sidebar
 import { motion } from 'framer-motion';
+// Importa el hook de autenticación para saber el rol del usuario actual
 import { useAuth } from '../../controllers/AuthContext';
 
 // Define las propiedades del Sidebar
@@ -24,12 +25,11 @@ export default function Sidebar({ isOpen = true, hidden = false }: SidebarProps)
     { icon: Database, label: 'CRUD', path: '/crud' },
   ];
 
-  // Menú para usuario: Inicio (UserHomePage), Servicios y Contacto
-  // RAMA: Soto - Agregado "Inicio" encima de "Servicios" para ir al UserHomePage
+  // Menú para usuario: Inicio, Servicios y Contacto
   const userMenuItems = [
-    { icon: Home, label: 'Inicio', path: '/home' },       // Va al home autenticado del usuario
-    { icon: Wrench, label: 'Servicios', path: '/services' }, // Va a la página de servicios
-    { icon: Phone, label: 'Contacto', path: '/contact' },    // Va a la página de contacto
+    { icon: Home, label: 'Inicio', path: '/home' },
+    { icon: Wrench, label: 'Servicios', path: '/services' },
+    { icon: Phone, label: 'Contacto', path: '/contact' },
   ];
 
   // Menú para mecánico: solo Solicitudes y Perfil

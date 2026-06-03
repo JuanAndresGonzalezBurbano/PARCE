@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import Logo from '../components/Logo';
+// RAMA: Soto - useAuth ya no se necesita en RegisterPage (el registro redirige a login)
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);

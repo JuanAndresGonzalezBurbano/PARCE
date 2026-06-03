@@ -156,25 +156,34 @@ export default function ServicesPage() {
 
     try {
       // Lee la API key de Groq desde las variables de entorno (.env)
-      const apiKey = (import.meta as unknown as { env: { VITE_GROQ_API_KEY: string } }).env.VITE_GROQ_API_KEY;
-      
+      const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+
+      if (!apiKey) {
+        throw new Error('API key no configurada. Verifica el archivo .env');
+      }
+
       // Hace la petición HTTP POST a la API de Groq
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',        // Le dice al servidor que enviamos JSON
-          'Authorization': `Bearer ${apiKey}`,        // Autenticación con la API key
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: 'llama-3.1-8b-instant', // Modelo de IA de Groq (LLaMA 3.1 rápido)
+          model: 'llama-3.1-8b-instant',
           messages: [
-            { role: 'system', content: SYSTEM_PROMPT }, // Instrucciones del sistema
-            { role: 'user', content: text }              // Mensaje del usuario
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: text }
           ],
-          max_tokens: 500,    // Máximo de tokens en la respuesta
-          temperature: 0.7,   // Creatividad (0=conservador, 1=creativo)
+          max_tokens: 500,
+          temperature: 0.7,
         }),
       });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData?.error?.message || `Error ${response.status}`);
+      }
 
       // Convierte la respuesta a JSON
       const data = await response.json();

@@ -26,9 +26,10 @@ export default function Logo({ size = 'md', showText = true }: LogoProps) {
       transition={{ duration: 0.5 }}
     >
       <img 
-        src="/Logo.png" 
+        src="/Logo.jpg" 
         alt="P.A.R.C.E Logo" 
-        className={`${sizes[size]} object-contain`}
+        className={`${sizes[size]} object-contain mix-blend-lighten`}
+        style={{ filter: 'brightness(1.2) contrast(1.1)' }}
       />
       {showText && (
         <span className={`${textSizes[size]} font-bold text-gradient`}>

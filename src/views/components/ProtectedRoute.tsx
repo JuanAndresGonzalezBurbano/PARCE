@@ -1,5 +1,6 @@
 // Importa Navigate para redirigir al usuario a otra ruta
 import { Navigate } from 'react-router-dom';
+// Importa el hook de autenticación y el tipo UserRole
 import { useAuth, UserRole } from '../../controllers/AuthContext';
 
 // Define las propiedades del componente

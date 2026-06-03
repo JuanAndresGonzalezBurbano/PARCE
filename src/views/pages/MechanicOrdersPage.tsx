@@ -39,7 +39,7 @@ const INITIAL_ORDERS: Order[] = [
 ];
 
 // API key reservada para integración futura con Google Maps
-// const _GMAPS_KEY = 'AIzaSyD-PLACEHOLDER';
+const _GMAPS_KEY = 'AIzaSyD-PLACEHOLDER';
 
 function useProgress(totalSec: number, active: boolean) {
   const [elapsed, setElapsed] = useState(0);
@@ -230,46 +230,28 @@ function ActiveServiceView({ order, onCancel, onFinish }:
 
       <AnimatePresence>
         {chatOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-0 left-0 right-0 z-40 bg-dark-900 border-t border-anthracite-700 shadow-2xl"
-          >
-            <div className="max-w-6xl mx-auto p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5 text-primary-400"/>Chat con {order.clientName}
-                </h3>
-                <button onClick={() => setChatOpen(false)} className="text-gray-400 hover:text-white">
-                  <X className="w-5 h-5"/>
-                </button>
-              </div>
-              <div className="h-48 overflow-y-auto space-y-3 p-3 bg-dark-800/50 rounded-xl">
-                {msgs.map((m, i) => (
-                  <div key={i} className={`flex gap-2 ${m.role==='mechanic' ? 'flex-row-reverse' : 'flex-row'}`}>
-                    <div className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center ${m.role==='mechanic' ? 'bg-gold-500' : 'bg-dark-600'}`}>
-                      <User className="w-4 h-4 text-anthracite-950"/>
-                    </div>
-                    <div className={`max-w-[75%] px-3 py-2 rounded-xl text-sm ${m.role==='mechanic' ? 'bg-gold-600/30 text-white rounded-tr-sm' : 'bg-dark-700 text-gray-200 rounded-tl-sm'}`}>
-                      {m.text}
-                    </div>
-                  </div>
-                ))}
-                <div ref={endRef}/>
-              </div>
-              <div className="flex gap-2">
-                <input
-                  value={input}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
-                  onKeyDown={(e: React.KeyboardEvent) => e.key==='Enter' && sendMsg()}
-                  placeholder="Escribe un mensaje..."
-                  className="flex-1 bg-dark-800 border border-anthracite-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary-500"
-                />
-                <button onClick={sendMsg} disabled={!input.trim()} className="p-2.5 bg-gold-500 hover:bg-gold-600 disabled:opacity-40 rounded-xl">
-                  <Send className="w-4 h-4 text-anthracite-950"/>
-                </button>
-              </div>
+          <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} exit={{opacity:0,y:20}} className="card p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2"><MessageSquare className="w-5 h-5 text-primary-400"/>Chat con {order.clientName}</h3>
+              <button onClick={() => setChatOpen(false)} className="text-gray-400 hover:text-white"><X className="w-5 h-5"/></button>
+            </div>
+            <div className="h-48 overflow-y-auto space-y-3 p-3 bg-dark-800/50 rounded-xl">
+              {msgs.map((m, i) => (
+                <div key={i} className={`flex gap-2 ${m.role==='mechanic' ? 'flex-row-reverse' : 'flex-row'}`}>
+                  <div className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center ${m.role==='mechanic' ? 'bg-gold-500' : 'bg-dark-600'}`}>
+                    <User className="w-4 h-4 text-anthracite-950"/></div>
+                  <div className={`max-w-[75%] px-3 py-2 rounded-xl text-sm ${m.role==='mechanic' ? 'bg-gold-600/30 text-white rounded-tr-sm' : 'bg-dark-700 text-gray-200 rounded-tl-sm'}`}>{m.text}</div>
+                </div>
+              ))}
+              <div ref={endRef}/>
+            </div>
+            <div className="flex gap-2">
+              <input value={input} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
+                onKeyDown={(e: React.KeyboardEvent) => e.key==='Enter' && sendMsg()}
+                placeholder="Escribe un mensaje..."
+                className="flex-1 bg-dark-800 border border-anthracite-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary-500"/>
+              <button onClick={sendMsg} disabled={!input.trim()} className="p-2.5 bg-gold-500 hover:bg-gold-600 disabled:opacity-40 rounded-xl">
+                <Send className="w-4 h-4 text-anthracite-950"/></button>
             </div>
           </motion.div>
         )}

@@ -1,4 +1,4 @@
-import { useAuth, UserRole } from '../context/AuthContext';
+import { useAuth, UserRole } from '../controllers/AuthContext';
 import { User, Wrench, LogIn } from 'lucide-react';
 
 export default function RoleSwitcher() {

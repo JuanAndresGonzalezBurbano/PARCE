@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../controllers/AuthContext';
 
 type PaymentStatus = 'card_pending' | 'pse_paid' | 'pse_pending' | 'cash_pending' | 'completed';
 

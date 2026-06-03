@@ -8,6 +8,7 @@ import Logo from '../components/Logo';
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -16,12 +17,41 @@ export default function RegisterPage() {
   const navigate = useNavigate();
   // RAMA: Soto - El registro solo crea la cuenta y redirige a /login, no inicia sesión automáticamente
 
+  // Función que valida la contraseña
+  const validatePassword = (pwd: string): boolean => {
+    // Mínimo 8 caracteres
+    if (pwd.length < 8) {
+      setPasswordError('La contraseña debe tener mínimo 8 caracteres');
+      return false;
+    }
+    
+    // Debe tener al menos una mayúscula O un número
+    const hasUpperCase = /[A-Z]/.test(pwd);
+    const hasNumber = /[0-9]/.test(pwd);
+    
+    if (!hasUpperCase && !hasNumber) {
+      setPasswordError('La contraseña debe contener al menos una mayúscula o un número');
+      return false;
+    }
+    
+    setPasswordError('');
+    return true;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      alert('Las contraseñas no coinciden');
+    
+    // Validar contraseña
+    if (!validatePassword(formData.password)) {
       return;
     }
+    
+    // Validar que las contraseñas coincidan
+    if (formData.password !== formData.confirmPassword) {
+      setPasswordError('Las contraseñas no coinciden');
+      return;
+    }
+    
     // RAMA: Soto - Al registrarse, redirige a login para que el usuario inicie sesión
     // No se llama a login() aquí porque el registro es un paso separado al inicio de sesión
     navigate('/login');
@@ -97,9 +127,17 @@ export default function RegisterPage() {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, password: e.target.value });
+                    // Validar mientras escribe para mostrar errores inmediatamente
+                    if (e.target.value.length > 0) {
+                      validatePassword(e.target.value);
+                    } else {
+                      setPasswordError('');
+                    }
+                  }}
                   placeholder="••••••••••••••••••••••••"
-                  className="input-field pl-10 pr-10"
+                  className={`input-field pl-10 pr-10 ${passwordError && formData.password ? 'border-red-500' : ''}`}
                   required
                 />
                 <button
@@ -110,6 +148,17 @@ export default function RegisterPage() {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              {passwordError && formData.password && (
+                <p className="text-xs text-red-400">{passwordError}</p>
+              )}
+              {!passwordError && formData.password && (
+                <p className="text-xs text-green-400">✓ Contraseña válida</p>
+              )}
+              {!formData.password && (
+                <p className="text-xs text-gray-500">
+                  Mínimo 8 caracteres, con al menos una mayúscula o un número
+                </p>
+              )}
             </div>
 
             {/* Confirm Password Input */}
@@ -123,9 +172,17 @@ export default function RegisterPage() {
                   id="confirmPassword"
                   type={showConfirmPassword ? 'text' : 'password'}
                   value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, confirmPassword: e.target.value });
+                    // Verificar si coinciden mientras escribe
+                    if (e.target.value.length > 0 && formData.password !== e.target.value) {
+                      setPasswordError('Las contraseñas no coinciden');
+                    } else if (e.target.value === formData.password && e.target.value.length > 0) {
+                      setPasswordError('');
+                    }
+                  }}
                   placeholder="••••••••••••••••••••••••"
-                  className="input-field pl-10 pr-10"
+                  className={`input-field pl-10 pr-10 ${passwordError && formData.confirmPassword ? 'border-red-500' : ''}`}
                   required
                 />
                 <button
@@ -136,6 +193,12 @@ export default function RegisterPage() {
                   {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              {passwordError && formData.confirmPassword && (
+                <p className="text-xs text-red-400">{passwordError}</p>
+              )}
+              {!passwordError && formData.confirmPassword && formData.password === formData.confirmPassword && (
+                <p className="text-xs text-green-400">✓ Las contraseñas coinciden</p>
+              )}
             </div>
 
             {/* Submit Button */}

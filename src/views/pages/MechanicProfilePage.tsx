@@ -1,20 +1,48 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { User, Camera, Mail, Lock, Car, FileText, Calendar, CreditCard, Save, Star, Clock, MapPin } from 'lucide-react';
+import { User, Camera, Mail, Lock, Car, FileText, Calendar, CreditCard, Save, Star, Clock, MapPin, Eye, EyeOff } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../../controllers/AuthContext';
 
 export default function MechanicProfilePage() {
   const { user } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
   const [profileData, setProfileData] = useState({
     name: 'Juan Andrés',
     email: 'juanandres@example.com',
-    password: '********',
+    password: '',
     phone: '+57 300 123 4567',
     location: 'Bogotá',
     experience: '5 años',
   });
+
+  // Función que valida la contraseña
+  const validatePassword = (pwd: string): boolean => {
+    if (pwd.length === 0) {
+      setPasswordError('');
+      return true; // Permitir campo vacío (no cambiar contraseña)
+    }
+    
+    // Mínimo 8 caracteres
+    if (pwd.length < 8) {
+      setPasswordError('La contraseña debe tener mínimo 8 caracteres');
+      return false;
+    }
+    
+    // Debe tener al menos una mayúscula O un número
+    const hasUpperCase = /[A-Z]/.test(pwd);
+    const hasNumber = /[0-9]/.test(pwd);
+    
+    if (!hasUpperCase && !hasNumber) {
+      setPasswordError('La contraseña debe contener al menos una mayúscula o un número');
+      return false;
+    }
+    
+    setPasswordError('');
+    return true;
+  };
 
   const [vehicleData, setVehicleData] = useState({
     licenseCode: 'LCO4548938274',
@@ -96,6 +124,12 @@ export default function MechanicProfilePage() {
 
   const handleProfileSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validar contraseña solo si no está vacía
+    if (profileData.password && !validatePassword(profileData.password)) {
+      return;
+    }
+    
     alert('Perfil actualizado correctamente');
   };
 
@@ -192,17 +226,45 @@ export default function MechanicProfilePage() {
                       <Lock className="w-3 h-3" />
                       Contraseña
                     </label>
-                    <input
-                      type="password"
-                      value={profileData.password}
-                      onChange={(e) => setProfileData({ ...profileData, password: e.target.value })}
-                      className="input-field text-sm"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={profileData.password}
+                        onChange={(e) => {
+                          setProfileData({ ...profileData, password: e.target.value });
+                          if (e.target.value.length > 0) {
+                            validatePassword(e.target.value);
+                          } else {
+                            setPasswordError('');
+                          }
+                        }}
+                        placeholder="Dejar vacío para no cambiar"
+                        className={`input-field text-sm pr-10 ${passwordError ? 'border-red-500' : ''}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    {passwordError && (
+                      <p className="text-xs text-red-400">{passwordError}</p>
+                    )}
+                    {!passwordError && profileData.password.length > 0 && (
+                      <p className="text-xs text-green-400">✓ Contraseña válida</p>
+                    )}
+                    {profileData.password.length === 0 && (
+                      <p className="text-xs text-gray-500">
+                        Mínimo 8 caracteres, con mayúscula o número
+                      </p>
+                    )}
                   </div>
 
                   <button type="submit" className="w-full btn-primary py-2 text-sm flex items-center justify-center gap-2">
                     <Save className="w-4 h-4" />
-                    Guardar
+                    Actualizar cambios
                   </button>
                 </form>
               </div>
@@ -266,7 +328,7 @@ export default function MechanicProfilePage() {
 
                   <button type="submit" className="w-full btn-primary py-2 text-sm flex items-center justify-center gap-2">
                     <Save className="w-4 h-4" />
-                    Actualizar
+                    Actualizar cambios
                   </button>
                 </form>
               </div>

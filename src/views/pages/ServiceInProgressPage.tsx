@@ -158,7 +158,7 @@ function PaymentModule() {
   const { paymentInfo, setPaymentInfo } = useService();
   const [open, setOpen] = useState(false);
   const [method, setMethod] = useState<'card' | 'pse' | 'cash' | null>(paymentInfo?.method ?? null);
-  const [step, setStep] = useState<'select' | 'card-form' | 'pse-timing' | 'pse-form' | 'cash-confirm' | 'done'>('select');
+  const [step, setStep] = useState<'select' | 'card-form' | 'card-approve' | 'pse-timing' | 'pse-form' | 'cash-confirm' | 'done'>('select');
   // Tarjeta
   const [cardNumber, setCardNumber] = useState('');
   const [cardHolder, setCardHolder] = useState('');
@@ -202,8 +202,14 @@ function PaymentModule() {
     return null;
   };
 
+  const approveCard = () => {
+    setPaymentInfo({ ...paymentInfo!, status: 'paid' });
+    setStep('done');
+  };
+
   const backStep = () => {
     if (step === 'card-form' || step === 'pse-timing' || step === 'cash-confirm') setStep('select');
+    else if (step === 'card-approve') setStep('card-form');
     else if (step === 'pse-form') setStep('pse-timing');
   };
 
@@ -232,8 +238,7 @@ function PaymentModule() {
                   <button onClick={backStep} className="p-2 rounded-lg hover:bg-dark-800 text-gray-400 hover:text-white transition-colors">
                     <ArrowRight className="w-5 h-5 rotate-180"/>
                   </button>
-                )}
-                <h2 className="text-xl font-bold text-white">Forma de pago</h2>
+                )}                <h2 className="text-xl font-bold text-white">Forma de pago</h2>
               </div>
               <button onClick={() => setOpen(false)} className="p-2 rounded-lg hover:bg-dark-800 text-gray-400 hover:text-white transition-colors">
                 <X className="w-5 h-5"/>
@@ -273,14 +278,41 @@ function PaymentModule() {
                   {step === 'card-form' && (
                     <motion.div key="card-form" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
                       {saved ? (
-                        <div className="flex items-center gap-3 p-4 bg-blue-500/10 border border-blue-500/30 rounded-2xl">
-                          <ShieldCheck className="w-6 h-6 text-blue-400 flex-shrink-0"/>
-                          <div>
-                            <p className="text-blue-300 font-semibold">Tarjeta guardada •••• {saved.last4}</p>
-                            <p className="text-gray-400 text-sm">{saved.holder} · {saved.expiry}</p>
-                            <p className="text-gray-500 text-xs mt-1">El mecánico cobrará al finalizar.</p>
+                        <>
+                          {/* Tarjeta guardada — mostrar opciones */}
+                          <div className="flex items-center gap-3 p-4 bg-blue-500/10 border border-blue-500/30 rounded-2xl">
+                            <ShieldCheck className="w-6 h-6 text-blue-400 flex-shrink-0"/>
+                            <div>
+                              <p className="text-blue-300 font-semibold">Tarjeta guardada •••• {saved.last4}</p>
+                              <p className="text-gray-400 text-sm">{saved.holder} · {saved.expiry}</p>
+                            </div>
                           </div>
-                        </div>
+                          <button onClick={() => setStep('card-approve')}
+                            className="w-full flex items-center gap-4 p-4 bg-dark-800 hover:bg-dark-700 border border-anthracite-700 hover:border-gold-500/50 rounded-2xl transition-all text-left">
+                            <div className="w-10 h-10 rounded-full bg-gold-500/20 flex items-center justify-center flex-shrink-0">
+                              <Check className="w-5 h-5 text-gold-400"/>
+                            </div>
+                            <div>
+                              <p className="text-white font-semibold">Aprobar pago con esta tarjeta</p>
+                              <p className="text-gray-400 text-sm">El mecánico cobrará al finalizar el servicio</p>
+                            </div>
+                            <ArrowRight className="w-5 h-5 text-gray-500 ml-auto flex-shrink-0"/>
+                          </button>
+                          <button onClick={() => {
+                            setPaymentInfo(null);
+                            setCardNumber(''); setCardHolder(''); setCardExpiry(''); setCardCvv('');
+                          }}
+                            className="w-full flex items-center gap-4 p-4 bg-dark-800 hover:bg-dark-700 border border-anthracite-700 hover:border-primary-500/50 rounded-2xl transition-all text-left">
+                            <div className="w-10 h-10 rounded-full bg-primary-500/20 flex items-center justify-center flex-shrink-0">
+                              <CreditCard className="w-5 h-5 text-primary-400"/>
+                            </div>
+                            <div>
+                              <p className="text-white font-semibold">Agregar otra tarjeta</p>
+                              <p className="text-gray-400 text-sm">Reemplaza la tarjeta guardada</p>
+                            </div>
+                            <ArrowRight className="w-5 h-5 text-gray-500 ml-auto flex-shrink-0"/>
+                          </button>
+                        </>
                       ) : (
                         <>
                           <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
@@ -302,6 +334,22 @@ function PaymentModule() {
                           </button>
                         </>
                       )}
+                      <button onClick={backStep} className="w-full py-3 text-gray-400 hover:text-white text-sm transition-colors">← Volver</button>
+                    </motion.div>
+                  )}
+
+                  {/* APROBAR PAGO CON TARJETA GUARDADA */}
+                  {step === 'card-approve' && (
+                    <motion.div key="card-approve" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+                      <div className="p-5 bg-gold-500/10 border border-gold-500/20 rounded-2xl space-y-3 text-center">
+                        <div className="w-14 h-14 rounded-full bg-gold-500/20 flex items-center justify-center mx-auto">
+                          <CreditCard className="w-7 h-7 text-gold-400"/>
+                        </div>
+                        <p className="text-white font-semibold">Aprobar cobro con tarjeta</p>
+                        <p className="text-gray-400 text-sm">Se autorizará el cobro a tu tarjeta •••• {saved?.last4} cuando el mecánico finalice el servicio.</p>
+                      </div>
+                      <SliderButton label="Desliza para autorizar cobro con tarjeta" onConfirm={approveCard}/>
+                      <button onClick={backStep} className="w-full py-3 text-gray-400 hover:text-white text-sm transition-colors">← Volver</button>
                     </motion.div>
                   )}
 
@@ -321,6 +369,7 @@ function PaymentModule() {
                         <div><p className="text-white font-semibold">Pagar cuando llegue el mecánico</p><p className="text-gray-400 text-sm">El mecánico esperará la transferencia al llegar</p></div>
                         <ArrowRight className="w-5 h-5 text-gray-500 ml-auto flex-shrink-0"/>
                       </button>
+                      <button onClick={backStep} className="w-full py-3 text-gray-400 hover:text-white text-sm transition-colors">← Volver</button>
                     </motion.div>
                   )}
 
@@ -351,6 +400,7 @@ function PaymentModule() {
                         className="w-full py-3.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl transition-colors disabled:opacity-40 flex items-center justify-center gap-2 mt-2">
                         <Building2 className="w-5 h-5"/>{pseTiming === 'now' ? 'Confirmar transferencia PSE' : 'Guardar datos PSE'}
                       </button>
+                      <button onClick={backStep} className="w-full py-3 text-gray-400 hover:text-white text-sm transition-colors">← Volver</button>
                     </motion.div>
                   )}
 
@@ -363,6 +413,7 @@ function PaymentModule() {
                         <p className="text-gray-400 text-sm">Ten el monto exacto disponible. El mecánico cobrará antes de dar el servicio por finalizado.</p>
                       </div>
                       <SliderButton label="Desliza para confirmar pago en efectivo" onConfirm={confirmCash}/>
+                      <button onClick={backStep} className="w-full py-3 text-gray-400 hover:text-white text-sm transition-colors">← Volver</button>
                     </motion.div>
                   )}
 

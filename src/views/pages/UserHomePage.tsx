@@ -40,7 +40,7 @@ export default function UserHomePage() {
             {/* Logo */}
             <div className="flex justify-center mb-8">
               <img
-                src="/Logo.png"
+                src="/Logo.jpg"
                 alt="P.A.R.C.E Logo"
                 className="w-32 h-32 md:w-40 md:h-40 object-contain"
               />

@@ -21,7 +21,7 @@ export default function MechanicVehicleInfoPage() {
 
   return (
     <div className="min-h-screen bg-gradient-dark">
-      <Navbar isAuthenticated userName="Mecánico" userRole="mechanic" />
+      <Navbar isAuthenticated userName="Mecánico" />
 
       <main className="pt-24 pb-12 px-4">
         <motion.div

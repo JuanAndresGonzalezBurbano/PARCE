@@ -9,7 +9,7 @@ import {
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../../controllers/AuthContext';
-import { useService, PaymentInfo } from '../../controllers/ServiceContext';
+import { useService } from '../../controllers/ServiceContext';
 
 /* ── HOOK PROGRESO ── */
 function useServiceProgress() {
@@ -157,7 +157,6 @@ const BANKS = [
 function PaymentModule() {
   const { paymentInfo, setPaymentInfo } = useService();
   const [open, setOpen] = useState(false);
-  const [method, setMethod] = useState<'card' | 'pse' | 'cash' | null>(paymentInfo?.method ?? null);
   const [step, setStep] = useState<'select' | 'card-form' | 'card-approve' | 'pse-timing' | 'pse-form' | 'cash-confirm' | 'done'>('select');
   // Tarjeta
   const [cardNumber, setCardNumber] = useState('');
@@ -253,19 +252,19 @@ function PaymentModule() {
                   {step === 'select' && (
                     <motion.div key="select" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
                       <p className="text-gray-400 text-sm">Elige cómo quieres pagar este servicio</p>
-                      <button onClick={() => { setMethod('card'); setStep('card-form'); }}
+                      <button onClick={() => { setStep('card-form'); }}
                         className="w-full flex items-center gap-4 p-5 bg-dark-800 hover:bg-dark-700 border border-anthracite-700 hover:border-gold-500/50 rounded-2xl transition-all text-left">
                         <div className="w-12 h-12 rounded-full bg-gold-500/20 flex items-center justify-center flex-shrink-0"><CreditCard className="w-6 h-6 text-gold-400"/></div>
                         <div><p className="text-white font-semibold">Tarjeta de crédito / débito</p><p className="text-gray-400 text-sm">Se guarda y el mecánico cobra al finalizar</p></div>
                         <ArrowRight className="w-5 h-5 text-gray-500 ml-auto flex-shrink-0"/>
                       </button>
-                      <button onClick={() => { setMethod('pse'); setStep('pse-timing'); }}
+                      <button onClick={() => { setStep('pse-timing'); }}
                         className="w-full flex items-center gap-4 p-5 bg-dark-800 hover:bg-dark-700 border border-anthracite-700 hover:border-purple-500/50 rounded-2xl transition-all text-left">
                         <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0"><Building2 className="w-6 h-6 text-purple-400"/></div>
                         <div><p className="text-white font-semibold">PSE — Transferencia bancaria</p><p className="text-gray-400 text-sm">Paga ahora o cuando llegue el mecánico</p></div>
                         <ArrowRight className="w-5 h-5 text-gray-500 ml-auto flex-shrink-0"/>
                       </button>
-                      <button onClick={() => { setMethod('cash'); setStep('cash-confirm'); }}
+                      <button onClick={() => { setStep('cash-confirm'); }}
                         className="w-full flex items-center gap-4 p-5 bg-dark-800 hover:bg-dark-700 border border-anthracite-700 hover:border-green-500/50 rounded-2xl transition-all text-left">
                         <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0"><DollarSign className="w-6 h-6 text-green-400"/></div>
                         <div><p className="text-white font-semibold">Efectivo</p><p className="text-gray-400 text-sm">Pagas directamente al mecánico al llegar</p></div>

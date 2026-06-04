@@ -1,4 +1,4 @@
-import { useAuth, UserRole } from '../controllers/AuthContext';
+import { useAuth, UserRole } from '../../controllers/AuthContext';
 import { User, Wrench, LogIn } from 'lucide-react';
 
 export default function RoleSwitcher() {
@@ -14,7 +14,7 @@ export default function RoleSwitcher() {
         </div>
         <div className="space-y-3">
           <button
-            onClick={() => login('cliente@parce.com', '123', 'user')}
+            onClick={() => { login('cliente@parce.com', '123'); selectRole('user'); }}
             className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-anthracite-700 hover:border-gold-500 hover:bg-gold-500/10 transition-all group"
           >
             <div className="w-10 h-10 rounded-full bg-gold-500/20 flex items-center justify-center">
@@ -26,7 +26,7 @@ export default function RoleSwitcher() {
             </div>
           </button>
           <button
-            onClick={() => login('mecanico@parce.com', '123', 'mechanic')}
+            onClick={() => { login('mecanico@parce.com', '123'); selectRole('mechanic'); }}
             className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-anthracite-700 hover:border-blue-500 hover:bg-blue-500/10 transition-all group"
           >
             <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">

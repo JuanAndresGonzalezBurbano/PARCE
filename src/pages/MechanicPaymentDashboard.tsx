@@ -4,9 +4,9 @@ import {
   CreditCard, DollarSign, Building2, Check, ArrowRight,
   AlertCircle, CheckCircle2, User, Wallet, Clock, Loader2
 } from 'lucide-react';
-import Navbar from '../components/Navbar';
-import Sidebar from '../components/Sidebar';
-import { useAuth } from '../context/AuthContext';
+import Navbar from '../views/components/Navbar';
+import Sidebar from '../views/components/Sidebar';
+import { useAuth } from '../controllers/AuthContext';
 
 type PaymentStatus = 'card_pending' | 'pse_paid' | 'pse_pending' | 'cash_pending' | 'completed' | 'card_rejected';
 

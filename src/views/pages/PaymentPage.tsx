@@ -1,622 +1,552 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CreditCard, Building2, DollarSign, Check, ArrowLeft, X, AlertCircle } from 'lucide-react';
+import {
+  CreditCard, DollarSign, Building2, Check, ChevronRight,
+  ChevronLeft, Loader2, Shield, AlertCircle, CheckCircle2, X, XCircle
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../../controllers/AuthContext';
-import { useNavigate } from 'react-router-dom';
 
 type PaymentMethod = 'card' | 'pse' | 'cash' | null;
-type PaymentStep = 'select' | 'form' | 'pse-timing' | 'pse-arrival' | 'success';
-type PSETiming = 'now' | 'on-arrival' | null;
+type PSEOption = 'now' | 'on_arrival' | null;
+type Step = 1 | 2 | 3;
 
-// Bancos colombianos disponibles en PSE incluyendo Nequi, Daviplata, etc.
-const COLOMBIAN_BANKS = [
-  'Banco de Bogotá',
-  'Bancolombia',
-  'Banco Davivienda',
-  'BBVA Colombia',
-  'Banco de Occidente',
-  'Banco Popular',
-  'Banco Caja Social',
-  'Banco AV Villas',
-  'Banco Agrario',
-  'Banco Colpatria',
-  'Banco Falabella',
-  'Banco GNB Sudameris',
-  'Banco Pichincha',
-  'Banco Santander',
-  'Nequi',
-  'Daviplata',
-  'Bancamía',
-  'Banco Cooperativo Coopcentral',
-  'Banco Finandina',
-  'Banco Mundo Mujer',
+const SERVICE_DATA = {
+  mechanic: 'Carlos Rodríguez',
+  description: 'Cambio de aceite y filtros',
+  labor: 80000,
+  materials: 45000,
+  delivery: 15000,
+  reference: 'PARCE-2024-00142',
+};
+
+const BANKS = [
+  'Bancolombia', 'Banco de Bogotá', 'Davivienda', 'BBVA', 'Banco Popular',
+  'Banco Caja Social', 'Colpatria', 'Occidente', 'AV Villas', 'Nequi',
 ];
 
-const DOC_TYPES = ['CC', 'CE', 'NIT', 'TI', 'PP'];
+const formatCOP = (val: number) =>
+  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val);
 
 export default function PaymentPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [step, setStep] = useState<PaymentStep>('select');
+  const [step, setStep] = useState<Step>(1);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null);
-  const [pseTiming, setPSETiming] = useState<PSETiming>(null);
+  const [pseOption, setPseOption] = useState<PSEOption>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isConfirmed, setIsConfirmed] = useState(false);
 
-  // Datos del formulario
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardHolder, setCardHolder] = useState('');
-  const [expiry, setExpiry] = useState('');
-  const [cvv, setCvv] = useState('');
+  // Fix 2: modal cobro tarjeta
+  const [showChargeModal, setShowChargeModal] = useState(false);
+  const [chargeResult, setChargeResult] = useState<'accepted' | 'rejected' | null>(null);
 
-  const [pseBank, setPseBank] = useState('');
-  const [pseDocType, setPseDocType] = useState('CC');
-  const [pseDocNumber, setPseDocNumber] = useState('');
-  const [pseName, setPseName] = useState('');
-  const [pseEmail, setPseEmail] = useState('');
+  // Fix 3: tarjetas guardadas
+  const [savedCards, setSavedCards] = useState([
+    { id: '1', number: '**** **** **** 4521', name: 'Juan Gustavo', type: 'Visa' }
+  ]);
+  const [selectedCardId, setSelectedCardId] = useState('1');
+  const [showNewCardForm, setShowNewCardForm] = useState(false);
+  const [cardData, setCardData] = useState({ number: '', name: '', expiry: '', cvv: '', type: 'credit' as 'credit' | 'debit' });
+  const [cardSaved, setCardSaved] = useState(false);
 
-  const handleSelectMethod = (method: PaymentMethod) => {
-    setPaymentMethod(method);
-    if (method === 'cash') {
-      // Efectivo muestra directamente la opción de confirmar pago al llegar
-      setStep('success');
-    } else {
-      setStep('form');
-    }
+  // PSE form
+  const [pseData, setPseData] = useState({ bank: '', personType: 'natural', document: '' });
+
+  const total = SERVICE_DATA.labor + SERVICE_DATA.materials + SERVICE_DATA.delivery;
+
+  const formatCardNumber = (val: string) =>
+    val.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
+
+  const formatExpiry = (val: string) =>
+    val.replace(/\D/g, '').slice(0, 4).replace(/(.{2})/, '$1/');
+
+  const handleSaveNewCard = () => {
+    if (!cardData.number || !cardData.name || !cardData.expiry || !cardData.cvv) return;
+    const newCard = {
+      id: Date.now().toString(),
+      number: '**** **** **** ' + cardData.number.replace(/\s/g, '').slice(-4),
+      name: cardData.name,
+      type: cardData.type === 'credit' ? 'Crédito' : 'Débito',
+    };
+    setSavedCards(prev => [...prev, newCard]);
+    setSelectedCardId(newCard.id);
+    setShowNewCardForm(false);
+    setCardSaved(true);
+    setCardData({ number: '', name: '', expiry: '', cvv: '', type: 'credit' });
+    setTimeout(() => setCardSaved(false), 2000);
   };
 
-  const handleCardSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (cardNumber.length < 15 || !cardHolder || !expiry || !cvv) {
-      return;
-    }
-    setStep('success');
+  const handleProcess = () => {
+    setIsProcessing(true);
+    setTimeout(() => { setIsProcessing(false); setIsConfirmed(true); setStep(3); }, 2000);
   };
 
-  const handlePSESubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!pseBank || !pseDocNumber || !pseName || !pseEmail) {
-      return;
-    }
-    // Pregunta cuándo quiere pagar
-    setStep('pse-timing');
+  const handleChargeResponse = (accepted: boolean) => {
+    setShowChargeModal(false);
+    setChargeResult(accepted ? 'accepted' : 'rejected');
   };
 
-  const handlePSETiming = (timing: PSETiming) => {
-    setPSETiming(timing);
-    if (timing === 'now') {
-      // Pago ahora → confirmación
-      setStep('success');
-    } else {
-      // Pago al llegar → guardar datos y confirmación
-      setStep('pse-arrival');
-    }
+  const getStatusBadge = () => {
+    if (paymentMethod === 'card') return { text: 'Pendiente de cobro', color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/30' };
+    if (paymentMethod === 'pse' && pseOption === 'now') return { text: 'PSE Pagado', color: 'text-green-400', bg: 'bg-green-500/10 border-green-500/30' };
+    if (paymentMethod === 'pse' && pseOption === 'on_arrival') return { text: 'PSE Pendiente', color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30' };
+    return { text: 'Pendiente de pago', color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30' };
   };
-
-  const handlePSEArrivalSave = () => {
-    setStep('success');
-  };
-
-  const handleBackToService = () => {
-    navigate('/service-in-progress');
-  };
-
-  const getSuccessMessage = () => {
-    if (paymentMethod === 'card') {
-      return {
-        icon: <Check className="w-16 h-16 text-green-400" />,
-        title: '¡Tarjeta guardada!',
-        subtitle: 'El mecánico cobrará automáticamente al finalizar.',
-        showBackButton: true,
-      };
-    } else if (paymentMethod === 'pse') {
-      if (pseTiming === 'now') {
-        return {
-          icon: <Check className="w-16 h-16 text-green-400" />,
-          title: '¡Pago PSE realizado!',
-          subtitle: 'El mecánico fue notificado del pago.',
-          showBackButton: true,
-        };
-      } else {
-        return {
-          icon: <Check className="w-16 h-16 text-green-400" />,
-          title: 'Datos PSE guardados',
-          subtitle: 'El mecánico sabe que pagarás por PSE al llegar.',
-          showBackButton: true,
-        };
-      }
-    } else {
-      // Efectivo
-      return {
-        icon: <DollarSign className="w-16 h-16 text-green-400" />,
-        title: '¡Confirmado!',
-        subtitle: 'El mecánico sabe que pagarás en efectivo al llegar.',
-        showBackButton: true,
-      };
-    }
-  };
-
-  const successData = getSuccessMessage();
 
   return (
     <div className="min-h-screen bg-dark-950">
-      <Navbar isAuthenticated userName={user?.name || 'Usuario'} hideNavLinks />
-      <Sidebar hidden />
+      <Navbar isAuthenticated userName={user?.name || 'Usuario'} />
+      <Sidebar />
 
-      <main className="ml-0 pt-16 p-8">
-        <AnimatePresence mode="wait">
-          {/* PASO 1: Selección de método de pago */}
-          {step === 'select' && (
-            <motion.div
-              key="select"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="max-w-4xl mx-auto space-y-6"
-            >
-              <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold text-white mb-2">Forma de pago</h1>
-                <p className="text-gray-400">Elige cómo quieres pagar este servicio</p>
+      {/* Modal: cliente acepta/rechaza cobro */}
+      <AnimatePresence>
+        {showChargeModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
+              className="bg-anthracite-950 border-2 border-anthracite-700 rounded-2xl p-8 w-full max-w-md shadow-2xl space-y-6">
+              <div className="text-center space-y-2">
+                <div className="w-16 h-16 mx-auto bg-blue-500/20 rounded-full flex items-center justify-center">
+                  <CreditCard className="w-8 h-8 text-blue-400" />
+                </div>
+                <h3 className="text-xl font-bold text-white">Cobro con tarjeta</h3>
+                <p className="text-gray-400 text-sm">El mecánico solicita cobrar:</p>
+                <p className="text-3xl font-bold text-gold-400">{formatCOP(total)}</p>
+                <p className="text-gray-500 text-xs">Tarjeta: {savedCards.find(c => c.id === selectedCardId)?.number}</p>
               </div>
+              <div className="flex gap-3">
+                <button onClick={() => handleChargeResponse(false)}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-red-600/20 border border-red-500/40 hover:bg-red-600/30 text-red-400 font-semibold rounded-xl transition-colors">
+                  <XCircle className="w-4 h-4" /> Rechazar
+                </button>
+                <button onClick={() => handleChargeResponse(true)}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-colors">
+                  <Check className="w-4 h-4" /> Aceptar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-              <div className="grid md:grid-cols-3 gap-6">
-                {/* Tarjeta */}
-                <motion.button
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => handleSelectMethod('card')}
-                  className="card p-6 text-center space-y-4 hover:ring-2 hover:ring-gold-500 transition-all group"
-                >
-                  <div className="w-16 h-16 mx-auto bg-gradient-to-br from-gold-500 to-gold-600 rounded-full flex items-center justify-center group-hover:shadow-glow-gold transition-shadow">
-                    <CreditCard className="w-8 h-8 text-anthracite-950" />
+      {/* Modal: resultado del cobro */}
+      <AnimatePresence>
+        {chargeResult && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }}
+              className="bg-anthracite-950 border-2 border-anthracite-700 rounded-2xl p-8 w-full max-w-sm text-center space-y-4">
+              {chargeResult === 'accepted' ? (
+                <>
+                  <div className="w-16 h-16 mx-auto bg-green-500 rounded-full flex items-center justify-center">
+                    <Check className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="text-xl font-bold text-white">Tarjeta de crédito / débito</h3>
-                  <p className="text-sm text-gray-400">Se guarda y el mecánico cobra al finalizar</p>
-                </motion.button>
+                  <h3 className="text-xl font-bold text-white">¡Pago aceptado!</h3>
+                  <p className="text-gray-400 text-sm">El mecánico ha sido notificado. El monto fue debitado de tu tarjeta.</p>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 mx-auto bg-red-500 rounded-full flex items-center justify-center">
+                    <X className="w-8 h-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white">Cobro rechazado</h3>
+                  <p className="text-gray-400 text-sm">El mecánico ha sido notificado. No se realizó ningún cobro.</p>
+                </>
+              )}
+              <button onClick={() => setChargeResult(null)} className="w-full btn-primary">Cerrar</button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <main className="ml-64 pt-16 p-8">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl mx-auto space-y-6">
+
+          {/* Header con botón atrás */}
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate(-1)}
+              className="p-2 rounded-lg bg-anthracite-800 hover:bg-anthracite-700 text-gray-400 hover:text-white transition-colors">
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-3xl font-bold text-white">Formas de Pago</h1>
+              <p className="text-gray-400 mt-1">Gestiona el pago de tu servicio mecánico</p>
+            </div>
+          </div>
+
+          {/* Steps */}
+          <div className="flex items-center gap-2">
+            {(['Resumen', 'Pago', 'Confirmación'] as const).map((label, i) => {
+              const s = i + 1;
+              return (
+                <div key={s} className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${step >= s ? 'bg-gold-500 text-anthracite-950' : 'bg-anthracite-800 text-gray-500'}`}>
+                    {step > s ? <Check className="w-4 h-4" /> : s}
+                  </div>
+                  <span className={`text-sm ${step >= s ? 'text-white' : 'text-gray-500'}`}>{label}</span>
+                  {s < 3 && <ChevronRight className="w-4 h-4 text-gray-600" />}
+                </div>
+              );
+            })}
+          </div>
+
+          <AnimatePresence mode="wait">
+
+            {/* PASO 1 */}
+            {step === 1 && (
+              <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+                <div className="card p-6 space-y-4">
+                  <h2 className="text-xl font-bold text-white">Resumen del Servicio</h2>
+                  <div className="flex items-center gap-3 pb-4 border-b border-anthracite-800">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gold-500 to-gold-700 flex items-center justify-center">
+                      <span className="text-anthracite-950 font-bold text-sm">CR</span>
+                    </div>
+                    <div>
+                      <p className="text-white font-semibold">{SERVICE_DATA.mechanic}</p>
+                      <p className="text-gray-400 text-sm">Mecánico asignado</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    {[['Mano de obra', SERVICE_DATA.labor], ['Materiales', SERVICE_DATA.materials], ['Domicilio', SERVICE_DATA.delivery]].map(([l, v]) => (
+                      <div key={l as string} className="flex justify-between text-gray-400">
+                        <span>{l}</span><span>{formatCOP(v as number)}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between text-white font-bold text-base pt-2 border-t border-anthracite-800">
+                      <span>Total</span><span className="text-gold-400">{formatCOP(total)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="card p-6 space-y-4">
+                  <h2 className="text-xl font-bold text-white">Método de Pago</h2>
+                  <div className="grid grid-cols-3 gap-4">
+                    {[
+                      { id: 'card', icon: CreditCard, label: 'Tarjeta', grad: 'from-gold-500 to-gold-700', ic: 'text-anthracite-950' },
+                      { id: 'pse', icon: Building2, label: 'PSE', grad: 'from-blue-500 to-blue-700', ic: 'text-white' },
+                      { id: 'cash', icon: DollarSign, label: 'Efectivo', grad: 'from-green-500 to-green-700', ic: 'text-white' },
+                    ].map(({ id, icon: Icon, label, grad, ic }) => (
+                      <motion.button key={id} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                        onClick={() => setPaymentMethod(id as PaymentMethod)}
+                        className={`p-5 rounded-xl border-2 text-center space-y-3 transition-all ${paymentMethod === id ? 'border-gold-500 bg-gold-500/10' : 'border-anthracite-700 bg-anthracite-900/50 hover:border-anthracite-600'}`}>
+                        <div className={`w-12 h-12 mx-auto rounded-full bg-gradient-to-br ${grad} flex items-center justify-center`}>
+                          <Icon className={`w-6 h-6 ${ic}`} />
+                        </div>
+                        <p className="text-white font-semibold text-sm">{label}</p>
+                        {paymentMethod === id && <Check className="w-4 h-4 text-gold-400 mx-auto" />}
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+
+                <button onClick={() => setStep(2)} disabled={!paymentMethod}
+                  className="w-full btn-primary disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                  Continuar <ChevronRight className="w-4 h-4" />
+                </button>
+              </motion.div>
+            )}
+
+            {/* PASO 2 */}
+            {step === 2 && (
+              <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+
+                {/* TARJETA */}
+                {paymentMethod === 'card' && (
+                  <div className="card p-6 space-y-5">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                      <CreditCard className="w-5 h-5 text-gold-400" /> Pago con Tarjeta
+                    </h2>
+                    {/* Tarjetas guardadas */}
+                    <div className="space-y-3">
+                      {savedCards.map((card) => (
+                        <div key={card.id}
+                          onClick={() => { setSelectedCardId(card.id); setShowNewCardForm(false); }}
+                          className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedCardId === card.id && !showNewCardForm ? 'border-gold-500 bg-gold-500/10' : 'border-anthracite-700 hover:border-anthracite-600'}`}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <CreditCard className="w-5 h-5 text-gold-400" />
+                              <div>
+                                <p className="text-white font-semibold">{card.number}</p>
+                                <p className="text-gray-400 text-sm">{card.name} · {card.type}</p>
+                              </div>
+                            </div>
+                            {selectedCardId === card.id && !showNewCardForm && <Check className="w-5 h-5 text-gold-400" />}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Agregar nueva tarjeta */}
+                    <button onClick={() => { setShowNewCardForm(!showNewCardForm); setSelectedCardId(''); }}
+                      className={`w-full p-3 rounded-xl border-2 text-sm transition-all ${showNewCardForm ? 'border-gold-500 bg-gold-500/10 text-gold-400' : 'border-anthracite-700 text-gray-400 hover:border-anthracite-600'}`}>
+                      + Agregar nueva tarjeta
+                    </button>
+                    {showNewCardForm && (
+                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 p-4 bg-anthracite-900/50 rounded-xl border border-anthracite-700">
+                        <div className="flex gap-3">
+                          {['credit', 'debit'].map((t) => (
+                            <button key={t} onClick={() => setCardData({ ...cardData, type: t as 'credit' | 'debit' })}
+                              className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${cardData.type === t ? 'bg-gold-500 text-anthracite-950' : 'bg-anthracite-800 text-gray-400'}`}>
+                              {t === 'credit' ? 'Crédito' : 'Débito'}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm text-gray-400">Número de tarjeta</label>
+                          <input className="input-field" placeholder="1234 5678 9012 3456"
+                            value={cardData.number} onChange={(e) => setCardData({ ...cardData, number: formatCardNumber(e.target.value) })} />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm text-gray-400">Nombre del titular</label>
+                          <input className="input-field" placeholder="Como aparece en la tarjeta"
+                            value={cardData.name} onChange={(e) => setCardData({ ...cardData, name: e.target.value })} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-sm text-gray-400">Vencimiento</label>
+                            <input className="input-field" placeholder="MM/AA"
+                              value={cardData.expiry} onChange={(e) => setCardData({ ...cardData, expiry: formatExpiry(e.target.value) })} />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm text-gray-400">CVV</label>
+                            <input className="input-field" placeholder="***" maxLength={4}
+                              value={cardData.cvv} onChange={(e) => setCardData({ ...cardData, cvv: e.target.value.replace(/\D/g, '') })} />
+                          </div>
+                        </div>
+                        <button onClick={handleSaveNewCard}
+                          disabled={!cardData.number || !cardData.name || !cardData.expiry || !cardData.cvv}
+                          className="w-full btn-primary disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                          <Check className="w-4 h-4" /> Guardar tarjeta
+                        </button>
+                      </motion.div>
+                    )}
+                    <AnimatePresence>
+                      {cardSaved && (
+                        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                          className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                          <CheckCircle2 className="w-4 h-4 text-green-400" />
+                          <p className="text-green-300 text-sm">¡Tarjeta agregada exitosamente!</p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                    <div className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                      <Shield className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                      <p className="text-blue-300 text-sm">Tu tarjeta se guarda de forma segura. El cobro lo realiza el mecánico al finalizar el servicio.</p>
+                    </div>
+                  </div>
+                )}
 
                 {/* PSE */}
-                <motion.button
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => handleSelectMethod('pse')}
-                  className="card p-6 text-center space-y-4 hover:ring-2 hover:ring-purple-500 transition-all group"
-                >
-                  <div className="w-16 h-16 mx-auto bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center">
-                    <Building2 className="w-8 h-8 text-white" />
+                {paymentMethod === 'pse' && (
+                  <div className="card p-6 space-y-5">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                      <Building2 className="w-5 h-5 text-blue-400" /> Pago PSE
+                    </h2>
+                    <div className="grid grid-cols-2 gap-4">
+                      {[
+                        { id: 'now', label: 'Pagar ahora', desc: 'Transferencia inmediata', icon: CheckCircle2, color: 'text-green-400' },
+                        { id: 'on_arrival', label: 'Pagar al llegar', desc: 'Cuando llegue el mecánico', icon: AlertCircle, color: 'text-amber-400' },
+                      ].map(({ id, label, desc, icon: Icon, color }) => (
+                        <motion.button key={id} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                          onClick={() => setPseOption(id as PSEOption)}
+                          className={`p-4 rounded-xl border-2 text-left space-y-2 transition-all ${pseOption === id ? 'border-gold-500 bg-gold-500/10' : 'border-anthracite-700 hover:border-anthracite-600'}`}>
+                          <Icon className={`w-5 h-5 ${color}`} />
+                          <p className="text-white font-semibold text-sm">{label}</p>
+                          <p className="text-gray-400 text-xs">{desc}</p>
+                        </motion.button>
+                      ))}
+                    </div>
+                    {pseOption === 'now' && (
+                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-sm text-gray-400">Banco</label>
+                          <select className="input-field" value={pseData.bank} onChange={(e) => setPseData({ ...pseData, bank: e.target.value })}>
+                            <option value="">Selecciona tu banco</option>
+                            {BANKS.map((b) => <option key={b} value={b}>{b}</option>)}
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm text-gray-400">Tipo de persona</label>
+                          <div className="flex gap-3">
+                            {['natural', 'juridica'].map((t) => (
+                              <button key={t} onClick={() => setPseData({ ...pseData, personType: t })}
+                                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${pseData.personType === t ? 'bg-gold-500 text-anthracite-950' : 'bg-anthracite-800 text-gray-400'}`}>
+                                {t === 'natural' ? 'Natural' : 'Jurídica'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm text-gray-400">Número de documento</label>
+                          <input className="input-field" placeholder="Cédula o NIT"
+                            value={pseData.document} onChange={(e) => setPseData({ ...pseData, document: e.target.value })} />
+                        </div>
+                      </motion.div>
+                    )}
+                    {pseOption === 'on_arrival' && (
+                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                        className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="w-5 h-5 text-amber-400" />
+                          <p className="text-amber-300 font-semibold">Instrucciones</p>
+                        </div>
+                        <p className="text-gray-300 text-sm">Cuando el mecánico llegue, realiza la transferencia PSE por:</p>
+                        <p className="text-2xl font-bold text-gold-400">{formatCOP(total)}</p>
+                        <p className="text-gray-400 text-xs">Referencia: {SERVICE_DATA.reference}</p>
+                      </motion.div>
+                    )}
                   </div>
-                  <h3 className="text-xl font-bold text-white">PSE — Transferencia bancaria</h3>
-                  <p className="text-sm text-gray-400">Paga ahora o cuando llegue el mecánico</p>
-                </motion.button>
+                )}
 
-                {/* Efectivo */}
-                <motion.button
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => handleSelectMethod('cash')}
-                  className="card p-6 text-center space-y-4 hover:ring-2 hover:ring-green-500 transition-all group"
-                >
-                  <div className="w-16 h-16 mx-auto bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center">
-                    <DollarSign className="w-8 h-8 text-white" />
+                {/* EFECTIVO */}
+                {paymentMethod === 'cash' && (
+                  <div className="card p-6 space-y-5">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                      <DollarSign className="w-5 h-5 text-green-400" /> Pago en Efectivo
+                    </h2>
+                    <div className="p-6 bg-green-500/10 border border-green-500/30 rounded-xl text-center space-y-3">
+                      <DollarSign className="w-12 h-12 text-green-400 mx-auto" />
+                      <p className="text-gray-300">Ten listo el siguiente monto:</p>
+                      <p className="text-4xl font-bold text-green-400">{formatCOP(total)}</p>
+                      <p className="text-gray-400 text-sm">Entrega el dinero directamente al mecánico al finalizar el servicio.</p>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      {[['Mano de obra', SERVICE_DATA.labor], ['Materiales', SERVICE_DATA.materials], ['Domicilio', SERVICE_DATA.delivery]].map(([l, v]) => (
+                        <div key={l as string} className="flex justify-between text-gray-400">
+                          <span>{l}</span><span>{formatCOP(v as number)}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between text-white font-bold pt-2 border-t border-anthracite-800">
+                        <span>Total</span><span className="text-green-400">{formatCOP(total)}</span>
+                      </div>
+                    </div>
                   </div>
-                  <h3 className="text-xl font-bold text-white">Efectivo</h3>
-                  <p className="text-sm text-gray-400">Paga directamente al mecánico al llegar</p>
-                </motion.button>
-              </div>
+                )}
 
-              <button
-                onClick={() => navigate('/service-in-progress')}
-                className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mx-auto"
-              >
-                <ArrowLeft className="w-4 h-4" /> Volver
-              </button>
-            </motion.div>
-          )}
+                <div className="flex gap-3">
+                  <button onClick={() => setStep(1)} className="btn-secondary flex items-center gap-2">
+                    <ChevronLeft className="w-4 h-4" /> Volver
+                  </button>
+                  <button
+                    onClick={paymentMethod === 'card' ? handleProcess : handleProcess}
+                    disabled={isProcessing || (paymentMethod === 'card' && !selectedCardId) || (paymentMethod === 'pse' && !pseOption) || (paymentMethod === 'pse' && pseOption === 'now' && (!pseData.bank || !pseData.document))}
+                    className="flex-1 btn-primary disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                    {isProcessing
+                      ? <><Loader2 className="w-4 h-4 animate-spin" /> Procesando...</>
+                      : <>{paymentMethod === 'card' ? 'Confirmar método' : paymentMethod === 'cash' ? 'Confirmar' : 'Continuar'} <ChevronRight className="w-4 h-4" /></>}
+                  </button>
+                </div>
+              </motion.div>
+            )}
 
-          {/* PASO 2: Formulario de tarjeta */}
-          {step === 'form' && paymentMethod === 'card' && (
-            <motion.div
-              key="card-form"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="max-w-2xl mx-auto"
-            >
-              <button
-                onClick={() => setStep('select')}
-                className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6"
-              >
-                <ArrowLeft className="w-4 h-4" /> Volver
-              </button>
+            {/* PASO 3 */}
+            {step === 3 && isConfirmed && (
+              <motion.div key="step3" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
 
-              <div className="card p-8 space-y-6">
-                <div className="text-center mb-6">
-                  <h2 className="text-2xl font-bold text-white mb-2">Detalles de tu tarjeta</h2>
-                  <div className="flex items-start gap-2 p-3 bg-primary-500/10 border border-primary-500/30 rounded-xl mt-4">
-                    <AlertCircle className="w-5 h-5 text-primary-400 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-primary-300 text-left">
-                      Tu tarjeta se guarda de forma segura. El cobro se realiza solo cuando el mecánico finalice el servicio.
+                {/* Tarjeta: esperar que el mecánico cobre, usuario acepta o rechaza */}
+                {paymentMethod === 'card' && chargeResult === null && !showChargeModal && (
+                  <div className="card p-8 text-center space-y-6">
+                    <div className="w-20 h-20 mx-auto bg-blue-500/20 rounded-full flex items-center justify-center">
+                      <Loader2 className="w-10 h-10 text-blue-400 animate-spin" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white">Tarjeta guardada</h2>
+                    <p className="text-gray-400">Cuando el mecánico finalice el servicio recibirás una notificación para <strong className="text-white">aceptar o rechazar</strong> el cobro.</p>
+                    <div className="p-4 bg-anthracite-900/50 border border-anthracite-700 rounded-xl space-y-2 text-sm">
+                      <div className="flex justify-between text-gray-400"><span>Tarjeta</span><span>{savedCards.find(c => c.id === selectedCardId)?.number}</span></div>
+                      <div className="flex justify-between text-gray-400"><span>Monto</span><span className="text-gold-400 font-bold">{formatCOP(total)}</span></div>
+                    </div>
+                    {/* Simulación: botón que representa cuando el mecánico cobra */}
+                    <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-3">
+                      <p className="text-amber-300 text-sm font-semibold">⚡ Simulación — El mecánico presionó "Cobrar"</p>
+                      <div className="flex gap-3">
+                        <button onClick={() => handleChargeResponse(false)}
+                          className="flex-1 flex items-center justify-center gap-2 py-3 bg-red-600/20 border border-red-500/40 hover:bg-red-600/30 text-red-400 font-semibold rounded-xl transition-colors">
+                          <XCircle className="w-4 h-4" /> Rechazar cobro
+                        </button>
+                        <button onClick={() => handleChargeResponse(true)}
+                          className="flex-1 flex items-center justify-center gap-2 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-colors">
+                          <Check className="w-4 h-4" /> Aceptar cobro
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Resultado del cobro con tarjeta */}
+                {paymentMethod === 'card' && chargeResult !== null && (
+                  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                    className="card p-8 text-center space-y-4">
+                    {chargeResult === 'accepted' ? (
+                      <>
+                        <div className="w-20 h-20 mx-auto bg-green-500 rounded-full flex items-center justify-center">
+                          <Check className="w-10 h-10 text-white" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-white">¡Pago aceptado!</h2>
+                        <p className="text-gray-400">El mecánico ha sido notificado. El monto fue debitado de tu tarjeta.</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-20 h-20 mx-auto bg-red-500 rounded-full flex items-center justify-center">
+                          <X className="w-8 h-8 text-white" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-white">Cobro rechazado</h2>
+                        <p className="text-gray-400">El mecánico ha sido notificado. No se realizó ningún cobro.</p>
+                      </>
+                    )}
+                  </motion.div>
+                )}
+
+                {/* PSE / Efectivo: confirmación normal */}
+                {paymentMethod !== 'card' && (
+                  <div className="card p-8 text-center space-y-4">
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.2 }}
+                      className="w-20 h-20 mx-auto bg-green-500 rounded-full flex items-center justify-center">
+                      <Check className="w-10 h-10 text-white" />
+                    </motion.div>
+                    <h2 className="text-2xl font-bold text-white">
+                      {paymentMethod === 'pse' && pseOption === 'now' ? '¡Pago procesado!' : '¡Confirmado!'}
+                    </h2>
+                    <p className="text-gray-400">
+                      {paymentMethod === 'pse' && pseOption === 'now' && 'Tu pago PSE fue procesado exitosamente.'}
+                      {paymentMethod === 'pse' && pseOption === 'on_arrival' && 'Recuerda realizar la transferencia PSE cuando llegue el mecánico.'}
+                      {paymentMethod === 'cash' && 'Ten listo el efectivo para cuando el mecánico finalice el servicio.'}
                     </p>
                   </div>
-                </div>
-
-                <form onSubmit={handleCardSubmit} className="space-y-5">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-300">Número de tarjeta</label>
-                    <input
-                      type="text"
-                      value={cardNumber}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, '').slice(0, 16);
-                        setCardNumber(val.replace(/(\d{4})(?=\d)/g, '$1 '));
-                      }}
-                      placeholder="#### #### #### ####"
-                      className="input-field font-mono tracking-wider"
-                      required
-                      maxLength={19}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-300">Nombre del titular</label>
-                    <input
-                      type="text"
-                      value={cardHolder}
-                      onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
-                      placeholder="Como aparece en la tarjeta"
-                      className="input-field"
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-300">Vencimiento</label>
-                      <input
-                        type="text"
-                        value={expiry}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/\D/g, '').slice(0, 4);
-                          if (val.length >= 2) {
-                            setExpiry(`${val.slice(0, 2)}/${val.slice(2)}`);
-                          } else {
-                            setExpiry(val);
-                          }
-                        }}
-                        placeholder="MM/AA"
-                        className="input-field font-mono"
-                        required
-                        maxLength={5}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-300">CVV</label>
-                      <input
-                        type="text"
-                        value={cvv}
-                        onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, 3))}
-                        placeholder="•••"
-                        className="input-field font-mono"
-                        required
-                        maxLength={3}
-                      />
-                    </div>
-                  </div>
-
-                  <button type="submit" className="w-full btn-primary flex items-center justify-center gap-2">
-                    <Check className="w-5 h-5" /> Guardar tarjeta
-                  </button>
-                </form>
-              </div>
-            </motion.div>
-          )}
-
-          {/* PASO 2: Formulario PSE - Seleccionar cuándo pagar */}
-          {step === 'form' && paymentMethod === 'pse' && (
-            <motion.div
-              key="pse-form"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="max-w-2xl mx-auto"
-            >
-              <button
-                onClick={() => setStep('select')}
-                className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6"
-              >
-                <ArrowLeft className="w-4 h-4" /> Volver
-              </button>
-
-              <div className="card p-8 space-y-6">
-                <div className="text-center mb-6">
-                  <h2 className="text-2xl font-bold text-white mb-2">¿Cuándo deseas realizar la transferencia PSE?</h2>
-                  <p className="text-gray-400 text-sm">Elige el momento para pagar</p>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <motion.button
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => {
-                      setPSETiming('now');
-                      setStep('pse-timing');
-                    }}
-                    className="card p-6 text-center space-y-3 hover:ring-2 hover:ring-purple-500 transition-all"
-                  >
-                    <div className="w-12 h-12 mx-auto bg-purple-500 rounded-full flex items-center justify-center">
-                      <Building2 className="w-6 h-6 text-white" />
-                    </div>
-                    <h3 className="text-lg font-bold text-white">Pagar ahora</h3>
-                    <p className="text-sm text-gray-400">Transfiere inmediatamente por PSE</p>
-                  </motion.button>
-
-                  <motion.button
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => {
-                      setPSETiming('on-arrival');
-                      setStep('pse-timing');
-                    }}
-                    className="card p-6 text-center space-y-3 hover:ring-2 hover:ring-gold-500 transition-all"
-                  >
-                    <div className="w-12 h-12 mx-auto bg-gold-500 rounded-full flex items-center justify-center">
-                      <AlertCircle className="w-6 h-6 text-anthracite-950" />
-                    </div>
-                    <h3 className="text-lg font-bold text-white">Pagar cuando llegue el mecánico</h3>
-                    <p className="text-sm text-gray-400">El mecánico esperará la transferencia al llegar</p>
-                  </motion.button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* PASO 3: Formulario PSE - Datos bancarios (pagar ahora) */}
-          {step === 'pse-timing' && pseTiming === 'now' && (
-            <motion.div
-              key="pse-now"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="max-w-2xl mx-auto"
-            >
-              <button
-                onClick={() => setStep('form')}
-                className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6"
-              >
-                <ArrowLeft className="w-4 h-4" /> Volver
-              </button>
-
-              <div className="card p-8 space-y-6">
-                <div className="flex items-center gap-3 p-3 bg-purple-500/10 border border-purple-500/30 rounded-xl">
-                  <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Building2 className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-purple-300 font-bold text-sm">💳 Pagarás ahora por PSE</p>
-                    <p className="text-purple-200 text-xs">Transfiere inmediatamente por PSE</p>
-                  </div>
-                </div>
-
-                <h2 className="text-xl font-bold text-white text-center">Completa los datos PSE</h2>
-
-                <form onSubmit={handlePSESubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-300">Banco</label>
-                    <select
-                      value={pseBank}
-                      onChange={(e) => setPseBank(e.target.value)}
-                      className="input-field"
-                      required
-                    >
-                      <option value="">Selecciona tu banco</option>
-                      {COLOMBIAN_BANKS.map((bank) => (
-                        <option key={bank} value={bank}>
-                          {bank}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-300">Tipo doc.</label>
-                      <select
-                        value={pseDocType}
-                        onChange={(e) => setPseDocType(e.target.value)}
-                        className="input-field"
-                      >
-                        {DOC_TYPES.map((type) => (
-                          <option key={type} value={type}>
-                            {type}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="col-span-2 space-y-2">
-                      <label className="block text-sm font-medium text-gray-300">Número de documento</label>
-                      <input
-                        type="text"
-                        value={pseDocNumber}
-                        onChange={(e) => setPseDocNumber(e.target.value)}
-                        placeholder="1234567890"
-                        className="input-field"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-300">Nombre completo</label>
-                    <input
-                      type="text"
-                      value={pseName}
-                      onChange={(e) => setPseName(e.target.value)}
-                      placeholder="Nombre como aparece en la cuenta"
-                      className="input-field"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-300">Correo electrónico</label>
-                    <input
-                      type="email"
-                      value={pseEmail}
-                      onChange={(e) => setPseEmail(e.target.value)}
-                      placeholder="tu@correo.com"
-                      className="input-field"
-                      required
-                    />
-                  </div>
-
-                  <button type="submit" className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
-                    <Building2 className="w-5 h-5" /> Confirmar transferencia PSE
-                  </button>
-                </form>
-              </div>
-            </motion.div>
-          )}
-
-          {/* PASO 3: Formulario PSE - Guardar datos (pagar al llegar) */}
-          {step === 'pse-timing' && pseTiming === 'on-arrival' && (
-            <motion.div
-              key="pse-arrival-form"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="max-w-2xl mx-auto"
-            >
-              <button
-                onClick={() => setStep('form')}
-                className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6"
-              >
-                <ArrowLeft className="w-4 h-4" /> Volver
-              </button>
-
-              <div className="card p-8 space-y-6">
-                <div className="flex items-center gap-3 p-3 bg-gold-500/10 border border-gold-500/30 rounded-xl">
-                  <div className="w-10 h-10 bg-gold-500 rounded-full flex items-center justify-center flex-shrink-0">
-                    <AlertCircle className="w-5 h-5 text-anthracite-950" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-gold-300 font-bold text-sm">⏱ Pagarás cuando llegue el mecánico por PSE</p>
-                    <p className="text-gold-200 text-xs">El mecánico esperará tu transferencia al llegar</p>
-                  </div>
-                </div>
-
-                <h2 className="text-xl font-bold text-white text-center">Guarda tus datos PSE</h2>
-
-                <form onSubmit={(e) => { e.preventDefault(); handlePSEArrivalSave(); }} className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-300">Selecciona tu banco</label>
-                    <select
-                      value={pseBank}
-                      onChange={(e) => setPseBank(e.target.value)}
-                      className="input-field"
-                      required
-                    >
-                      <option value="">Selecciona tu banco</option>
-                      {COLOMBIAN_BANKS.map((bank) => (
-                        <option key={bank} value={bank}>
-                          {bank}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-300">Tipo doc.</label>
-                      <select
-                        value={pseDocType}
-                        onChange={(e) => setPseDocType(e.target.value)}
-                        className="input-field"
-                      >
-                        {DOC_TYPES.map((type) => (
-                          <option key={type} value={type}>
-                            {type}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="col-span-2 space-y-2">
-                      <label className="block text-sm font-medium text-gray-300">Número de documento</label>
-                      <input
-                        type="text"
-                        value={pseDocNumber}
-                        onChange={(e) => setPseDocNumber(e.target.value)}
-                        placeholder="1234567890"
-                        className="input-field"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-300">Nombre completo</label>
-                    <input
-                      type="text"
-                      value={pseName}
-                      onChange={(e) => setPseName(e.target.value)}
-                      placeholder="Nombre como aparece en la cuenta"
-                      className="input-field"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-300">Correo electrónico</label>
-                    <input
-                      type="email"
-                      value={pseEmail}
-                      onChange={(e) => setPseEmail(e.target.value)}
-                      placeholder="tu@correo.com"
-                      className="input-field"
-                      required
-                    />
-                  </div>
-
-                  <button type="submit" className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
-                    <Building2 className="w-5 h-5" /> Guardar datos PSE
-                  </button>
-                </form>
-              </div>
-            </motion.div>
-          )}
-
-          {/* PASO FINAL: Confirmación */}
-          {step === 'success' && (
-            <motion.div
-              key="success"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="max-w-lg mx-auto"
-            >
-              <div className="card p-10 space-y-6 text-center">
-                <div className="mx-auto w-24 h-24 bg-green-500/20 rounded-full flex items-center justify-center">
-                  {successData.icon}
-                </div>
-
-                <div>
-                  <h2 className="text-3xl font-bold text-white mb-3">{successData.title}</h2>
-                  <p className="text-gray-400">{successData.subtitle}</p>
-                </div>
-
-                {successData.showBackButton && (
-                  <button
-                    onClick={handleBackToService}
-                    className="w-full btn-primary"
-                  >
-                    Volver al servicio
-                  </button>
                 )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                <div className="card p-6 space-y-4">
+                  <h3 className="text-lg font-bold text-white">Recibo</h3>
+                  <div className="space-y-3 text-sm">
+                    {[['Referencia', SERVICE_DATA.reference], ['Mecánico', SERVICE_DATA.mechanic], ['Servicio', SERVICE_DATA.description]].map(([l, v]) => (
+                      <div key={l} className="flex justify-between">
+                        <span className="text-gray-400">{l}</span>
+                        <span className="text-white">{v}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Monto</span>
+                      <span className="text-gold-400 font-bold">{formatCOP(total)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Método</span>
+                      <span className="text-white">
+                        {paymentMethod === 'pse' ? `PSE (${pseOption === 'now' ? 'Pagado' : 'Al llegar'})` : 'Efectivo'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center pt-2 border-t border-anthracite-800">
+                      <span className="text-gray-400">Estado</span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadge().bg} ${getStatusBadge().color}`}>
+                        {getStatusBadge().text}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+          </AnimatePresence>
+        </motion.div>
       </main>
     </div>
   );

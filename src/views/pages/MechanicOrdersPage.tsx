@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
+import ProfileModal from '../components/ProfileModal';
 import { useAuth } from '../../controllers/AuthContext';
 import { useService } from '../../controllers/ServiceContext';
 import { useNavigate } from 'react-router-dom';
@@ -135,12 +136,29 @@ function ActiveServiceView({ order, onCancel, onFinish }:
   const DIST = order.distance;
   const [showCancel, setShowCancel] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [showUserProfile, setShowUserProfile] = useState(false);
   const [msgs, setMsgs] = useState<ChatMsg[]>([
     { role: 'client', text: `Hola, soy ${order.clientName}. Estoy esperando tu llegada.` },
   ]);
   const [input, setInput] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs]);
+
+  // Datos del perfil del cliente
+  const userProfile = {
+    name: order.clientName,
+    role: 'user' as const,
+    phone: order.clientPhone,
+    email: `${order.clientName.toLowerCase().replace(' ', '.')}@mail.com`,
+    location: order.location,
+    joinedDate: 'Marzo 2024',
+    vehicleInfo: {
+      brand: 'Toyota',
+      model: 'Corolla 2020',
+      plate: 'ABC-123',
+      color: 'Gris Plata',
+    },
+  };
 
   const sendMsg = () => {
     const t = input.trim(); if (!t) return;
@@ -179,15 +197,32 @@ function ActiveServiceView({ order, onCancel, onFinish }:
         <div className="card p-5 flex flex-col space-y-4">
           <h3 className="text-lg font-bold text-white">Detalles del servicio</h3>
           <div className="flex items-center gap-3 p-3 bg-dark-800/60 rounded-xl border border-anthracite-800">
-            <div className="w-10 h-10 bg-gradient-to-br from-gold-500 to-gold-600 rounded-full flex items-center justify-center flex-shrink-0">
-              <User className="w-5 h-5 text-anthracite-950"/></div>
+            <button
+              onClick={() => setShowUserProfile(true)}
+              className="w-10 h-10 bg-gradient-to-br from-gold-500 to-gold-600 rounded-full flex items-center justify-center flex-shrink-0 hover:shadow-glow-gold transition-shadow cursor-pointer"
+            >
+              <User className="w-5 h-5 text-anthracite-950"/>
+            </button>
             <div className="flex-1 min-w-0">
-              <p className="text-white font-bold text-sm">{order.clientName}</p>
-              <p className="text-gray-400 text-xs">{order.clientPhone}</p></div>
+              <button
+                onClick={() => setShowUserProfile(true)}
+                className="text-white font-bold text-sm hover:text-gold-400 transition-colors text-left"
+              >
+                {order.clientName}
+              </button>
+              <p className="text-gray-400 text-xs">{order.clientPhone}</p>
+            </div>
             <button onClick={() => setChatOpen(p=>!p)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-gold-500 hover:bg-gold-600 rounded-lg text-anthracite-950 text-xs font-semibold transition-colors">
               <MessageSquare className="w-3.5 h-3.5"/>Contactar</button>
           </div>
+
+          {/* Modal de perfil */}
+          <ProfileModal
+            isOpen={showUserProfile}
+            onClose={() => setShowUserProfile(false)}
+            profile={userProfile}
+          />
 
           <div className="p-4 bg-gradient-to-br from-primary-600/15 to-purple-600/15 rounded-xl border border-primary-500/25">
             <h4 className="text-sm font-bold text-white mb-2">{order.service}</h4>
@@ -298,12 +333,12 @@ export default function MechanicOrdersPage() {
   const handleReject = (id: number) => setOrders(prev => prev.map(o => o.id === id ? {...o, status: 'rejected' as const} : o));
   const handleCancel = () => { setOrders(INITIAL_ORDERS); setActiveOrder(null); };
 
-  // Al finalizar: notifica al usuario (ServiceContext) y vuelve a solicitudes
+  // Al finalizar: redirigir al mecánico a la página de confirmación de pagos
   const handleFinish = () => {
     setServiceFinished(true);   // → ServiceInProgressPage detecta esto y redirige a /payment
     setActiveOrder(null);
     setOrders(INITIAL_ORDERS);
-    navigate('/mechanic-orders');
+    navigate('/mechanic-payment');  // Redirige al mecánico a su vista de confirmación de pago
   };
 
   const pendingOrders = orders.filter(o => o.status === 'pending');

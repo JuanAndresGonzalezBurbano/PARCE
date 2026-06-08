@@ -6,6 +6,7 @@ export interface ServiceData {
   description: string;
   duration: string;
   chatbotDiagnosis?: string; // Si el usuario usó el chatbot
+  userLocation?: string;     // Dirección ingresada por el usuario al pedir servicio
 }
 
 export interface ActiveService {

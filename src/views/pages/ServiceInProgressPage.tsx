@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Clock, User, Star, MessageSquare, Navigation, Car, AlertTriangle, CheckCircle, Send, X } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
+import ProfileModal from '../components/ProfileModal';
 import { useAuth } from '../../controllers/AuthContext';
 import { useService } from '../../controllers/ServiceContext';
 
@@ -129,6 +130,7 @@ export default function ServiceInProgressPage() {
     { role: 'mechanic', text: 'Hola, ya voy en camino. Estaré contigo pronto.' },
   ]);
   const [chatInput, setChatInput] = useState('');
+  const [showMechanicProfile, setShowMechanicProfile] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMsgs]);
@@ -175,6 +177,19 @@ export default function ServiceInProgressPage() {
     ? `Diagnóstico: ${selectedService.chatbotDiagnosis.replace(/[🔋🔧⛽🔑🚛🌡️🛑💡🔊🛢️⚙️👋😊🤔🤖]/gu, '').trim()}`
     : selectedService?.description || 'El mecánico llegará con el equipo necesario.';
 
+  // Datos del perfil del mecánico
+  const mechanicProfile = {
+    name: mechanicName,
+    role: 'mechanic' as const,
+    phone: '+57 301 234 5678',
+    email: 'maria.gonzalez@parce.com',
+    rating: 5.0,
+    totalServices: 247,
+    joinedDate: 'Enero 2024',
+    location: mechanicStartLocation,
+    specialties: ['Batería', 'Neumáticos', 'Diagnóstico Eléctrico', 'Suministro de Combustible'],
+  };
+
   const progressLabel = arrived ? '¡Mecánico llegó!' : progress < 30 ? 'Mecánico asignado' : progress < 70 ? 'En camino' : 'Llegando...';
 
   return (
@@ -220,13 +235,21 @@ export default function ServiceInProgressPage() {
             <div className="card p-6 flex flex-col">
               <h3 className="text-xl font-bold text-white mb-5">Servicio en curso</h3>
               <div className="space-y-4 flex-1">
-                  {/* Mecánico + botón contactar */}
+                  {/* Mecánico + botón perfil y contactar */}
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-gradient-to-br from-gold-500 to-gold-700 rounded-full flex items-center justify-center flex-shrink-0">
+                  <button
+                    onClick={() => setShowMechanicProfile(true)}
+                    className="w-14 h-14 bg-gradient-to-br from-gold-500 to-gold-700 rounded-full flex items-center justify-center flex-shrink-0 hover:shadow-glow-gold transition-shadow cursor-pointer"
+                  >
                     <User className="w-7 h-7 text-anthracite-950"/>
-                  </div>
+                  </button>
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-lg font-bold text-white">{mechanicName}</h4>
+                    <button
+                      onClick={() => setShowMechanicProfile(true)}
+                      className="text-lg font-bold text-white hover:text-gold-400 transition-colors text-left"
+                    >
+                      {mechanicName}
+                    </button>
                     <div className="flex items-center gap-1 mt-0.5">
                       {[...Array(5)].map((_, i) => <Star key={i} className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400"/>)}
                       <span className="text-xs text-gray-400 ml-1">(5.0)</span>
@@ -348,6 +371,13 @@ export default function ServiceInProgressPage() {
       <AnimatePresence>
         {showCancelModal && <CancelModal onConfirm={() => { setShowCancelModal(false); navigate('/services'); }} onClose={() => setShowCancelModal(false)}/>}
       </AnimatePresence>
+
+      {/* Modal de perfil del mecánico */}
+      <ProfileModal
+        isOpen={showMechanicProfile}
+        onClose={() => setShowMechanicProfile(false)}
+        profile={mechanicProfile}
+      />
     </div>
   );
 }

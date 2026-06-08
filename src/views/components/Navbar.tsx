@@ -69,7 +69,7 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar, 
 
           {/* Logo P.A.R.C.E - RAMA: Soto - Redirige según rol del usuario */}
           {/* Usuario → /home | Mecánico → /mechanic-orders | Otros → / */}
-          <Link to={user?.role === 'user' ? '/home' : user?.role === 'mechanic' ? '/mechanic-orders' : '/'} className="flex-shrink-0">
+          <Link to={user?.role === 'user' ? '/home' : user?.role === 'mechanic' ? '/mechanic-home' : user?.role === 'admin' ? '/dashboard' : '/'} className="flex-shrink-0">
             <span className="text-2xl font-bold text-gradient">P.A.R.C.E</span>
           </Link>
 

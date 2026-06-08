@@ -14,11 +14,11 @@ interface User {
 
 // Define las funciones y datos que expone el contexto de autenticación
 interface AuthContextType {
-  user: User | null;                           // Usuario actual o null si no está autenticado
-  login: (email: string, password: string) => void; // Función para iniciar sesión
-  logout: () => void;                           // Función para cerrar sesión
-  selectRole: (role: UserRole) => void;         // Función para asignar un rol al usuario
-  isAuthenticated: boolean;                     // true si hay un usuario activo
+  user: User | null;
+  login: (email: string, password: string, role?: UserRole, name?: string) => void;
+  logout: () => void;
+  selectRole: (role: UserRole) => void;
+  isAuthenticated: boolean;
 }
 
 // Crea el contexto con valor inicial undefined
@@ -45,15 +45,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // RAMA: Soto - Inicializa el estado con el usuario guardado para persistir sesión al recargar
   const [user, setUser] = useState<User | null>(getSavedUser());
 
-  // Función de login: crea el usuario con los datos ingresados y lo guarda
-  const login = (email: string, _password: string) => {
+  // Función de login: acepta rol y nombre opcionales para accesos directos por rol
+  const login = (email: string, _password: string, role?: UserRole, name?: string) => {
     const newUser: User = {
-      name: 'Juan Gustavo',  // Nombre fijo por ahora (en producción vendría del backend)
-      email: email,          // Correo ingresado por el usuario
-      role: 'user',          // Rol por defecto antes de seleccionar en RoleSelectionPage
+      name: name || 'Juan Gustavo',
+      email: email,
+      role: role || 'user',
     };
-    setUser(newUser); // Actualiza el estado de React
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser)); // Guarda en localStorage
+    setUser(newUser);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser));
   };
 
   // Función de logout: limpia el usuario del estado y del localStorage

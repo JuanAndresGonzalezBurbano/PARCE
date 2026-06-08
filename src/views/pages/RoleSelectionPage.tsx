@@ -27,7 +27,7 @@ export default function RoleSelectionPage() {
     // Solo navega cuando el rol del usuario en el contexto ya coincide con el rol elegido
     if (user.role === pendingRole) {
       // Redirige según el rol confirmado
-      if (pendingRole === 'mechanic') navigate('/mechanic-vehicle-info'); // Mecánico
+      if (pendingRole === 'mechanic') navigate('/mechanic-home');  // Mecánico → su homepage
       else if (pendingRole === 'user') navigate('/home');                  // Usuario → home autenticado
       else if (pendingRole === 'admin') navigate('/dashboard');            // Admin → dashboard
       setPendingRole(null); // Limpia el rol pendiente

@@ -230,13 +230,14 @@ export default function ServicesPage() {
       duration: found.duration,
       chatbotDiagnosis: diagnosis,  // También lo guarda como diagnóstico del chatbot
     });
-    // Navega a la página de servicio en curso
-    navigate('/service-in-progress');
+    // Navega a la página de ubicación primero
+    navigate('/service-location');
   };
 
   const handleServiceSelect = (service: typeof services[0]) => {
     setSelectedService({ id: service.id, title: service.title, description: service.description, duration: service.duration });
-    navigate('/service-in-progress');
+    // Primero pide la ubicación antes de ir al servicio en curso
+    navigate('/service-location');
   };
 
   return (

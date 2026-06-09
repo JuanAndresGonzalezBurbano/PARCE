@@ -183,10 +183,19 @@ class Router
         // Wrap each middleware around the pipeline (reverse order)
         foreach (array_reverse($allMiddleware) as $middlewareClass) {
             $pipeline = function($request) use ($middlewareClass, $pipeline) {
-                // Instantiate middleware
+                // Handle string middleware (no parameters)
                 if (is_string($middlewareClass)) {
                     $middlewareInstance = new $middlewareClass();
-                } else {
+                }
+                // Handle array middleware [ClassName, params]
+                elseif (is_array($middlewareClass) && count($middlewareClass) === 2) {
+                    $className = $middlewareClass[0];
+                    $params = $middlewareClass[1];
+                    // Pass the params as-is (already an array for RBACMiddleware)
+                    $middlewareInstance = new $className($params);
+                }
+                // Handle already-instantiated middleware
+                else {
                     $middlewareInstance = $middlewareClass;
                 }
                 

@@ -10,6 +10,9 @@ import CustomerDashboard from './pages/CustomerDashboard';
 import MechanicDashboard from './pages/MechanicDashboard';
 import VehiclesPage from './pages/customer/VehiclesPage';
 import RequestsPage from './pages/customer/RequestsPage';
+import AvailableRequestsPage from './pages/mechanic/AvailableRequestsPage';
+import MyRequestsPage from './pages/mechanic/MyRequestsPage';
+import RequestDetailsPage from './pages/mechanic/RequestDetailsPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ProtectedRoute from './routes/ProtectedRoute';
 
@@ -58,6 +61,30 @@ function App() {
                   element={
                     <ProtectedRoute requireRole="mechanic">
                       <MechanicDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/mechanic/available"
+                  element={
+                    <ProtectedRoute requireRole="mechanic">
+                      <AvailableRequestsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/mechanic/requests"
+                  element={
+                    <ProtectedRoute requireRole="mechanic">
+                      <MyRequestsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/mechanic/requests/:id"
+                  element={
+                    <ProtectedRoute requireRole="mechanic">
+                      <RequestDetailsPage />
                     </ProtectedRoute>
                   }
                 />

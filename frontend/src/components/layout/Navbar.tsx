@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function Navbar() {
@@ -12,13 +12,60 @@ export default function Navbar() {
 
   if (!user) return null;
 
+  const isMechanic = user.roles.includes('mechanic');
+  const isCustomer = user.roles.includes('customer');
+
   return (
     <nav className="bg-gray-900 border-b border-gray-700">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <div className="flex items-center">
+          {/* Logo & Navigation */}
+          <div className="flex items-center gap-8">
             <h1 className="text-xl font-bold text-white">P.A.R.C.E</h1>
+            
+            {/* Navigation Links */}
+            <div className="flex items-center gap-4">
+              <Link
+                to={isMechanic ? '/mechanic/dashboard' : '/dashboard'}
+                className="text-sm text-gray-300 hover:text-white transition-colors"
+              >
+                Dashboard
+              </Link>
+
+              {isMechanic && (
+                <>
+                  <Link
+                    to="/mechanic/available"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
+                  >
+                    Available Requests
+                  </Link>
+                  <Link
+                    to="/mechanic/requests"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
+                  >
+                    My Requests
+                  </Link>
+                </>
+              )}
+
+              {isCustomer && (
+                <>
+                  <Link
+                    to="/vehicles"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
+                  >
+                    Vehicles
+                  </Link>
+                  <Link
+                    to="/requests"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
+                  >
+                    Requests
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
 
           {/* User Info */}

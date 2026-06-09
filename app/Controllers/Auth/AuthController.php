@@ -458,15 +458,11 @@ class AuthController extends Controller
             // Log exception via ErrorHandler
             ErrorHandler::logException($e);
 
-            $response = new Response();
-            $response->setHeader('Content-Type', 'application/json; charset=utf-8');
-            $response->setHeader('X-API-Version', '1.0.0');
-            
-            return $response->json([
-                'success' => false,
-                'data' => $responseData,
-                'error' => 'Service is unhealthy'
-            ], 503);
+            return ResponseFormatter::error(
+                'Service is unhealthy',
+                $responseData,
+                503
+            );
         }
     }
 }

@@ -6,6 +6,7 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Core\Database;
 use App\Infrastructure\Auth\Services\SessionManager;
+use App\Infrastructure\Auth\Services\RoleValidator;
 use App\Infrastructure\Http\ResponseFormatter;
 use App\Infrastructure\Http\IPValidator;
 
@@ -20,10 +21,12 @@ use App\Infrastructure\Http\IPValidator;
 class AuthMiddleware
 {
     private SessionManager $sessionManager;
+    private RoleValidator $roleValidator;
 
     public function __construct()
     {
         $this->sessionManager = new SessionManager();
+        $this->roleValidator = new RoleValidator();
     }
 
     /**
@@ -99,6 +102,14 @@ class AuthMiddleware
             $request->setAttribute('user', $user);
             $request->setAttribute('userId', (int)$user['id']);
 
+            // Fetch user roles and determine primary role
+            $userRoles = $this->roleValidator->getUserRoles((int)$user['id']);
+            $primaryRole = $this->determinePrimaryRole($userRoles);
+            
+            // Attach roles to request for RBAC and authorization
+            $request->setAttribute('userRoles', $userRoles);  // Array of all active roles
+            $request->setAttribute('userRole', $primaryRole); // Primary role for single-role decisions
+
             // Requirement 10.7: Continue to next middleware/controller
             $response = $next($request);
             
@@ -116,5 +127,47 @@ class AuthMiddleware
             
             return ResponseFormatter::serverError('Authentication service unavailable');
         }
+    }
+
+    /**
+     * Determine primary role from array of roles
+     * 
+     * Uses hierarchical priority to select the most privileged role
+     * when a user has multiple active roles.
+     * 
+     * Priority order (highest to lowest):
+     * 1. super_admin     - Full system access
+     * 2. administrator   - Admin access  
+     * 3. mechanic        - Service provider
+     * 4. customer        - Standard user
+     * 5. support         - Read-only
+     * 
+     * @param array $roles Array of role slugs
+     * @return string Primary role slug (defaults to 'customer' if no roles)
+     */
+    private function determinePrimaryRole(array $roles): string
+    {
+        if (empty($roles)) {
+            return 'customer'; // Default to customer if no roles assigned
+        }
+
+        // Role priority (ordered from highest to lowest privilege)
+        $rolePriority = [
+            'super_admin',
+            'administrator',
+            'mechanic',
+            'customer',
+            'support'
+        ];
+
+        // Return the first role found in priority order
+        foreach ($rolePriority as $role) {
+            if (in_array($role, $roles, true)) {
+                return $role;
+            }
+        }
+
+        // If no recognized role, return the first role alphabetically
+        return $roles[0];
     }
 }

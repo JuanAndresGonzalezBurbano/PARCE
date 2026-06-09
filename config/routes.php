@@ -143,50 +143,83 @@ $router->put('/api/vehicles/{id}/primary', [\App\Controllers\VehicleController::
 // Service Request API Routes (Protected)
 // ============================================================================
 
-// Customer endpoints
+// Customer endpoints (RBAC: customer only)
 $router->get('/api/service-requests', [\App\Controllers\ServiceRequestController::class, 'index'])
-    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['customer']]
+    ])
     ->name('api.service-requests.index');
 
 $router->post('/api/service-requests', [\App\Controllers\ServiceRequestController::class, 'store'])
-    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['customer']]
+    ])
     ->name('api.service-requests.store');
 
 $router->get('/api/service-requests/{id}', [\App\Controllers\ServiceRequestController::class, 'show'])
-    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['customer']]
+    ])
     ->name('api.service-requests.show');
 
 $router->put('/api/service-requests/{id}', [\App\Controllers\ServiceRequestController::class, 'update'])
-    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['customer']]
+    ])
     ->name('api.service-requests.update');
 
 $router->post('/api/service-requests/{id}/cancel', [\App\Controllers\ServiceRequestController::class, 'cancel'])
-    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['customer']]
+    ])
     ->name('api.service-requests.cancel');
 
 $router->post('/api/service-requests/{id}/rate', [\App\Controllers\ServiceRequestController::class, 'rate'])
-    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['customer']]
+    ])
     ->name('api.service-requests.rate');
 
-// Mechanic endpoints
+// Mechanic endpoints (RBAC: mechanic only)
 $router->get('/api/mechanic/requests', [\App\Controllers\ServiceRequestController::class, 'mechanicIndex'])
-    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['mechanic']]
+    ])
     ->name('api.mechanic.requests.index');
 
 $router->get('/api/mechanic/requests/available', [\App\Controllers\ServiceRequestController::class, 'availableForMechanic'])
-    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['mechanic']]
+    ])
     ->name('api.mechanic.requests.available');
 
 $router->post('/api/mechanic/requests/{id}/accept', [\App\Controllers\ServiceRequestController::class, 'accept'])
-    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['mechanic']]
+    ])
     ->name('api.mechanic.requests.accept');
 
 $router->put('/api/mechanic/requests/{id}/start', [\App\Controllers\ServiceRequestController::class, 'start'])
-    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['mechanic']]
+    ])
     ->name('api.mechanic.requests.start');
 
 $router->put('/api/mechanic/requests/{id}/complete', [\App\Controllers\ServiceRequestController::class, 'complete'])
-    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['mechanic']]
+    ])
     ->name('api.mechanic.requests.complete');
 
 // ============================================================================

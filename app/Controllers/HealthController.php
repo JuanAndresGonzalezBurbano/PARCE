@@ -6,6 +6,7 @@ use App\Core\Controller;
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\Database;
+use App\Infrastructure\Http\ResponseFormatter;
 
 /**
  * Health Check Controller
@@ -22,7 +23,7 @@ class HealthController extends Controller
      */
     public function index(Request $request): Response
     {
-        return Response::success([
+        return ResponseFormatter::success([
             'status' => 'healthy',
             'message' => 'Application is running',
             'timestamp' => date('Y-m-d H:i:s'),
@@ -41,17 +42,15 @@ class HealthController extends Controller
             
             $statusCode = $health['status'] === 'healthy' ? 200 : 503;
             
-            return (new Response())
-                ->json([
-                    'status' => $health['status'],
-                    'message' => $health['message'],
-                    'details' => $health['details'],
-                    'timestamp' => date('Y-m-d H:i:s'),
-                ])
-                ->setStatusCode($statusCode);
+            return ResponseFormatter::success([
+                'status' => $health['status'],
+                'message' => $health['message'],
+                'details' => $health['details'],
+                'timestamp' => date('Y-m-d H:i:s'),
+            ], null, $statusCode);
                 
         } catch (\Exception $e) {
-            return Response::error(
+            return ResponseFormatter::error(
                 'Database health check failed',
                 [
                     'error' => $e->getMessage(),
@@ -121,12 +120,10 @@ class HealthController extends Controller
             'unhealthy' => 503,
         };
 
-        return (new Response())
-            ->json([
-                'status' => $overallStatus,
-                'checks' => $checks,
-                'timestamp' => date('Y-m-d H:i:s'),
-            ])
-            ->setStatusCode($statusCode);
+        return ResponseFormatter::success([
+            'status' => $overallStatus,
+            'checks' => $checks,
+            'timestamp' => date('Y-m-d H:i:s'),
+        ], null, $statusCode);
     }
 }

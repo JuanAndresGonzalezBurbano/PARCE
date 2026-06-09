@@ -41,15 +41,6 @@ class ServiceRequestController extends Controller
             $userId = $request->getAttribute('userId');
             $userRole = $request->getAttribute('userRole');
             
-            // Only customers can list their requests via this endpoint
-            if ($userRole !== 'customer') {
-                return ResponseFormatter::error(
-                    'This endpoint is for customers only',
-                    null,
-                    403
-                );
-            }
-            
             // Get optional status filter
             $status = $request->query('status');
             
@@ -107,15 +98,6 @@ class ServiceRequestController extends Controller
             $userId = $request->getAttribute('userId');
             $userRole = $request->getAttribute('userRole');
             
-            // Only customers can create requests
-            if ($userRole !== 'customer') {
-                return ResponseFormatter::error(
-                    'Only customers can create service requests',
-                    null,
-                    403
-                );
-            }
-
             // Extract and sanitize input
             $data = [
                 'vehicle_id' => $request->input('vehicle_id'),
@@ -223,15 +205,6 @@ class ServiceRequestController extends Controller
             $userId = $request->getAttribute('userId');
             $userRole = $request->getAttribute('userRole');
             
-            // Only customers can update their requests
-            if ($userRole !== 'customer') {
-                return ResponseFormatter::error(
-                    'Only customers can update service requests',
-                    null,
-                    403
-                );
-            }
-
             // Prepare update data
             $data = [];
 
@@ -307,15 +280,6 @@ class ServiceRequestController extends Controller
             $userId = $request->getAttribute('userId');
             $userRole = $request->getAttribute('userRole');
             
-            // Only customers can cancel their requests
-            if ($userRole !== 'customer') {
-                return ResponseFormatter::error(
-                    'Only customers can cancel service requests',
-                    null,
-                    403
-                );
-            }
-
             // Cancel service request
             $reason = RequestValidator::sanitizeString($request->input('cancellation_reason'));
             $this->serviceRequestService->cancel($id, $userId, $reason);
@@ -376,15 +340,6 @@ class ServiceRequestController extends Controller
             $userId = $request->getAttribute('userId');
             $userRole = $request->getAttribute('userRole');
             
-            // Only customers can rate requests
-            if ($userRole !== 'customer') {
-                return ResponseFormatter::error(
-                    'Only customers can rate service requests',
-                    null,
-                    403
-                );
-            }
-
             // Rate service request
             $rating = (int)$request->input('customer_rating');
             $feedback = $request->input('customer_feedback') 
@@ -421,15 +376,6 @@ class ServiceRequestController extends Controller
             // Get authenticated user
             $userRole = $request->getAttribute('userRole');
             
-            // Only mechanics can access this endpoint
-            if ($userRole !== 'mechanic') {
-                return ResponseFormatter::error(
-                    'This endpoint is for mechanics only',
-                    null,
-                    403
-                );
-            }
-
             // Get mechanic's current location from query params
             $latitude = $request->query('latitude');
             $longitude = $request->query('longitude');
@@ -481,15 +427,6 @@ class ServiceRequestController extends Controller
             $userId = $request->getAttribute('userId');
             $userRole = $request->getAttribute('userRole');
             
-            // Only mechanics can accept requests
-            if ($userRole !== 'mechanic') {
-                return ResponseFormatter::error(
-                    'Only mechanics can accept service requests',
-                    null,
-                    403
-                );
-            }
-
             // Accept request
             $this->serviceRequestService->accept($id, $userId);
 
@@ -523,15 +460,6 @@ class ServiceRequestController extends Controller
             $userId = $request->getAttribute('userId');
             $userRole = $request->getAttribute('userRole');
             
-            // Only mechanics can start requests
-            if ($userRole !== 'mechanic') {
-                return ResponseFormatter::error(
-                    'Only mechanics can start service requests',
-                    null,
-                    403
-                );
-            }
-
             // Start request
             $this->serviceRequestService->start($id, $userId);
 
@@ -585,15 +513,6 @@ class ServiceRequestController extends Controller
             $userId = $request->getAttribute('userId');
             $userRole = $request->getAttribute('userRole');
             
-            // Only mechanics can complete requests
-            if ($userRole !== 'mechanic') {
-                return ResponseFormatter::error(
-                    'Only mechanics can complete service requests',
-                    null,
-                    403
-                );
-            }
-
             // Validate final_cost
             $finalCost = $request->input('final_cost');
             if ($finalCost === null || $finalCost === '') {
@@ -640,15 +559,6 @@ class ServiceRequestController extends Controller
             $userId = $request->getAttribute('userId');
             $userRole = $request->getAttribute('userRole');
             
-            // Only mechanics can access this endpoint
-            if ($userRole !== 'mechanic') {
-                return ResponseFormatter::error(
-                    'This endpoint is for mechanics only',
-                    null,
-                    403
-                );
-            }
-
             // Get optional status filter
             $status = $request->query('status');
 

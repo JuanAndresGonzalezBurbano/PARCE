@@ -19,13 +19,14 @@ class ServiceRequestsSeeder extends Seeder
     {
         echo "Seeding service requests...\n";
 
-        // Get existing users by role
+        // Get existing users by role (prioritize users with vehicles)
         $customers = Database::fetchAll(
             'SELECT u.id, u.email 
              FROM users u
              INNER JOIN user_roles ur ON u.id = ur.user_id
              INNER JOIN roles r ON ur.role_id = r.id
-             WHERE r.name = ? AND u.deleted_at IS NULL
+             WHERE r.slug = ? AND ur.is_active = 1 AND u.deleted_at IS NULL
+             ORDER BY u.id ASC
              LIMIT 2',
             ['customer']
         );
@@ -35,7 +36,8 @@ class ServiceRequestsSeeder extends Seeder
              FROM users u
              INNER JOIN user_roles ur ON u.id = ur.user_id
              INNER JOIN roles r ON ur.role_id = r.id
-             WHERE r.name = ? AND u.deleted_at IS NULL
+             WHERE r.slug = ? AND ur.is_active = 1 AND u.deleted_at IS NULL
+             ORDER BY u.id ASC
              LIMIT 2',
             ['mechanic']
         );

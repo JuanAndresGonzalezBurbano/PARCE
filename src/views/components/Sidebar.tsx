@@ -1,80 +1,220 @@
-// Importa Link para navegación y useLocation para saber en qué ruta está el usuario
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-// Importa los íconos usados en el sidebar
-import { Home, Wrench, Phone, ClipboardList, User, Database } from 'lucide-react';
-// Importa motion para la animación de entrada del sidebar
-import { motion } from 'framer-motion';
-// Importa el hook de autenticación para saber el rol del usuario actual
+import {
+  Home, Wrench, Phone, ClipboardList, User,
+  LayoutDashboard, Users, Star, MessageSquare,
+  DollarSign, ChevronDown, ChevronRight, Bot
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../controllers/AuthContext';
+import { useMechanic } from '../../controllers/MechanicContext';
 
-// Define las propiedades del Sidebar
 interface SidebarProps {
-  isOpen?: boolean;  // Si está expandido o colapsado
-  hidden?: boolean;  // Si debe ocultarse completamente (ej: en servicio en curso)
+  isOpen?: boolean;
+  hidden?: boolean;
+}
+
+// Sección colapsable del sidebar del admin
+function AdminSection({ icon: Icon, label, children, isOpen: sidebarOpen }: {
+  icon: React.ElementType;
+  label: string;
+  children: React.ReactNode;
+  isOpen: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-gray-400 hover:bg-dark-800 hover:text-white transition-colors group"
+      >
+        <div className="flex items-center gap-3">
+          <Icon className="w-5 h-5 flex-shrink-0" />
+          {sidebarOpen && <span className="text-sm font-medium">{label}</span>}
+        </div>
+        {sidebarOpen && (
+          <motion.div animate={{ rotate: expanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
+            <ChevronDown className="w-4 h-4" />
+          </motion.div>
+        )}
+      </button>
+      <AnimatePresence>
+        {expanded && sidebarOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden pl-4"
+          >
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 }
 
 export default function Sidebar({ isOpen = true, hidden = false }: SidebarProps) {
-  // Obtiene la ruta actual para marcar el link activo
   const location = useLocation();
-  // Obtiene el usuario para determinar qué menú mostrar según su rol
   const { user } = useAuth();
+  const { isActive: mechanicIsActive } = useMechanic();
 
-  // Menú para administrador: Dashboard y CRUD
-  const adminMenuItems = [
-    { icon: Home, label: 'Dashboard', path: '/dashboard' },
-    { icon: Database, label: 'CRUD', path: '/crud' },
-  ];
+  const isPathActive = (path: string) => location.pathname === path;
 
-  // Menú para usuario: Inicio, Servicios y Contacto
-  const userMenuItems = [
-    { icon: Home, label: 'Inicio', path: '/home' },
-    { icon: Wrench, label: 'Servicios', path: '/services' },
-    { icon: Phone, label: 'Contacto', path: '/contact' },
-  ];
+  const linkClass = (path: string) =>
+    `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm ${
+      isPathActive(path)
+        ? 'bg-gold-500/20 text-gold-400 border border-gold-500/30'
+        : 'text-gray-400 hover:bg-dark-800 hover:text-white'
+    }`;
 
-  // Menú para mecánico: solo Solicitudes y Perfil
-  // RAMA: Soto - Eliminado "Contacto" del sidebar del mecánico (es solo para usuarios)
-  const mechanicMenuItems = [
-    { icon: ClipboardList, label: 'Solicitudes', path: '/mechanic-orders' }, // Lista de pedidos
-    { icon: User, label: 'Mi Perfil', path: '/mechanic-profile' },           // Perfil del mecánico
-  ];
+  const subLinkClass = (path: string) =>
+    `flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm ${
+      isPathActive(path)
+        ? 'bg-gold-500/20 text-gold-400'
+        : 'text-gray-500 hover:bg-dark-800 hover:text-gray-300'
+    }`;
 
-  // Selecciona el menú correcto según el rol del usuario
-  const getMenuItems = () => {
-    if (user?.role === 'admin') return adminMenuItems;
-    if (user?.role === 'mechanic') return mechanicMenuItems;
-    return userMenuItems; // Por defecto muestra el menú de usuario
-  };
-
-  // Obtiene los items del menú según el rol
-  const menuItems = getMenuItems();
-  // Función que compara la ruta actual con la del item para resaltarlo como activo
-  const isActive = (path: string) => location.pathname === path;
-
-  // Si hidden es true, no renderiza nada (usado en ServicesInProgressPage)
   if (hidden) return null;
 
   return (
-    // Sidebar fijo a la izquierda con animación de entrada desde la izquierda
     <motion.aside
-      initial={{ x: -300 }}   // Empieza fuera de pantalla a la izquierda
-      animate={{ x: 0 }}      // Desliza hasta su posición normal
-      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-dark-900/50 backdrop-blur-sm border-r border-anthracite-800 transition-all duration-300 ${
-        isOpen ? 'w-64' : 'w-20' // Ancho completo si está abierto, reducido si está colapsado
+      initial={{ x: -300 }}
+      animate={{ x: 0 }}
+      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-dark-900/50 backdrop-blur-sm border-r border-anthracite-800 transition-all duration-300 overflow-y-auto ${
+        isOpen ? 'w-64' : 'w-20'
       }`}
     >
-      {/* Lista de links de navegación */}
-      <nav className="p-4 space-y-2">
-        {menuItems.map((item) => (
-          // Cada link del menú — resaltado si es la ruta activa
-          <Link key={item.path} to={item.path}
-            className={isActive(item.path) ? 'sidebar-link-active' : 'sidebar-link'}>
-            {/* Ícono del item */}
-            <item.icon className="w-5 h-5 flex-shrink-0" />
-            {/* Texto del item - solo se muestra si el sidebar está expandido */}
-            {isOpen && <span>{item.label}</span>}
-          </Link>
-        ))}
+      <nav className="p-3 space-y-1">
+        {/* ── ADMIN ── */}
+        {user?.role === 'admin' && (
+          <>
+            {/* Dashboard */}
+            <Link to="/dashboard" className={linkClass('/dashboard')}>
+              <LayoutDashboard className="w-5 h-5 flex-shrink-0" />
+              {isOpen && <span>Dashboard</span>}
+            </Link>
+
+            {isOpen && <div className="pt-2 pb-1 px-3"><p className="text-xs text-gray-600 uppercase tracking-wider font-semibold">Gestión</p></div>}
+
+            {/* Usuarios */}
+            <AdminSection icon={Users} label="Usuarios" isOpen={isOpen}>
+              <Link to="/admin/users" className={subLinkClass('/admin/users')}>
+                <ChevronRight className="w-3.5 h-3.5" /> Gestión de Usuarios
+              </Link>
+            </AdminSection>
+
+            {/* Mecánicos */}
+            <AdminSection icon={Wrench} label="Mecánicos" isOpen={isOpen}>
+              <Link to="/admin/mechanics" className={subLinkClass('/admin/mechanics')}>
+                <ChevronRight className="w-3.5 h-3.5" /> Gestión de Mecánicos
+              </Link>
+            </AdminSection>
+
+            {isOpen && <div className="pt-2 pb-1 px-3"><p className="text-xs text-gray-600 uppercase tracking-wider font-semibold">Operaciones</p></div>}
+
+            {/* Servicios */}
+            <AdminSection icon={ClipboardList} label="Servicios" isOpen={isOpen}>
+              <Link to="/admin/services/users" className={subLinkClass('/admin/services/users')}>
+                <ChevronRight className="w-3.5 h-3.5" /> Servicios de Usuarios
+              </Link>
+              <Link to="/admin/services/mechanics" className={subLinkClass('/admin/services/mechanics')}>
+                <ChevronRight className="w-3.5 h-3.5" /> Servicios de Mecánicos
+              </Link>
+            </AdminSection>
+
+            {/* Pagos */}
+            <AdminSection icon={DollarSign} label="Pagos" isOpen={isOpen}>
+              <Link to="/admin/payments" className={subLinkClass('/admin/payments')}>
+                <ChevronRight className="w-3.5 h-3.5" /> Historial de Pagos
+              </Link>
+            </AdminSection>
+
+            {/* Calificaciones */}
+            <AdminSection icon={Star} label="Calificaciones" isOpen={isOpen}>
+              <Link to="/admin/ratings" className={subLinkClass('/admin/ratings')}>
+                <ChevronRight className="w-3.5 h-3.5" /> Ver Calificaciones
+              </Link>
+            </AdminSection>
+
+            {isOpen && <div className="pt-2 pb-1 px-3"><p className="text-xs text-gray-600 uppercase tracking-wider font-semibold">Soporte</p></div>}
+
+            {/* PQR */}
+            <AdminSection icon={MessageSquare} label="PQR" isOpen={isOpen}>
+              <Link to="/admin/pqr/users" className={subLinkClass('/admin/pqr/users')}>
+                <ChevronRight className="w-3.5 h-3.5" /> PQR Usuarios
+              </Link>
+              <Link to="/admin/pqr/mechanics" className={subLinkClass('/admin/pqr/mechanics')}>
+                <ChevronRight className="w-3.5 h-3.5" /> PQR Mecánicos
+              </Link>
+            </AdminSection>
+
+            {/* Chatbot / Ayuda */}
+            <Link to="/admin/chatbot" className={linkClass('/admin/chatbot')}>
+              <Bot className="w-5 h-5 flex-shrink-0" />
+              {isOpen && <span>Ayuda / Chatbot</span>}
+            </Link>
+          </>
+        )}
+
+        {/* ── USUARIO ── */}
+        {user?.role === 'user' && (
+          <>
+            <Link to="/home" className={linkClass('/home')}>
+              <Home className="w-5 h-5 flex-shrink-0" />
+              {isOpen && <span>Inicio</span>}
+            </Link>
+            <Link to="/services" className={linkClass('/services')}>
+              <Wrench className="w-5 h-5 flex-shrink-0" />
+              {isOpen && <span>Servicios</span>}
+            </Link>
+            <Link to="/pqr" className={linkClass('/pqr')}>
+              <MessageSquare className="w-5 h-5 flex-shrink-0" />
+              {isOpen && <span>PQR</span>}
+            </Link>
+            <Link to="/contact" className={linkClass('/contact')}>
+              <Phone className="w-5 h-5 flex-shrink-0" />
+              {isOpen && <span>Contacto</span>}
+            </Link>
+          </>
+        )}
+
+        {/* ── MECÁNICO ── */}
+        {user?.role === 'mechanic' && (
+          <>
+            <Link to="/mechanic-home" className={linkClass('/mechanic-home')}>
+              <Home className="w-5 h-5 flex-shrink-0" />
+              {isOpen && <span>Inicio</span>}
+            </Link>
+
+            {/* Solicitudes — deshabilitado si no está activo */}
+            {mechanicIsActive ? (
+              <Link to="/mechanic-orders" className={linkClass('/mechanic-orders')}>
+                <ClipboardList className="w-5 h-5 flex-shrink-0" />
+                {isOpen && <span>Solicitudes</span>}
+              </Link>
+            ) : (
+              <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 cursor-not-allowed opacity-50" title="Activa tu disponibilidad primero">
+                <ClipboardList className="w-5 h-5 flex-shrink-0" />
+                {isOpen && <span className="text-sm">Solicitudes</span>}
+              </div>
+            )}
+
+            <Link to="/mechanic-payments" className={linkClass('/mechanic-payments')}>
+              <DollarSign className="w-5 h-5 flex-shrink-0" />
+              {isOpen && <span>Pagos</span>}
+            </Link>
+            <Link to="/mechanic-pqr" className={linkClass('/mechanic-pqr')}>
+              <MessageSquare className="w-5 h-5 flex-shrink-0" />
+              {isOpen && <span>PQR</span>}
+            </Link>
+            <Link to="/mechanic-profile" className={linkClass('/mechanic-profile')}>
+              <User className="w-5 h-5 flex-shrink-0" />
+              {isOpen && <span>Mi Perfil</span>}
+            </Link>
+          </>
+        )}
       </nav>
     </motion.aside>
   );

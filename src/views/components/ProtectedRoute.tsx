@@ -26,8 +26,7 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
       case 'admin':
         return <Navigate to="/dashboard" replace />;      // Admin va al dashboard
       case 'mechanic':
-        // Mecánico va a solicitudes (página activa, MechanicDashboardPage es legada)
-        return <Navigate to="/mechanic-orders" replace />;
+        return <Navigate to="/mechanic-home" replace />;
       case 'user':
       default:
         // RAMA: Soto - Usuario va a /home (su home autenticado) en vez de /services

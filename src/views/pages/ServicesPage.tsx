@@ -6,7 +6,6 @@ import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../../controllers/AuthContext';
 import { useService } from '../../controllers/ServiceContext';
-
 const services = [
   {
     id: 1,
@@ -71,40 +70,50 @@ const services = [
 ];
 
 /* ── CHATBOT ── */
-interface ChatMessage { role: 'user' | 'bot'; text: string; }
-const PROFANITY = ['mierda','hijueputa','puta','malparido','gonorrea','hp','marica','idiota','imbecil','estupido','pendejo','verga','coño','joder','cabron','perra'];
-const hasProfanity = (t: string) => PROFANITY.some(w => t.toLowerCase().includes(w));
+// Define el tipo de mensaje del chat — puede ser del usuario o del bot
+// suggestedService: si el bot sugiere un servicio, guarda el nombre para mostrar el botón
+interface ChatMessage { role: 'user' | 'bot'; text: string; suggestedService?: string; }
 
-function getBotResponse(input: string): string {
-  const msg = input.toLowerCase();
-  if (/bater[ií]a|descarg|no arranca|no enciende|clic|click/.test(msg))
-    return '🔋 Parece un problema de batería. Síntomas típicos: el motor no arranca, escuchas un "clic" al girar la llave, las luces están débiles. Te recomiendo el servicio de Carga y Reemplazo de Batería.';
-  if (/llanta|neum[aá]tico|pinch|revent|rueda/.test(msg))
-    return '🔧 Problema con una llanta. Si está pinchada o reventada, nuestro técnico llega con equipo para repararla o cambiarla en el lugar. Te recomiendo Reparación y Cambio de Neumáticos.';
-  if (/gasolina|combustible|vac[ií]o|sin gas|acpm|diesel/.test(msg))
-    return '⛽ Sin combustible en la vía es muy común. Nuestro mecánico puede llevarte gasolina corriente, extra o ACPM. Te recomiendo Suministro de Combustible a Domicilio.';
-  if (/llave|cerraj|encerr|bloqu|control remoto/.test(msg))
-    return '🔑 Llaves adentro o cerradura bloqueada? Nuestro especialista puede abrir tu vehículo sin daños. Te recomiendo Cerrajería Automotriz.';
-  if (/gr[úu]a|remolque|accidente|inmoviliz|taller/.test(msg))
-    return '🚛 Si tu vehículo no puede moverse, necesitas una grúa. Te recomiendo el servicio de Grúa y Remolque de Vehículos.';
-  if (/recalentar|temperatura|humo|vapor|radiador/.test(msg))
-    return '🌡️ El recalentamiento puede dañar el motor. Apaga el motor de inmediato. Te recomiendo Diagnóstico y Reparación Mecánica para revisar el sistema de enfriamiento.';
-  if (/freno|frena|chirri|vibra|pedal/.test(msg))
-    return '🛑 Problemas con los frenos son emergencia. Detente en lugar seguro. Te recomiendo Diagnóstico y Reparación Mecánica de inmediato.';
-  if (/luz|luces|el[eé]ctric|fusible|check engine|tablero/.test(msg))
-    return '💡 Problemas eléctricos pueden ser desde un fusible hasta el alternador. Te recomiendo Diagnóstico y Reparación Mecánica con escáner OBD.';
-  if (/ruido|sonido|golpe|traqueteo|zumbido/.test(msg))
-    return '🔊 Ruidos extraños pueden indicar problemas en suspensión, frenos o motor. Cuéntame más: ¿el ruido es al frenar, al acelerar o constante? Te recomiendo Diagnóstico y Reparación Mecánica.';
-  if (/aceite|fuga|goteo|mancha/.test(msg))
-    return '🛢️ Una fuga de aceite puede causar daños graves. Detente y llama a un mecánico. Te recomiendo Diagnóstico y Reparación Mecánica.';
-  if (/hola|buenos|buenas|hey/.test(msg))
-    return '👋 ¡Hola! Soy el asistente de PARCE. Cuéntame qué le está pasando a tu vehículo y te ayudo a identificar el servicio que necesitas.';
-  if (/gracias|perfecto|genial/.test(msg))
-    return '😊 Con gusto. Puedes pedir cualquier servicio directamente desde esta pantalla. ¿Algo más en lo que pueda ayudarte?';
-  if (/no s[eé]|no sabe|ayuda|qu[eé] tiene/.test(msg))
-    return '🤔 No te preocupes. Cuéntame los síntomas: ¿hace ruidos? ¿no arranca? ¿hay luces en el tablero? ¿huele a algo? Con eso puedo orientarte mejor.';
-  return '🤖 Para darte la mejor recomendación, cuéntame más detalles: ¿qué síntomas presenta el vehículo? Por ejemplo: no arranca, hace ruidos, tiene luces encendidas, perdió potencia, etc.';
-}
+// Lista de palabras prohibidas — filtra groserías antes de enviar al bot
+const PROFANITY = [
+  'mierda','hijueputa','puta','malparido','gonorrea','hp','marica',
+  'idiota','imbecil','estupido','pendejo','verga','coño','joder','cabron','perra',
+  'bobo','bruto','animal','bestia','fuck','shit','bitch','damn','crap',
+  'bastard','asshole','dick','pussy','cunt','retrasado','mongolo','subnormal',
+  'inutil','maldito','desgraciado','hdp','ptm','ctm','conchatumadre',
+  'webon','weon','huevon','mamahuevo','tonto',
+];
+
+// Función que detecta groserías usando expresiones regulares con límite de palabra (\b)
+// Esto evita falsos positivos como "vehículo" que contiene "culo"
+const hasProfanity = (t: string) =>
+  PROFANITY.some(w => new RegExp(`\\b${w}\\b`, 'i').test(t));
+
+// Prompt del sistema que le dice a Groq cómo debe comportarse el chatbot
+// Define el rol, los servicios disponibles y el formato exacto de respuesta esperado
+const SYSTEM_PROMPT = `Eres el asistente virtual de P.A.R.C.E (Plataforma de Asistencia Rápida Para Conductores en Emergencia).
+Tu rol es diagnosticar problemas vehiculares y recomendar el servicio adecuado.
+
+Los servicios disponibles en PARCE son EXACTAMENTE estos 6:
+1. Suministro de Combustible a Domicilio
+2. Reparación y Cambio de Neumáticos
+3. Carga y Reemplazo de Batería
+4. Diagnóstico y Reparación Mecánica
+5. Cerrajería Automotriz
+6. Grúa y Remolque de Vehículos
+
+Cuando el usuario describa un problema, responde SIEMPRE así:
+
+Si el problema corresponde a uno de los 6 servicios:
+- Explica brevemente qué causó el problema
+- Termina con exactamente: "SERVICIO_SUGERIDO: [nombre exacto del servicio de la lista]"
+
+Si el problema NO corresponde a ninguno de los 6 servicios:
+- Explica qué causó el problema
+- Di qué tipo de servicio especializado necesita (ej: taller de transmisión, servicio de AC, etc.)
+- Termina con exactamente: "SERVICIO_SUGERIDO: Diagnóstico y Reparación Mecánica"
+
+Responde siempre en español, de forma clara y breve. Usa emojis relevantes.`;
 
 export default function ServicesPage() {
   const { user } = useAuth();
@@ -116,7 +125,7 @@ export default function ServicesPage() {
     { role: 'bot', text: '👋 ¡Hola! Soy el asistente de PARCE. Si no sabes qué falla tiene tu vehículo, cuéntame los síntomas y te ayudo a identificar el problema.' },
   ]);
   const [inputText, setInputText] = useState('');
-  const [lastDiagnosis, setLastDiagnosis] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const itemsPerPage = 3;
@@ -125,27 +134,116 @@ export default function ServicesPage() {
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-  const handleSend = () => {
-    const text = inputText.trim();
-    if (!text) return;
+  const handleSend = async () => {
+    const text = inputText.trim(); // Elimina espacios al inicio y final
+    if (!text || isLoading) return; // No hace nada si está vacío o ya está cargando
+
+    // Verifica si el mensaje tiene groserías antes de enviarlo
     if (hasProfanity(text)) {
-      setMessages(prev => [...prev, { role: 'user', text }, { role: 'bot', text: '⚠️ Por favor mantén un lenguaje respetuoso.' }]);
-      setInputText(''); return;
+      // Agrega el mensaje del usuario y la advertencia del bot
+      setMessages(prev => [...prev,
+        { role: 'user', text },
+        { role: 'bot', text: '⚠️ Por favor mantén un lenguaje respetuoso. Las groserías no están permitidas en este chat. Estoy aquí para ayudarte con tu vehículo 😊' }
+      ]);
+      setInputText(''); // Limpia el campo de texto
+      return; // No continúa al API
     }
-    const reply = getBotResponse(text);
-    setLastDiagnosis(reply);
-    setMessages(prev => [...prev, { role: 'user', text }, { role: 'bot', text: reply }]);
-    setInputText('');
+
+    // Agrega el mensaje del usuario al chat inmediatamente
+    setMessages(prev => [...prev, { role: 'user', text }]);
+    setInputText('');    // Limpia el campo de texto
+    setIsLoading(true);  // Activa el indicador de carga (3 puntitos)
+
+    try {
+      // Lee la API key de Groq desde las variables de entorno (.env)
+      const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+
+      if (!apiKey) {
+        throw new Error('API key no configurada. Verifica el archivo .env');
+      }
+
+      // Hace la petición HTTP POST a la API de Groq
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'llama-3.1-8b-instant',
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: text }
+          ],
+          max_tokens: 500,
+          temperature: 0.7,
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData?.error?.message || `Error ${response.status}`);
+      }
+
+      // Convierte la respuesta a JSON
+      const data = await response.json();
+      // Extrae el texto de la respuesta o usa mensaje de error si no hay
+      const rawReply = data?.choices?.[0]?.message?.content
+        || '🤖 Lo siento, no pude procesar tu consulta. Intenta de nuevo.';
+
+      // Busca el tag SERVICIO_SUGERIDO en la respuesta con una expresión regular
+      const serviceMatch = rawReply.match(/SERVICIO_SUGERIDO:\s*(.+)/);
+      // Si encontró el tag, extrae el nombre del servicio; si no, es undefined
+      const suggestedService = serviceMatch ? serviceMatch[1].trim() : undefined;
+      // Elimina el tag de la respuesta para que no se muestre al usuario
+      const cleanReply = rawReply.replace(/SERVICIO_SUGERIDO:\s*.+/, '').trim();
+
+      // Agrega la respuesta limpia del bot al chat, con el servicio sugerido para el botón
+      setMessages(prev => [...prev, { role: 'bot', text: cleanReply, suggestedService }]);
+    } catch (err) {
+      console.error('Groq error:', err); // Registra el error en consola para debugging
+      // Convierte el error a string legible
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      // Muestra el error en el chat
+      setMessages(prev => [...prev, {
+        role: 'bot',
+        text: `⚠️ Error: ${errorMsg}`
+      }]);
+    } finally {
+      setIsLoading(false); // Desactiva el indicador de carga siempre, haya o no error
+    }
+  };
+
+  // Función que se ejecuta cuando el usuario hace click en "Pedir: [servicio]" en el chat
+  const handleRequestFromChat = (suggestedService: string, diagnosis: string) => {
+    // Busca el servicio en la lista comparando nombres (insensible a mayúsculas)
+    const found = services.find(s =>
+      s.title.toLowerCase().includes(suggestedService.toLowerCase()) ||
+      suggestedService.toLowerCase().includes(s.title.toLowerCase())
+    ) || services[3]; // Si no encuentra coincidencia, usa "Diagnóstico y Reparación Mecánica" (índice 3)
+    
+    // Configura el servicio seleccionado con el diagnóstico del chatbot como descripción
+    setSelectedService({
+      id: found.id,
+      title: found.title,
+      description: diagnosis,       // La descripción es el diagnóstico del chatbot
+      duration: found.duration,
+      chatbotDiagnosis: diagnosis,  // También lo guarda como diagnóstico del chatbot
+    });
+    // Navega a la página de ubicación primero
+    navigate('/service-location');
   };
 
   const handleServiceSelect = (service: typeof services[0]) => {
-    setSelectedService({ id: service.id, title: service.title, description: service.description, duration: service.duration, chatbotDiagnosis: lastDiagnosis || undefined });
-    navigate('/service-in-progress');
+    setSelectedService({ id: service.id, title: service.title, description: service.description, duration: service.duration });
+    // Primero pide la ubicación antes de ir al servicio en curso
+    navigate('/service-location');
   };
 
   return (
     <div className="min-h-screen bg-dark-950">
-      <Navbar isAuthenticated userName={user?.name || 'Usuario'} />
+      {/* RAMA: Soto - hideNavLinks oculta "Servicios" y "Contacto" del navbar en esta página */}
+      <Navbar isAuthenticated userName={user?.name || 'Usuario'} hideNavLinks />
       <Sidebar />
       <main className="ml-64 pt-16 p-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -236,11 +334,36 @@ export default function ServicesPage() {
                   <div className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center ${msg.role === 'bot' ? 'bg-gradient-to-br from-gold-500 to-gold-600' : 'bg-dark-600'}`}>
                     {msg.role === 'bot' ? <Bot className="w-4 h-4 text-anthracite-950" /> : <UserIcon className="w-4 h-4 text-white" />}
                   </div>
-                  <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${msg.role === 'bot' ? 'bg-dark-800 text-gray-200 rounded-tl-sm' : 'bg-gold-600 text-anthracite-950 rounded-tr-sm'}`}>
-                    {msg.text}
+                  <div className={`max-w-[75%] flex flex-col gap-2`}>
+                    <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${msg.role === 'bot' ? 'bg-dark-800 text-gray-200 rounded-tl-sm' : 'bg-gold-600 text-anthracite-950 rounded-tr-sm'}`}>
+                      {msg.text}
+                    </div>
+                    {/* RAMA: Soto - Botón "Pedir servicio" cuando el bot sugiere uno */}
+                    {msg.role === 'bot' && msg.suggestedService && (
+                      <button
+                        onClick={() => handleRequestFromChat(msg.suggestedService!, msg.text)}
+                        className="self-start flex items-center gap-2 px-4 py-2 bg-gold-500 hover:bg-gold-600 text-anthracite-950 text-xs font-bold rounded-xl transition-colors"
+                      >
+                        <Wrench className="w-3.5 h-3.5" />
+                        Pedir: {msg.suggestedService}
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
+              {/* Indicador de escritura mientras Groq (LLaMA) responde */}
+              {isLoading && (
+                <div className="flex gap-2">
+                  <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-gold-500 to-gold-600">
+                    <Bot className="w-4 h-4 text-anthracite-950" />
+                  </div>
+                  <div className="bg-dark-800 px-4 py-3 rounded-2xl rounded-tl-sm flex gap-1 items-center">
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              )}
               <div ref={messagesEndRef} />
             </div>
             <div className="p-3 border-t border-anthracite-700">
@@ -249,7 +372,7 @@ export default function ServicesPage() {
                   onKeyDown={e => e.key === 'Enter' && handleSend()}
                   placeholder="Describe el problema de tu vehículo..."
                   className="flex-1 bg-dark-800 border border-anthracite-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gold-500 transition-colors" />
-                <button onClick={handleSend} disabled={!inputText.trim()}
+                <button onClick={handleSend} disabled={!inputText.trim() || isLoading}
                   className="p-2.5 bg-gold-500 hover:bg-gold-600 disabled:opacity-40 rounded-xl transition-colors">
                   <Send className="w-4 h-4 text-anthracite-950" />
                 </button>

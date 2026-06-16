@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Clock, User, Star, MessageSquare, Navigation, Car, AlertTriangle, CheckCircle, Send, X } from 'lucide-react';
+import { MapPin, Clock, User, Star, MessageSquare, Navigation, Car, AlertTriangle, CheckCircle, Send, X, CreditCard } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import ProfileModal from '../components/ProfileModal';
@@ -306,11 +306,21 @@ export default function ServiceInProgressPage() {
 
                 {/* Mini chat — eliminado de aquí, ahora es panel inferior */}
 
-                {/* Solo botón cancelar, centrado */}
-                <div className="pt-2">
+                {/* Botones de acción */}
+                <div className="pt-2 space-y-3">
+                  {/* Botón cancelar servicio */}
                   <button onClick={() => setShowCancelModal(true)}
                     className="w-full py-3 bg-dark-700 hover:bg-red-900/40 border border-dark-600 hover:border-red-700 text-gray-300 hover:text-red-300 rounded-xl font-semibold transition-all duration-200">
                     Cancelar servicio
+                  </button>
+                  
+                  {/* Botón seleccionar forma de pago */}
+                  <button
+                    onClick={() => navigate('/payment')}
+                    className="w-full py-3 bg-gold-600 hover:bg-gold-700 text-anthracite-950 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2"
+                  >
+                    <CreditCard className="w-5 h-5" />
+                    Seleccionar forma de pago
                   </button>
                 </div>
               </div>

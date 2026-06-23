@@ -253,6 +253,22 @@ class ServiceRequestValidator
             $errors['customer_feedback'] = 'Feedback must not exceed 2000 characters';
         }
 
+        // Validate optional punctuality_rating
+        $punctualityRating = $request->input('punctuality_rating');
+        if ($punctualityRating !== null) {
+            if (!is_numeric($punctualityRating) || (int)$punctualityRating < 1 || (int)$punctualityRating > 5) {
+                $errors['punctuality_rating'] = 'Punctuality rating must be an integer between 1 and 5';
+            }
+        }
+
+        // Validate optional service_quality_rating
+        $serviceQualityRating = $request->input('service_quality_rating');
+        if ($serviceQualityRating !== null) {
+            if (!is_numeric($serviceQualityRating) || (int)$serviceQualityRating < 1 || (int)$serviceQualityRating > 5) {
+                $errors['service_quality_rating'] = 'Service quality rating must be an integer between 1 and 5';
+            }
+        }
+
         return [
             'valid' => empty($errors),
             'errors' => $errors

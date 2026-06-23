@@ -138,6 +138,48 @@ class VehicleValidator
             $errors['primary_photo_url'] = 'Photo URL must be a valid URL';
         }
 
+        // soat_number (optional)
+        $soatNumber = $request->input('soat_number');
+        if ($soatNumber !== null && strlen($soatNumber) > 50) {
+            $errors['soat_number'] = 'SOAT number must not exceed 50 characters';
+        }
+
+        // soat_expiration_date (optional)
+        $soatExpirationDate = $request->input('soat_expiration_date');
+        if ($soatExpirationDate !== null) {
+            $parsed = \DateTime::createFromFormat('Y-m-d', $soatExpirationDate);
+            if (!$parsed || $parsed->format('Y-m-d') !== $soatExpirationDate) {
+                $errors['soat_expiration_date'] = 'SOAT expiration date must be in YYYY-MM-DD format';
+            }
+        }
+
+        // soat_document_url (optional)
+        $soatDocumentUrl = $request->input('soat_document_url');
+        if ($soatDocumentUrl !== null && (strlen($soatDocumentUrl) > 500 || !filter_var($soatDocumentUrl, FILTER_VALIDATE_URL))) {
+            $errors['soat_document_url'] = 'SOAT document URL must be a valid URL not exceeding 500 characters';
+        }
+
+        // tecnomecanica_number (optional)
+        $tecnomecanicaNumber = $request->input('tecnomecanica_number');
+        if ($tecnomecanicaNumber !== null && strlen($tecnomecanicaNumber) > 50) {
+            $errors['tecnomecanica_number'] = 'Tecnomecánica number must not exceed 50 characters';
+        }
+
+        // tecnomecanica_expiration_date (optional)
+        $tecnomecanicaExpirationDate = $request->input('tecnomecanica_expiration_date');
+        if ($tecnomecanicaExpirationDate !== null) {
+            $parsed = \DateTime::createFromFormat('Y-m-d', $tecnomecanicaExpirationDate);
+            if (!$parsed || $parsed->format('Y-m-d') !== $tecnomecanicaExpirationDate) {
+                $errors['tecnomecanica_expiration_date'] = 'Tecnomecánica expiration date must be in YYYY-MM-DD format';
+            }
+        }
+
+        // tecnomecanica_document_url (optional)
+        $tecnomecanicaDocumentUrl = $request->input('tecnomecanica_document_url');
+        if ($tecnomecanicaDocumentUrl !== null && (strlen($tecnomecanicaDocumentUrl) > 500 || !filter_var($tecnomecanicaDocumentUrl, FILTER_VALIDATE_URL))) {
+            $errors['tecnomecanica_document_url'] = 'Tecnomecánica document URL must be a valid URL not exceeding 500 characters';
+        }
+
         return [
             'valid' => empty($errors),
             'errors' => $errors
@@ -246,6 +288,48 @@ class VehicleValidator
         $status = $request->input('status');
         if ($status !== null && !in_array($status, self::VALID_STATUSES, true)) {
             $errors['status'] = 'Invalid status. Valid statuses: ' . implode(', ', self::VALID_STATUSES);
+        }
+
+        // soat_number (optional)
+        $soatNumber = $request->input('soat_number');
+        if ($soatNumber !== null && strlen($soatNumber) > 50) {
+            $errors['soat_number'] = 'SOAT number must not exceed 50 characters';
+        }
+
+        // soat_expiration_date (optional)
+        $soatExpirationDate = $request->input('soat_expiration_date');
+        if ($soatExpirationDate !== null) {
+            $parsed = \DateTime::createFromFormat('Y-m-d', $soatExpirationDate);
+            if (!$parsed || $parsed->format('Y-m-d') !== $soatExpirationDate) {
+                $errors['soat_expiration_date'] = 'SOAT expiration date must be in YYYY-MM-DD format';
+            }
+        }
+
+        // soat_document_url (optional)
+        $soatDocumentUrl = $request->input('soat_document_url');
+        if ($soatDocumentUrl !== null && (strlen($soatDocumentUrl) > 500 || !filter_var($soatDocumentUrl, FILTER_VALIDATE_URL))) {
+            $errors['soat_document_url'] = 'SOAT document URL must be a valid URL not exceeding 500 characters';
+        }
+
+        // tecnomecanica_number (optional)
+        $tecnomecanicaNumber = $request->input('tecnomecanica_number');
+        if ($tecnomecanicaNumber !== null && strlen($tecnomecanicaNumber) > 50) {
+            $errors['tecnomecanica_number'] = 'Tecnomecánica number must not exceed 50 characters';
+        }
+
+        // tecnomecanica_expiration_date (optional)
+        $tecnomecanicaExpirationDate = $request->input('tecnomecanica_expiration_date');
+        if ($tecnomecanicaExpirationDate !== null) {
+            $parsed = \DateTime::createFromFormat('Y-m-d', $tecnomecanicaExpirationDate);
+            if (!$parsed || $parsed->format('Y-m-d') !== $tecnomecanicaExpirationDate) {
+                $errors['tecnomecanica_expiration_date'] = 'Tecnomecánica expiration date must be in YYYY-MM-DD format';
+            }
+        }
+
+        // tecnomecanica_document_url (optional)
+        $tecnomecanicaDocumentUrl = $request->input('tecnomecanica_document_url');
+        if ($tecnomecanicaDocumentUrl !== null && (strlen($tecnomecanicaDocumentUrl) > 500 || !filter_var($tecnomecanicaDocumentUrl, FILTER_VALIDATE_URL))) {
+            $errors['tecnomecanica_document_url'] = 'Tecnomecánica document URL must be a valid URL not exceeding 500 characters';
         }
 
         return [

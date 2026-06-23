@@ -233,6 +233,20 @@ class ServiceRequestService
             throw new \Exception('Only pending requests can be accepted');
         }
         
+        // Check mechanic's driver license expiry (Requirement 3.5, 3.6, 3.7)
+        $mechanic = Database::fetchOne(
+            'SELECT driver_license_expiration_date FROM users WHERE id = ?',
+            [$mechanicId]
+        );
+
+        if ($mechanic !== null
+            && !empty($mechanic['driver_license_expiration_date'])
+            && $mechanic['driver_license_expiration_date'] < date('Y-m-d')) {
+            throw new \Exception(
+                'La licencia de conducción del mecánico está vencida. No puede aceptar solicitudes.'
+            );
+        }
+        
         // Validate status transition
         $validation = ServiceRequestValidator::validateStatusTransition($request['status'], 'assigned');
         if (!$validation['valid']) {

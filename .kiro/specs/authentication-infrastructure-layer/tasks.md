@@ -24,7 +24,7 @@ This implementation plan creates the Security Foundation Layer for the P.A.R.C.E
     - Add validation in constructor for path (must start with '/') and sameSite (must be 'Strict', 'Lax', or 'None')
     - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 25.3_
 
-  - [ ]* 1.2 Write property test for CookieConfig
+  - [ ] 1.2 Write property test for CookieConfig
     - **Property 10: Cookie Security**
     - **Property 15: CookieConfig Path Validation**
     - **Validates: Requirements 12.1, 12.2, 12.3, 12.5**
@@ -41,7 +41,7 @@ This implementation plan creates the Security Foundation Layer for the P.A.R.C.E
     - Implement `strict()` static factory method (3, 10, 60)
     - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 25.4_
 
-  - [ ]* 1.4 Write property test for RateLimitConfig
+  - [ ] 1.4 Write property test for RateLimitConfig
     - **Property 16: RateLimitConfig Bounds**
     - **Validates: Requirements 13.1, 13.2, 13.3**
     - Test that all RateLimitConfig instances satisfy: 1 ≤ maxAttempts ≤ 100, 1 ≤ decayMinutes ≤ 1440, 1 ≤ lockoutMinutes ≤ 1440
@@ -57,7 +57,7 @@ This implementation plan creates the Security Foundation Layer for the P.A.R.C.E
     - Add validation in constructor (userId > 0, valid IP format, valid timestamps)
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 25.2_
 
-  - [ ]* 1.6 Write property test for SessionData
+  - [ ] 1.6 Write property test for SessionData
     - **Property 14: SessionData Validation**
     - **Validates: Requirements 11.3, 11.4, 11.5**
     - Test that all SessionData instances have userId > 0, valid IP address format, lastActivity > 0, createdAt > 0
@@ -73,7 +73,7 @@ This implementation plan creates the Security Foundation Layer for the P.A.R.C.E
     - Add validation in constructor (if success=true, userId and sessionId must not be null; if success=false, message must be provided)
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 25.1_
 
-  - [ ]* 1.8 Write property test for AuthResult
+  - [ ] 1.8 Write property test for AuthResult
     - **Property 13: AuthResult Consistency**
     - **Validates: Requirements 10.3, 10.4**
     - Test that all AuthResult instances satisfy: (success=true ⟹ userId≠null ∧ sessionId≠null) ∧ (success=false ⟹ message≠null)
@@ -100,7 +100,7 @@ This implementation plan creates the Security Foundation Layer for the P.A.R.C.E
     - Ensure hash output starts with "$argon2id$" prefix
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-  - [ ]* 3.2 Write property test for password hashing
+  - [ ] 3.2 Write property test for password hashing
     - **Property 1: Password Security**
     - **Property 6: Password Verification Round-Trip**
     - **Property 20: Hash Non-Determinism**
@@ -117,7 +117,7 @@ This implementation plan creates the Security Foundation Layer for the P.A.R.C.E
     - Ensure constant execution time regardless of result
     - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
-  - [ ]* 3.4 Write property test for password verification
+  - [ ] 3.4 Write property test for password verification
     - **Property 2: Timing Attack Prevention**
     - **Property 7: Password Verification Rejection**
     - **Validates: Requirements 2.3, 2.4, 24.1, 24.2, 24.3, 24.4**
@@ -131,7 +131,7 @@ This implementation plan creates the Security Foundation Layer for the P.A.R.C.E
     - Return true if hash needs rehashing, false otherwise
     - _Requirements: 2.5, 16.1_
 
-  - [ ]* 3.6 Write unit tests for PasswordHasher
+  - [ ] 3.6 Write unit tests for PasswordHasher
     - Test hash() with valid passwords (≥8 characters)
     - Test hash() rejects short passwords (<8 characters)
     - Test verify() returns true for correct password
@@ -156,7 +156,7 @@ This implementation plan creates the Security Foundation Layer for the P.A.R.C.E
     - Return session ID
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 19.1, 19.2, 19.3, 19.4, 23.2_
 
-  - [ ]* 5.2 Write property test for session creation
+  - [ ] 5.2 Write property test for session creation
     - **Property 3: Session Uniqueness**
     - **Property 8: Session ID Format**
     - **Property 11: Session Metadata Preservation**
@@ -179,7 +179,7 @@ This implementation plan creates the Security Foundation Layer for the P.A.R.C.E
     - Return SessionData object with session information
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 6.1, 6.2, 6.3, 6.4, 6.5, 19.5_
 
-  - [ ]* 5.4 Write property test for session validation
+  - [ ] 5.4 Write property test for session validation
     - **Property 4: Session Expiration**
     - **Property 5: Session Idle Timeout**
     - **Property 12: Session Activity Update**
@@ -206,7 +206,7 @@ This implementation plan creates the Security Foundation Layer for the P.A.R.C.E
     - Return new session ID
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-  - [ ]* 5.7 Write property test for session regeneration
+  - [ ] 5.7 Write property test for session regeneration
     - **Property 9: Session Regeneration Security**
     - **Validates: Requirements 7.1, 7.2, 7.3, 7.5**
     - Test that regenerate(sessionId) invalidates old session ID
@@ -220,7 +220,7 @@ This implementation plan creates the Security Foundation Layer for the P.A.R.C.E
     - Return count of deleted sessions
     - _Requirements: 9.1, 9.2, 22.1, 22.2, 22.3, 22.4_
 
-  - [ ]* 5.9 Write property test for session destruction
+  - [ ] 5.9 Write property test for session destruction
     - **Property 17: Session Destruction Completeness**
     - **Validates: Requirements 9.1, 22.3**
     - Test that destroyAllUserSessions(userId) removes all sessions for that user
@@ -235,7 +235,7 @@ This implementation plan creates the Security Foundation Layer for the P.A.R.C.E
     - Use batched deletion to avoid table locks
     - _Requirements: 8.1, 8.2, 8.3, 8.4_
 
-  - [ ]* 5.11 Write unit tests for SessionManager
+  - [ ] 5.11 Write unit tests for SessionManager
     - Test create() generates valid session ID and stores in database
     - Test validate() returns null for non-existent session
     - Test validate() returns null for expired session
@@ -270,7 +270,7 @@ This implementation plan creates the Security Foundation Layer for the P.A.R.C.E
     - Return AuthResult::success with userId and sessionId
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 16.1, 16.2, 16.3, 16.4, 18.1, 18.2, 18.3, 18.4, 24.1, 24.2, 24.3, 24.4_
 
-  - [ ]* 7.2 Write property test for authentication timing safety
+  - [ ] 7.2 Write property test for authentication timing safety
     - **Property 19: Authentication Error Message Uniformity**
     - **Validates: Requirements 3.2, 18.4, 24.1, 24.3, 24.4**
     - Test that authenticate() with non-existent email returns same error message as invalid password
@@ -301,7 +301,7 @@ This implementation plan creates the Security Foundation Layer for the P.A.R.C.E
     - Return true if session was refreshed, false if session doesn't exist
     - _Requirements: 20.1, 20.2, 20.3, 20.4_
 
-  - [ ]* 7.7 Write unit tests for AuthService
+  - [ ] 7.7 Write unit tests for AuthService
     - Test authenticate() with valid credentials creates session
     - Test authenticate() with invalid credentials returns failure
     - Test authenticate() with non-existent email returns failure
@@ -319,7 +319,7 @@ This implementation plan creates the Security Foundation Layer for the P.A.R.C.E
     - Test refreshSession() updates last_activity
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 14.1, 14.2, 14.3, 14.4, 15.1, 15.2, 16.1, 16.2, 20.1, 20.2, 24.1, 24.3_
 
-- [~] 8. Checkpoint - Verify AuthService functionality
+- [ ] 8. Checkpoint - Verify AuthService functionality
   - Ensure all AuthService tests pass
   - Verify authentication flow works end-to-end
   - Verify timing-safe operations
@@ -327,7 +327,7 @@ This implementation plan creates the Security Foundation Layer for the P.A.R.C.E
   - Ask the user if questions arise
 
 - [ ] 9. Integration and final validation
-  - [~] 9.1 Create integration test for full authentication flow
+  - [ ] 9.1 Create integration test for full authentication flow
     - Test complete login flow: authenticate() → session created → validateSession() returns valid data
     - Test logout flow: authenticate() → logout() → validateSession() returns null
     - Test session expiration: create session → wait for expiration → validateSession() returns null
@@ -335,7 +335,7 @@ This implementation plan creates the Security Foundation Layer for the P.A.R.C.E
     - Test concurrent sessions: authenticate twice → both sessions valid → destroyAllUserSessions() → both invalid
     - _Requirements: 3.1, 3.5, 4.1, 5.1, 5.3, 6.1, 6.2, 7.1, 9.1, 15.1, 22.1_
 
-  - [ ]* 9.2 Write integration tests for database interactions
+  - [ ] 9.2 Write integration tests for database interactions
     - Test that sessions are correctly stored in sessions table
     - Test that last_login_at and last_login_ip are updated in users table
     - Test that expired sessions are removed from database
@@ -343,19 +343,19 @@ This implementation plan creates the Security Foundation Layer for the P.A.R.C.E
     - Verify database indexes are used efficiently
     - _Requirements: 4.3, 3.6, 5.3, 6.3, 8.1, 8.2, 17.1, 17.2, 17.3, 17.4, 17.5_
 
-  - [~] 9.3 Verify PSR-4 autoloading and namespace structure
+  - [ ] 9.3 Verify PSR-4 autoloading and namespace structure
     - Ensure all classes follow PSR-4 autoloading conventions
     - Verify namespace structure: App\Infrastructure\Auth\Services, App\Infrastructure\Auth\DTO, App\Infrastructure\Auth\Exceptions
     - Test that classes can be autoloaded correctly
     - Verify no namespace conflicts with existing code
 
-  - [~] 9.4 Verify PHP 8.2 feature usage
+  - [ ] 9.4 Verify PHP 8.2 feature usage
     - Ensure all DTOs use readonly classes
     - Ensure all DTOs use constructor property promotion
     - Ensure all classes use typed properties
     - Verify no deprecated PHP features are used
 
-- [~] 10. Final checkpoint - Complete validation
+- [ ] 10. Final checkpoint - Complete validation
   - Ensure all tests pass (unit, property-based, integration)
   - Verify all requirements are covered by implementation
   - Verify all correctness properties are validated by tests

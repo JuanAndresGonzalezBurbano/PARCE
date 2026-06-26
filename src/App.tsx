@@ -35,6 +35,7 @@ import AdminServicesPage from './views/pages/admin/AdminServicesPage';
 import AdminPaymentsPage from './views/pages/admin/AdminPaymentsPage';
 import AdminRatingsPage from './views/pages/admin/AdminRatingsPage';
 import AdminPQRPage from './views/pages/admin/AdminPQRPage';
+import AdminVehiclesPage from './views/pages/admin/AdminVehiclesPage';
 
 // ── PÁGINAS COMPARTIDAS ──
 import ContactPage from './views/pages/ContactPage';
@@ -60,6 +61,7 @@ function App() {
         <Route path="/admin/mechanics" element={<ProtectedRoute allowedRoles={['admin']}><AdminMechanicsPage /></ProtectedRoute>} />
         <Route path="/admin/services/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminServicesPage view="users" /></ProtectedRoute>} />
         <Route path="/admin/services/mechanics" element={<ProtectedRoute allowedRoles={['admin']}><AdminServicesPage view="mechanics" /></ProtectedRoute>} />
+        <Route path="/admin/vehicles" element={<ProtectedRoute allowedRoles={['admin']}><AdminVehiclesPage /></ProtectedRoute>} />
         <Route path="/admin/payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminPaymentsPage /></ProtectedRoute>} />
         <Route path="/admin/ratings" element={<ProtectedRoute allowedRoles={['admin']}><AdminRatingsPage /></ProtectedRoute>} />
         <Route path="/admin/pqr/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminPQRPage view="users" /></ProtectedRoute>} />

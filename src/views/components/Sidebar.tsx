@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   Home, Wrench, Phone, ClipboardList, User,
   LayoutDashboard, Users, Star, MessageSquare,
-  DollarSign, ChevronDown, ChevronRight, Bot
+  DollarSign, ChevronDown, ChevronRight, Bot, Car
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../controllers/AuthContext';
@@ -121,6 +121,13 @@ export default function Sidebar({ isOpen = true, hidden = false }: SidebarProps)
               </Link>
               <Link to="/admin/services/mechanics" className={subLinkClass('/admin/services/mechanics')}>
                 <ChevronRight className="w-3.5 h-3.5" /> Servicios de Mecánicos
+              </Link>
+            </AdminSection>
+
+            {/* Vehículos */}
+            <AdminSection icon={Car} label="Vehículos" isOpen={isOpen}>
+              <Link to="/admin/vehicles" className={subLinkClass('/admin/vehicles')}>
+                <ChevronRight className="w-3.5 h-3.5" /> Gestión de Vehículos
               </Link>
             </AdminSection>
 

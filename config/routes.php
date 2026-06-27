@@ -222,6 +222,26 @@ $router->put('/api/mechanic/requests/{id}/complete', [\App\Controllers\ServiceRe
     ])
     ->name('api.mechanic.requests.complete');
 
+// Evidencias fotográficas (mecánico — antes/durante/después del servicio)
+$router->post('/api/mechanic/requests/{id}/evidence', [\App\Controllers\ServiceRequestController::class, 'addEvidence'])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['mechanic']]
+    ])
+    ->name('api.mechanic.requests.evidence.store');
+
+$router->get('/api/mechanic/requests/{id}/evidences', [\App\Controllers\ServiceRequestController::class, 'getEvidences'])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['mechanic']]
+    ])
+    ->name('api.mechanic.requests.evidence.index');
+
+// Actualización del perfil del usuario (teléfono, licencia de conducción)
+$router->put('/api/auth/profile', [\App\Controllers\Auth\AuthController::class, 'updateProfile'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.auth.profile.update');
+
 // ============================================================================
 // Future Routes (to be implemented)
 // ============================================================================

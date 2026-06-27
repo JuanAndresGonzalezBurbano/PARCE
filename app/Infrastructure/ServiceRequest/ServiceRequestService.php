@@ -358,50 +358,77 @@ class ServiceRequestService
     }
     
     /**
-     * Customer rates a completed service request
-     * 
-     * @param int $requestId Service request ID
-     * @param int $customerId Customer user ID
-     * @param int $rating Rating (1-5)
-     * @param string|null $feedback Optional feedback
-     * @return bool Success
-     * @throws \Exception On database or business logic error
+     * El cliente califica una solicitud de servicio completada.
+     *
+     * Sistema de calificación de 3 componentes:
+     *   customer_rating        — calificación general (1-5, OBLIGATORIO)
+     *   punctuality_rating     — puntualidad del mecánico (1-5, OPCIONAL)
+     *   service_quality_rating — calidad del servicio (1-5, OPCIONAL)
+     *   customer_feedback      — comentario libre (OPCIONAL)
+     *
+     * Solo se puede calificar una vez; intentarlo de nuevo retorna excepción.
+     *
+     * @param int         $requestId           ID de la solicitud
+     * @param int         $customerId          Usuario que califica (debe ser el dueño)
+     * @param int         $rating              Calificación general 1-5
+     * @param string|null $feedback            Comentario libre
+     * @param int|null    $punctualityRating   Calificación de puntualidad 1-5
+     * @param int|null    $serviceQualityRating Calificación de calidad 1-5
+     * @return bool
+     * @throws \Exception
      */
-    public function rate(int $requestId, int $customerId, int $rating, ?string $feedback = null): bool
-    {
-        // Verify request exists and customer owns it
+    public function rate(
+        int     $requestId,
+        int     $customerId,
+        int     $rating,
+        ?string $feedback             = null,
+        ?int    $punctualityRating    = null,
+        ?int    $serviceQualityRating = null
+    ): bool {
+        // Verificar que la solicitud existe y pertenece al cliente
         $request = Database::fetchOne(
-            'SELECT id, customer_id, status, customer_rating FROM service_requests WHERE id = ? AND deleted_at IS NULL',
+            'SELECT id, customer_id, status, customer_rating
+             FROM service_requests WHERE id = ? AND deleted_at IS NULL',
             [$requestId]
         );
-        
+
         if ($request === null) {
             throw new \Exception('Service request not found');
         }
-        
         if ((int)$request['customer_id'] !== $customerId) {
             throw new \Exception('You do not own this service request');
         }
-        
-        // Can only rate completed requests
+
+        // Solo las solicitudes completadas pueden calificarse
         if ($request['status'] !== 'completed') {
             throw new \Exception('Only completed requests can be rated');
         }
-        
-        // Check if already rated
+
+        // Evitar doble calificación
         if ($request['customer_rating'] !== null) {
             throw new \Exception('This service request has already been rated');
         }
-        
-        // Update rating
+
+        // Construir datos de actualización con la calificación general (siempre presente)
         $updateData = ['customer_rating' => $rating];
-        
+
+        // Calificación de puntualidad (columna agregada por migración Wave 0)
+        if ($punctualityRating !== null) {
+            $updateData['punctuality_rating'] = $punctualityRating;
+        }
+
+        // Calificación de calidad del servicio (columna agregada por migración Wave 0)
+        if ($serviceQualityRating !== null) {
+            $updateData['service_quality_rating'] = $serviceQualityRating;
+        }
+
+        // Comentario libre del cliente
         if ($feedback !== null) {
             $updateData['customer_feedback'] = $feedback;
         }
-        
+
         $rowCount = Database::update('service_requests', $updateData, 'id = ?', [$requestId]);
-        
+
         return $rowCount > 0;
     }
     

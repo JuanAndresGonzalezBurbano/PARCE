@@ -7,14 +7,21 @@ import type {
   CancelServiceRequestRequest,
   RateServiceRequestRequest,
   CompleteServiceRequestRequest,
+  AddEvidenceRequest,
   ServiceRequestListResponse,
   ServiceRequestResponse,
+  EvidenceListResponse,
+  EvidenceResponse,
 } from '@/types/serviceRequest';
 
 export const serviceRequestService = {
-  // Customer endpoints
+  // ==========================================================================
+  // Endpoints de clientes
+  // ==========================================================================
+
+  /** Lista las solicitudes propias del cliente. Filtra por status si se pasa. */
   async getMyRequests(status?: string): Promise<ApiResponse<ServiceRequestListResponse>> {
-    const endpoint = status 
+    const endpoint = status
       ? `${API_ENDPOINTS.REQUESTS.LIST}?status=${status}`
       : API_ENDPOINTS.REQUESTS.LIST;
     return apiClient.get<ServiceRequestListResponse>(endpoint);
@@ -36,11 +43,19 @@ export const serviceRequestService = {
     return apiClient.post<ServiceRequestResponse>(API_ENDPOINTS.REQUESTS.CANCEL(id), data);
   },
 
+  /**
+   * Califica una solicitud completada.
+   * Acepta los 3 componentes: calificación general, puntualidad y calidad.
+   */
   async rateRequest(id: number, data: RateServiceRequestRequest): Promise<ApiResponse<ServiceRequestResponse>> {
     return apiClient.post<ServiceRequestResponse>(API_ENDPOINTS.REQUESTS.RATE(id), data);
   },
 
-  // Mechanic endpoints
+  // ==========================================================================
+  // Endpoints de mecánicos
+  // ==========================================================================
+
+  /** Lista las solicitudes asignadas al mecánico. Filtra por status si se pasa. */
   async getMechanicRequests(status?: string): Promise<ApiResponse<ServiceRequestListResponse>> {
     const endpoint = status
       ? `${API_ENDPOINTS.MECHANIC.REQUESTS}?status=${status}`
@@ -48,7 +63,12 @@ export const serviceRequestService = {
     return apiClient.get<ServiceRequestListResponse>(endpoint);
   },
 
-  async getAvailableRequests(latitude: number, longitude: number, radius?: number): Promise<ApiResponse<ServiceRequestListResponse>> {
+  /** Solicitudes pendientes cercanas a las coordenadas del mecánico. */
+  async getAvailableRequests(
+    latitude: number,
+    longitude: number,
+    radius?: number
+  ): Promise<ApiResponse<ServiceRequestListResponse>> {
     const params = new URLSearchParams({
       latitude: latitude.toString(),
       longitude: longitude.toString(),
@@ -56,7 +76,9 @@ export const serviceRequestService = {
     if (radius) {
       params.append('radius', radius.toString());
     }
-    return apiClient.get<ServiceRequestListResponse>(`${API_ENDPOINTS.MECHANIC.AVAILABLE}?${params}`);
+    return apiClient.get<ServiceRequestListResponse>(
+      `${API_ENDPOINTS.MECHANIC.AVAILABLE}?${params}`
+    );
   },
 
   async acceptRequest(id: number): Promise<ApiResponse<ServiceRequestResponse>> {
@@ -67,7 +89,24 @@ export const serviceRequestService = {
     return apiClient.put<ServiceRequestResponse>(API_ENDPOINTS.MECHANIC.START(id));
   },
 
-  async completeRequest(id: number, data: CompleteServiceRequestRequest): Promise<ApiResponse<ServiceRequestResponse>> {
+  async completeRequest(
+    id: number,
+    data: CompleteServiceRequestRequest
+  ): Promise<ApiResponse<ServiceRequestResponse>> {
     return apiClient.put<ServiceRequestResponse>(API_ENDPOINTS.MECHANIC.COMPLETE(id), data);
+  },
+
+  /**
+   * Agrega evidencia fotográfica a una solicitud.
+   * Solo el mecánico asignado puede llamar este endpoint.
+   * La URL de la imagen debe haber sido subida previamente a S3 u otro servicio.
+   */
+  async addEvidence(id: number, data: AddEvidenceRequest): Promise<ApiResponse<EvidenceResponse>> {
+    return apiClient.post<EvidenceResponse>(API_ENDPOINTS.MECHANIC.ADD_EVIDENCE(id), data);
+  },
+
+  /** Lista todas las evidencias de una solicitud en orden cronológico. */
+  async getEvidences(id: number): Promise<ApiResponse<EvidenceListResponse>> {
+    return apiClient.get<EvidenceListResponse>(API_ENDPOINTS.MECHANIC.GET_EVIDENCES(id));
   },
 };

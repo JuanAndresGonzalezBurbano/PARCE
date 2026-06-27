@@ -2,7 +2,7 @@ export const API_CONFIG = {
   BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
   API_URL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
   TIMEOUT: 10000,
-  WITH_CREDENTIALS: true,
+  WITH_CREDENTIALS: true, // Necesario para enviar/recibir la cookie de sesión
 } as const;
 
 export const API_ENDPOINTS = {
@@ -12,6 +12,8 @@ export const API_ENDPOINTS = {
     LOGOUT: '/auth/logout',
     ME: '/auth/me',
     HEALTH: '/auth/health',
+    // Actualización de perfil (teléfono + licencia de conducción)
+    PROFILE: '/auth/profile',
   },
   VEHICLES: {
     LIST: '/vehicles',
@@ -35,5 +37,8 @@ export const API_ENDPOINTS = {
     ACCEPT: (id: number) => `/mechanic/requests/${id}/accept`,
     START: (id: number) => `/mechanic/requests/${id}/start`,
     COMPLETE: (id: number) => `/mechanic/requests/${id}/complete`,
+    // Evidencias fotográficas (antes/durante/después)
+    ADD_EVIDENCE: (id: number) => `/mechanic/requests/${id}/evidence`,
+    GET_EVIDENCES: (id: number) => `/mechanic/requests/${id}/evidences`,
   },
 } as const;

@@ -6,6 +6,7 @@ use App\Core\Controller;
 use App\Core\Request;
 use App\Core\Response;
 use App\Infrastructure\ServiceRequest\ServiceRequestService;
+use App\Infrastructure\ServiceRequest\ServiceRequestEvidenceService;
 use App\Infrastructure\ServiceRequest\ServiceRequestValidator;
 use App\Infrastructure\Http\RequestValidator;
 use App\Infrastructure\Http\ResponseFormatter;
@@ -13,110 +14,98 @@ use App\Infrastructure\Http\ErrorHandler;
 
 /**
  * Service Request Controller
- * 
- * Handles HTTP requests for service request management including
- * creation, retrieval, updates, cancellation, and rating.
+ *
+ * Endpoints para clientes:
+ *   GET  /api/service-requests           — listar solicitudes propias
+ *   POST /api/service-requests           — crear solicitud
+ *   GET  /api/service-requests/{id}      — detalle
+ *   PUT  /api/service-requests/{id}      — actualizar solicitud pendiente
+ *   POST /api/service-requests/{id}/cancel — cancelar
+ *   POST /api/service-requests/{id}/rate   — calificar (3 componentes)
+ *
+ * Endpoints para mecánicos:
+ *   GET  /api/mechanic/requests                      — mis solicitudes asignadas
+ *   GET  /api/mechanic/requests/available            — solicitudes cercanas disponibles
+ *   POST /api/mechanic/requests/{id}/accept          — aceptar solicitud
+ *   PUT  /api/mechanic/requests/{id}/start           — iniciar trabajo
+ *   PUT  /api/mechanic/requests/{id}/complete        — completar
+ *   POST /api/mechanic/requests/{id}/evidence        — agregar evidencia fotográfica
+ *   GET  /api/mechanic/requests/{id}/evidences       — listar evidencias
  */
 class ServiceRequestController extends Controller
 {
     private ServiceRequestService $serviceRequestService;
+    private ServiceRequestEvidenceService $evidenceService;
 
     public function __construct()
     {
         $this->serviceRequestService = new ServiceRequestService();
+        // Servicio de evidencias fotográficas (antes/durante/después)
+        $this->evidenceService       = new ServiceRequestEvidenceService();
     }
 
-    /**
-     * List customer's service requests
-     * 
-     * GET /api/service-requests
-     * 
-     * @param Request $request HTTP request
-     * @return Response HTTP response
-     */
+    // =========================================================================
+    // GET /api/service-requests
+    // =========================================================================
+
+    /** Lista las solicitudes del cliente autenticado. Filtra por ?status= si se envía. */
     public function index(Request $request): Response
     {
         try {
-            // Get authenticated user
-            $userId = $request->getAttribute('userId');
-            $userRole = $request->getAttribute('userRole');
-            
-            // Get optional status filter
-            $status = $request->query('status');
-            
-            // Get customer's requests
+            $userId  = $request->getAttribute('userId');
+            $status  = $request->query('status');
+
             $requests = $this->serviceRequestService->getCustomerRequests($userId, $status);
-            
+
             return ResponseFormatter::success([
                 'service_requests' => $requests,
-                'count' => count($requests)
+                'count'            => count($requests),
             ], 'Service requests retrieved successfully', 200);
-            
+
         } catch (\Exception $e) {
             return ErrorHandler::handleException($e);
         }
     }
 
-    /**
-     * Create new service request
-     * 
-     * POST /api/service-requests
-     * 
-     * @param Request $request HTTP request
-     * @return Response HTTP response
-     */
+    // =========================================================================
+    // POST /api/service-requests
+    // =========================================================================
+
+    /** Crea una nueva solicitud de servicio de emergencia. */
     public function store(Request $request): Response
     {
         try {
-            // Validate Content-Type
-            $contentTypeValidation = RequestValidator::validateContentType($request, 'POST');
-            if (!$contentTypeValidation['valid']) {
-                return ResponseFormatter::error(
-                    $contentTypeValidation['error'],
-                    null,
-                    $contentTypeValidation['statusCode']
-                );
+            $ctValidation = RequestValidator::validateContentType($request, 'POST');
+            if (!$ctValidation['valid']) {
+                return ResponseFormatter::error($ctValidation['error'], null, $ctValidation['statusCode']);
             }
 
-            // Parse JSON body
             $jsonValidation = RequestValidator::parseJsonBody($request);
             if (!$jsonValidation['valid']) {
-                return ResponseFormatter::error(
-                    $jsonValidation['error'],
-                    null,
-                    $jsonValidation['statusCode']
-                );
+                return ResponseFormatter::error($jsonValidation['error'], null, $jsonValidation['statusCode']);
             }
 
-            // Validate service request data
             $validation = ServiceRequestValidator::validateCreateRequest($request);
             if (!$validation['valid']) {
                 return ResponseFormatter::validationError($validation['errors']);
             }
 
-            // Get authenticated user
             $userId = $request->getAttribute('userId');
-            $userRole = $request->getAttribute('userRole');
-            
-            // Extract and sanitize input
+
             $data = [
-                'vehicle_id' => $request->input('vehicle_id'),
+                'vehicle_id'     => $request->input('vehicle_id'),
                 'emergency_type' => RequestValidator::sanitizeString($request->input('emergency_type')),
-                'description' => RequestValidator::sanitizeString($request->input('description')),
-                'latitude' => $request->input('latitude'),
-                'longitude' => $request->input('longitude')
+                'description'    => RequestValidator::sanitizeString($request->input('description')),
+                'latitude'       => $request->input('latitude'),
+                'longitude'      => $request->input('longitude'),
             ];
 
-            // Add optional priority
             if ($request->input('priority') !== null) {
                 $data['priority'] = RequestValidator::sanitizeString($request->input('priority'));
             }
 
-            // Create service request
-            $requestId = $this->serviceRequestService->create($userId, $data);
-
-            // Fetch created request
-            $serviceRequest = $this->serviceRequestService->getById($requestId, $userId, $userRole);
+            $requestId      = $this->serviceRequestService->create($userId, $data);
+            $serviceRequest = $this->serviceRequestService->getById($requestId, $userId, 'customer');
 
             return ResponseFormatter::success(
                 ['service_request' => $serviceRequest],
@@ -129,23 +118,17 @@ class ServiceRequestController extends Controller
         }
     }
 
-    /**
-     * Get service request details
-     * 
-     * GET /api/service-requests/{id}
-     * 
-     * @param Request $request HTTP request
-     * @param int $id Service request ID
-     * @return Response HTTP response
-     */
+    // =========================================================================
+    // GET /api/service-requests/{id}
+    // =========================================================================
+
+    /** Detalle de una solicitud. Aplica control de acceso por rol. */
     public function show(Request $request, int $id): Response
     {
         try {
-            // Get authenticated user
-            $userId = $request->getAttribute('userId');
+            $userId   = $request->getAttribute('userId');
             $userRole = $request->getAttribute('userRole');
 
-            // Get service request with access control
             $serviceRequest = $this->serviceRequestService->getById($id, $userId, $userRole);
 
             if ($serviceRequest === null) {
@@ -163,50 +146,32 @@ class ServiceRequestController extends Controller
         }
     }
 
-    /**
-     * Update pending service request
-     * 
-     * PUT /api/service-requests/{id}
-     * 
-     * @param Request $request HTTP request
-     * @param int $id Service request ID
-     * @return Response HTTP response
-     */
+    // =========================================================================
+    // PUT /api/service-requests/{id}
+    // =========================================================================
+
+    /** Actualiza una solicitud PENDIENTE (solo cliente). */
     public function update(Request $request, int $id): Response
     {
         try {
-            // Validate Content-Type
-            $contentTypeValidation = RequestValidator::validateContentType($request, 'PUT');
-            if (!$contentTypeValidation['valid']) {
-                return ResponseFormatter::error(
-                    $contentTypeValidation['error'],
-                    null,
-                    $contentTypeValidation['statusCode']
-                );
+            $ctValidation = RequestValidator::validateContentType($request, 'PUT');
+            if (!$ctValidation['valid']) {
+                return ResponseFormatter::error($ctValidation['error'], null, $ctValidation['statusCode']);
             }
 
-            // Parse JSON body
             $jsonValidation = RequestValidator::parseJsonBody($request);
             if (!$jsonValidation['valid']) {
-                return ResponseFormatter::error(
-                    $jsonValidation['error'],
-                    null,
-                    $jsonValidation['statusCode']
-                );
+                return ResponseFormatter::error($jsonValidation['error'], null, $jsonValidation['statusCode']);
             }
 
-            // Validate service request data
             $validation = ServiceRequestValidator::validateUpdateRequest($request);
             if (!$validation['valid']) {
                 return ResponseFormatter::validationError($validation['errors']);
             }
 
-            // Get authenticated user
-            $userId = $request->getAttribute('userId');
+            $userId   = $request->getAttribute('userId');
             $userRole = $request->getAttribute('userRole');
-            
-            // Prepare update data
-            $data = [];
+            $data     = [];
 
             if ($request->input('description') !== null) {
                 $data['description'] = RequestValidator::sanitizeString($request->input('description'));
@@ -221,10 +186,8 @@ class ServiceRequestController extends Controller
                 $data['priority'] = RequestValidator::sanitizeString($request->input('priority'));
             }
 
-            // Update service request
             $this->serviceRequestService->update($id, $userId, $data);
 
-            // Fetch updated request
             $serviceRequest = $this->serviceRequestService->getById($id, $userId, $userRole);
 
             return ResponseFormatter::success(
@@ -238,53 +201,35 @@ class ServiceRequestController extends Controller
         }
     }
 
-    /**
-     * Cancel service request
-     * 
-     * POST /api/service-requests/{id}/cancel
-     * 
-     * @param Request $request HTTP request
-     * @param int $id Service request ID
-     * @return Response HTTP response
-     */
+    // =========================================================================
+    // POST /api/service-requests/{id}/cancel
+    // =========================================================================
+
+    /** Cancela una solicitud pendiente o asignada (solo cliente). */
     public function cancel(Request $request, int $id): Response
     {
         try {
-            // Validate Content-Type
-            $contentTypeValidation = RequestValidator::validateContentType($request, 'POST');
-            if (!$contentTypeValidation['valid']) {
-                return ResponseFormatter::error(
-                    $contentTypeValidation['error'],
-                    null,
-                    $contentTypeValidation['statusCode']
-                );
+            $ctValidation = RequestValidator::validateContentType($request, 'POST');
+            if (!$ctValidation['valid']) {
+                return ResponseFormatter::error($ctValidation['error'], null, $ctValidation['statusCode']);
             }
 
-            // Parse JSON body
             $jsonValidation = RequestValidator::parseJsonBody($request);
             if (!$jsonValidation['valid']) {
-                return ResponseFormatter::error(
-                    $jsonValidation['error'],
-                    null,
-                    $jsonValidation['statusCode']
-                );
+                return ResponseFormatter::error($jsonValidation['error'], null, $jsonValidation['statusCode']);
             }
 
-            // Validate cancellation data
             $validation = ServiceRequestValidator::validateCancellationRequest($request);
             if (!$validation['valid']) {
                 return ResponseFormatter::validationError($validation['errors']);
             }
 
-            // Get authenticated user
-            $userId = $request->getAttribute('userId');
+            $userId   = $request->getAttribute('userId');
             $userRole = $request->getAttribute('userRole');
-            
-            // Cancel service request
-            $reason = RequestValidator::sanitizeString($request->input('cancellation_reason'));
+            $reason   = RequestValidator::sanitizeString($request->input('cancellation_reason'));
+
             $this->serviceRequestService->cancel($id, $userId, $reason);
 
-            // Fetch updated request
             $serviceRequest = $this->serviceRequestService->getById($id, $userId, $userRole);
 
             return ResponseFormatter::success(
@@ -298,57 +243,70 @@ class ServiceRequestController extends Controller
         }
     }
 
+    // =========================================================================
+    // POST /api/service-requests/{id}/rate
+    // =========================================================================
+
     /**
-     * Rate completed service request
-     * 
-     * POST /api/service-requests/{id}/rate
-     * 
-     * @param Request $request HTTP request
-     * @param int $id Service request ID
-     * @return Response HTTP response
+     * El cliente califica una solicitud completada.
+     *
+     * Sistema de 3 componentes:
+     *   customer_rating        (1-5) — calificación general REQUERIDA
+     *   punctuality_rating     (1-5) — puntualidad OPCIONAL
+     *   service_quality_rating (1-5) — calidad del servicio OPCIONAL
+     *   customer_feedback            — texto libre OPCIONAL
+     *
+     * El validador (ServiceRequestValidator::validateRatingRequest) ya verifica
+     * los rangos y tipos antes de llegar aquí.
      */
     public function rate(Request $request, int $id): Response
     {
         try {
-            // Validate Content-Type
-            $contentTypeValidation = RequestValidator::validateContentType($request, 'POST');
-            if (!$contentTypeValidation['valid']) {
-                return ResponseFormatter::error(
-                    $contentTypeValidation['error'],
-                    null,
-                    $contentTypeValidation['statusCode']
-                );
+            $ctValidation = RequestValidator::validateContentType($request, 'POST');
+            if (!$ctValidation['valid']) {
+                return ResponseFormatter::error($ctValidation['error'], null, $ctValidation['statusCode']);
             }
 
-            // Parse JSON body
             $jsonValidation = RequestValidator::parseJsonBody($request);
             if (!$jsonValidation['valid']) {
-                return ResponseFormatter::error(
-                    $jsonValidation['error'],
-                    null,
-                    $jsonValidation['statusCode']
-                );
+                return ResponseFormatter::error($jsonValidation['error'], null, $jsonValidation['statusCode']);
             }
 
-            // Validate rating data
             $validation = ServiceRequestValidator::validateRatingRequest($request);
             if (!$validation['valid']) {
                 return ResponseFormatter::validationError($validation['errors']);
             }
 
-            // Get authenticated user
-            $userId = $request->getAttribute('userId');
+            $userId   = $request->getAttribute('userId');
             $userRole = $request->getAttribute('userRole');
-            
-            // Rate service request
+
+            // Calificación general (obligatoria)
             $rating = (int)$request->input('customer_rating');
-            $feedback = $request->input('customer_feedback') 
+
+            // Comentario libre (opcional)
+            $feedback = $request->input('customer_feedback')
                 ? RequestValidator::sanitizeString($request->input('customer_feedback'))
                 : null;
-            
-            $this->serviceRequestService->rate($id, $userId, $rating, $feedback);
 
-            // Fetch updated request
+            // Calificaciones de puntualidad y calidad (opcionales, Wave 2)
+            $punctualityRating = $request->input('punctuality_rating') !== null
+                ? (int)$request->input('punctuality_rating')
+                : null;
+
+            $serviceQualityRating = $request->input('service_quality_rating') !== null
+                ? (int)$request->input('service_quality_rating')
+                : null;
+
+            // Pasar los 3 componentes al servicio
+            $this->serviceRequestService->rate(
+                $id,
+                $userId,
+                $rating,
+                $feedback,
+                $punctualityRating,
+                $serviceQualityRating
+            );
+
             $serviceRequest = $this->serviceRequestService->getById($id, $userId, $userRole);
 
             return ResponseFormatter::success(
@@ -362,39 +320,33 @@ class ServiceRequestController extends Controller
         }
     }
 
+    // =========================================================================
+    // GET /api/mechanic/requests/available
+    // =========================================================================
+
     /**
-     * List available pending requests for mechanics (nearby)
-     * 
-     * GET /api/mechanic/requests/available
-     * 
-     * @param Request $request HTTP request
-     * @return Response HTTP response
+     * Lista las solicitudes pendientes cercanas a la ubicación del mecánico.
+     * Usa la fórmula de Haversine para el cálculo de distancia.
+     * Las coordenadas exactas NO se exponen; solo valores redondeados a 2 decimales.
      */
     public function availableForMechanic(Request $request): Response
     {
         try {
-            // Get authenticated user
-            $userRole = $request->getAttribute('userRole');
-            
-            // Get mechanic's current location from query params
-            $latitude = $request->query('latitude');
+            $latitude  = $request->query('latitude');
             $longitude = $request->query('longitude');
-            $radius = $request->query('radius', 50); // Default 50km
+            $radius    = $request->query('radius', 50); // default 50 km
 
-            // Validate location parameters
             if ($latitude === null || $longitude === null) {
                 return ResponseFormatter::validationError([
-                    'location' => 'Latitude and longitude are required'
+                    'location' => 'Latitude and longitude are required',
                 ]);
             }
-
             if (!is_numeric($latitude) || !is_numeric($longitude)) {
                 return ResponseFormatter::validationError([
-                    'location' => 'Latitude and longitude must be numbers'
+                    'location' => 'Latitude and longitude must be numbers',
                 ]);
             }
 
-            // Get nearby pending requests
             $requests = $this->serviceRequestService->getNearbyPendingRequests(
                 (float)$latitude,
                 (float)$longitude,
@@ -403,7 +355,7 @@ class ServiceRequestController extends Controller
 
             return ResponseFormatter::success([
                 'service_requests' => $requests,
-                'count' => count($requests)
+                'count'            => count($requests),
             ], 'Available service requests retrieved successfully', 200);
 
         } catch (\Exception $e) {
@@ -411,26 +363,22 @@ class ServiceRequestController extends Controller
         }
     }
 
+    // =========================================================================
+    // POST /api/mechanic/requests/{id}/accept
+    // =========================================================================
+
     /**
-     * Accept a pending service request (mechanic self-assignment)
-     * 
-     * POST /api/mechanic/requests/{id}/accept
-     * 
-     * @param Request $request HTTP request
-     * @param int $id Service request ID
-     * @return Response HTTP response
+     * El mecánico acepta una solicitud pendiente (auto-asignación).
+     * El servicio verifica que la licencia del mecánico no esté vencida.
      */
     public function accept(Request $request, int $id): Response
     {
         try {
-            // Get authenticated user
-            $userId = $request->getAttribute('userId');
+            $userId   = $request->getAttribute('userId');
             $userRole = $request->getAttribute('userRole');
-            
-            // Accept request
+
             $this->serviceRequestService->accept($id, $userId);
 
-            // Fetch updated request
             $serviceRequest = $this->serviceRequestService->getById($id, $userId, $userRole);
 
             return ResponseFormatter::success(
@@ -444,26 +392,19 @@ class ServiceRequestController extends Controller
         }
     }
 
-    /**
-     * Start work on an assigned service request
-     * 
-     * PUT /api/mechanic/requests/{id}/start
-     * 
-     * @param Request $request HTTP request
-     * @param int $id Service request ID
-     * @return Response HTTP response
-     */
+    // =========================================================================
+    // PUT /api/mechanic/requests/{id}/start
+    // =========================================================================
+
+    /** El mecánico marca que comenzó a trabajar en la solicitud asignada. */
     public function start(Request $request, int $id): Response
     {
         try {
-            // Get authenticated user
-            $userId = $request->getAttribute('userId');
+            $userId   = $request->getAttribute('userId');
             $userRole = $request->getAttribute('userRole');
-            
-            // Start request
+
             $this->serviceRequestService->start($id, $userId);
 
-            // Fetch updated request
             $serviceRequest = $this->serviceRequestService->getById($id, $userId, $userRole);
 
             return ResponseFormatter::success(
@@ -477,60 +418,37 @@ class ServiceRequestController extends Controller
         }
     }
 
-    /**
-     * Complete a service request
-     * 
-     * PUT /api/mechanic/requests/{id}/complete
-     * 
-     * @param Request $request HTTP request
-     * @param int $id Service request ID
-     * @return Response HTTP response
-     */
+    // =========================================================================
+    // PUT /api/mechanic/requests/{id}/complete
+    // =========================================================================
+
+    /** El mecánico completa la solicitud e informa el costo final. */
     public function complete(Request $request, int $id): Response
     {
         try {
-            // Validate Content-Type
-            $contentTypeValidation = RequestValidator::validateContentType($request, 'PUT');
-            if (!$contentTypeValidation['valid']) {
-                return ResponseFormatter::error(
-                    $contentTypeValidation['error'],
-                    null,
-                    $contentTypeValidation['statusCode']
-                );
+            $ctValidation = RequestValidator::validateContentType($request, 'PUT');
+            if (!$ctValidation['valid']) {
+                return ResponseFormatter::error($ctValidation['error'], null, $ctValidation['statusCode']);
             }
 
-            // Parse JSON body
             $jsonValidation = RequestValidator::parseJsonBody($request);
             if (!$jsonValidation['valid']) {
-                return ResponseFormatter::error(
-                    $jsonValidation['error'],
-                    null,
-                    $jsonValidation['statusCode']
-                );
+                return ResponseFormatter::error($jsonValidation['error'], null, $jsonValidation['statusCode']);
             }
 
-            // Get authenticated user
-            $userId = $request->getAttribute('userId');
+            $userId   = $request->getAttribute('userId');
             $userRole = $request->getAttribute('userRole');
-            
-            // Validate final_cost
+
             $finalCost = $request->input('final_cost');
             if ($finalCost === null || $finalCost === '') {
-                return ResponseFormatter::validationError([
-                    'final_cost' => 'Final cost is required'
-                ]);
+                return ResponseFormatter::validationError(['final_cost' => 'Final cost is required']);
             }
-
             if (!is_numeric($finalCost) || $finalCost < 0) {
-                return ResponseFormatter::validationError([
-                    'final_cost' => 'Final cost must be a positive number'
-                ]);
+                return ResponseFormatter::validationError(['final_cost' => 'Final cost must be a positive number']);
             }
 
-            // Complete request
             $this->serviceRequestService->complete($id, $userId, (float)$finalCost);
 
-            // Fetch updated request
             $serviceRequest = $this->serviceRequestService->getById($id, $userId, $userRole);
 
             return ResponseFormatter::success(
@@ -544,31 +462,127 @@ class ServiceRequestController extends Controller
         }
     }
 
-    /**
-     * List mechanic's assigned requests
-     * 
-     * GET /api/mechanic/requests
-     * 
-     * @param Request $request HTTP request
-     * @return Response HTTP response
-     */
+    // =========================================================================
+    // GET /api/mechanic/requests
+    // =========================================================================
+
+    /** Lista las solicitudes asignadas al mecánico autenticado. */
     public function mechanicIndex(Request $request): Response
     {
         try {
-            // Get authenticated user
             $userId = $request->getAttribute('userId');
-            $userRole = $request->getAttribute('userRole');
-            
-            // Get optional status filter
             $status = $request->query('status');
 
-            // Get mechanic's assigned requests
             $requests = $this->serviceRequestService->getMechanicRequests($userId, $status);
 
             return ResponseFormatter::success([
                 'service_requests' => $requests,
-                'count' => count($requests)
+                'count'            => count($requests),
             ], 'Mechanic service requests retrieved successfully', 200);
+
+        } catch (\Exception $e) {
+            return ErrorHandler::handleException($e);
+        }
+    }
+
+    // =========================================================================
+    // POST /api/mechanic/requests/{id}/evidence
+    // =========================================================================
+
+    /**
+     * El mecánico agrega evidencia fotográfica a una solicitud.
+     *
+     * Solo el mecánico asignado puede subir evidencias.
+     * La evidencia se clasifica como: 'before' | 'during' | 'after'.
+     * Se almacena la URL del archivo ya subido a un servicio externo (S3, etc.).
+     *
+     * Body esperado:
+     *   evidence_type     (string) — 'before' | 'during' | 'after'  REQUERIDO
+     *   image_url         (string) — URL http/https del archivo       REQUERIDO
+     *   original_filename (string) — nombre original del archivo      OPCIONAL
+     *   file_size         (int)    — tamaño en bytes (máx 5 MB)       OPCIONAL
+     */
+    public function addEvidence(Request $request, int $id): Response
+    {
+        try {
+            $ctValidation = RequestValidator::validateContentType($request, 'POST');
+            if (!$ctValidation['valid']) {
+                return ResponseFormatter::error($ctValidation['error'], null, $ctValidation['statusCode']);
+            }
+
+            $jsonValidation = RequestValidator::parseJsonBody($request);
+            if (!$jsonValidation['valid']) {
+                return ResponseFormatter::error($jsonValidation['error'], null, $jsonValidation['statusCode']);
+            }
+
+            $mechanicId = $request->getAttribute('userId');
+
+            // Validar campos mínimos aquí antes de pasar al servicio
+            $evidenceType = $request->input('evidence_type');
+            $imageUrl     = $request->input('image_url');
+
+            $errors = [];
+            if (empty($evidenceType)) {
+                $errors['evidence_type'] = 'evidence_type is required (before, during, after)';
+            }
+            if (empty($imageUrl)) {
+                $errors['image_url'] = 'image_url is required';
+            }
+            if (!empty($errors)) {
+                return ResponseFormatter::validationError($errors);
+            }
+
+            // Construir datos de evidencia; la validación de negocio la hace el servicio
+            $data = [
+                'evidence_type' => $evidenceType,
+                'image_url'     => $imageUrl,
+            ];
+
+            if ($request->input('original_filename') !== null) {
+                $data['original_filename'] = RequestValidator::sanitizeString(
+                    $request->input('original_filename')
+                );
+            }
+            if ($request->input('file_size') !== null) {
+                $data['file_size'] = (int)$request->input('file_size');
+            }
+
+            // El servicio valida acceso, estado y extensión de imagen
+            $evidence = $this->evidenceService->addEvidence($id, $mechanicId, $data);
+
+            return ResponseFormatter::success(
+                ['evidence' => $evidence],
+                'Evidence added successfully',
+                201
+            );
+
+        } catch (\InvalidArgumentException $e) {
+            // Errores de validación del servicio de evidencias
+            return ResponseFormatter::validationError(['evidence' => $e->getMessage()]);
+
+        } catch (\Exception $e) {
+            return ErrorHandler::handleException($e);
+        }
+    }
+
+    // =========================================================================
+    // GET /api/mechanic/requests/{id}/evidences
+    // =========================================================================
+
+    /**
+     * Lista todas las evidencias fotográficas de una solicitud.
+     *
+     * Los resultados vienen ordenados por created_at ASC (cronológico).
+     */
+    public function getEvidences(Request $request, int $id): Response
+    {
+        try {
+            $evidences = $this->evidenceService->getEvidences($id);
+
+            return ResponseFormatter::success([
+                'evidences' => $evidences,
+                'count'     => count($evidences),
+            ], 'Evidences retrieved successfully', 200);
 
         } catch (\Exception $e) {
             return ErrorHandler::handleException($e);

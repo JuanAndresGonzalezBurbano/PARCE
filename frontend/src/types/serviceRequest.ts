@@ -1,10 +1,4 @@
-// ============================================================
-// Service Request Types — PARCE
-// Incluye sistema de calificación de 3 componentes y
-// evidencias fotográficas antes/durante/después del servicio.
-// ============================================================
-
-/** Solicitud de servicio de emergencia */
+// Solicitud de servicio
 export interface ServiceRequest {
   id: number;
   serviceCode: string;
@@ -17,10 +11,6 @@ export interface ServiceRequest {
   priority: 'low' | 'normal' | 'urgent';
   latitude: number;
   longitude: number;
-  // Para mecánicos en solicitudes pendientes, el backend entrega solo
-  // latitudeApproximate / longitudeApproximate (privacidad de ubicación)
-  latitudeApproximate?: number;
-  longitudeApproximate?: number;
   status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
   requestedAt: string;
   assignedAt: string | null;
@@ -30,17 +20,13 @@ export interface ServiceRequest {
   cancelledBy: number | null;
   cancellationReason: string | null;
   finalCost: number | null;
-
-  // ---- Sistema de calificación de 3 componentes ----
-  customerRating: number | null;       // Calificación general (1-5)
-  punctualityRating: number | null;    // Puntualidad del mecánico (1-5)
-  serviceQualityRating: number | null; // Calidad del servicio (1-5)
+  customerRating: number | null;
   customerFeedback: string | null;
-
+  punctualityRating: number | null;
+  serviceQualityRating: number | null;
   createdAt: string;
   updatedAt: string;
-
-  // Relaciones pobladas por JOIN en el backend
+  // Relaciones populadas
   vehicle?: {
     make: string;
     model: string;
@@ -51,29 +37,31 @@ export interface ServiceRequest {
     firstName: string;
     lastName: string;
     email: string;
-    phone?: string;
   };
   mechanic?: {
     firstName: string;
     lastName: string;
-    phone?: string;
+    email: string;
   };
+  // Campos planos devueltos por getById/getCustomerRequests/getMechanicRequests
+  vehicleMake?: string;
+  vehicleModel?: string;
+  vehicleYear?: number;
+  vehicleLicensePlate?: string;
+  customerFirstName?: string;
+  customerLastName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  mechanicFirstName?: string;
+  mechanicLastName?: string;
+  mechanicPhone?: string;
+  // Campos de ubicación aproximada (getNearbyPendingRequests, privacidad mientras pending)
+  latitudeApproximate?: number;
+  longitudeApproximate?: number;
+  distanceKm?: number;
 }
 
-/** Evidencia fotográfica asociada a una solicitud */
-export interface ServiceRequestEvidence {
-  id: number;
-  serviceRequestId: number;
-  uploadedBy: number;       // ID del mecánico que subió la foto
-  evidenceType: 'before' | 'during' | 'after';
-  imageUrl: string;
-  originalFilename: string | null;
-  fileSize: number | null;  // bytes
-  createdAt: string;
-}
-
-// ---- Payloads de request (snake_case — van directo a la API) ----
-
+// Crear solicitud de servicio
 export interface CreateServiceRequestRequest {
   vehicle_id: number;
   emergency_type: 'tire' | 'battery' | 'fuel' | 'engine' | 'lockout' | 'tow' | 'other';
@@ -83,6 +71,7 @@ export interface CreateServiceRequestRequest {
   priority?: 'low' | 'normal' | 'urgent';
 }
 
+// Actualizar solicitud de servicio
 export interface UpdateServiceRequestRequest {
   description?: string;
   latitude?: number;
@@ -90,46 +79,63 @@ export interface UpdateServiceRequestRequest {
   priority?: 'low' | 'normal' | 'urgent';
 }
 
+// Cancelar solicitud de servicio
 export interface CancelServiceRequestRequest {
   cancellation_reason: string;
 }
 
-/** Calificación con los 3 componentes opcionales */
+// Calificar solicitud de servicio (3 ratings obligatorios)
 export interface RateServiceRequestRequest {
-  customer_rating: number;            // 1-5, REQUERIDO
+  customer_rating: number;         // 1-5
+  punctuality_rating: number;      // 1-5
+  service_quality_rating: number;  // 1-5
   customer_feedback?: string;
-  punctuality_rating?: number;        // 1-5, OPCIONAL
-  service_quality_rating?: number;    // 1-5, OPCIONAL
 }
 
+// Completar solicitud (mecánico)
 export interface CompleteServiceRequestRequest {
   final_cost: number;
 }
 
-/** Payload para agregar evidencia fotográfica (mecánico) */
+// Respuesta lista de solicitudes
+export interface ServiceRequestListResponse {
+  serviceRequests: ServiceRequest[];
+  count: number;
+}
+
+// Respuesta solicitud individual
+export interface ServiceRequestResponse {
+  serviceRequest: ServiceRequest;
+}
+
+// Evidencia fotográfica de una solicitud de servicio (antes/durante/después)
+export interface ServiceRequestEvidence {
+  id: number;
+  uploadedBy: number;
+  evidenceType: 'before' | 'during' | 'after';
+  imageUrl: string;
+  originalFilename: string | null;
+  description: string | null;
+  fileSize: number | null;
+  createdAt: string;
+}
+
+// Agregar evidencia (mecánico) — la imagen ya debe estar alojada en una URL http/https
 export interface AddEvidenceRequest {
   evidence_type: 'before' | 'during' | 'after';
   image_url: string;
   original_filename?: string;
+  description?: string;
   file_size?: number;
 }
 
-// ---- Respuestas de la API ----
-
-export interface ServiceRequestListResponse {
-  service_requests: ServiceRequest[];
-  count: number;
-}
-
-export interface ServiceRequestResponse {
-  service_request: ServiceRequest;
-}
-
+// Respuesta lista de evidencias
 export interface EvidenceListResponse {
   evidences: ServiceRequestEvidence[];
   count: number;
 }
 
+// Respuesta evidencia individual
 export interface EvidenceResponse {
   evidence: ServiceRequestEvidence;
 }

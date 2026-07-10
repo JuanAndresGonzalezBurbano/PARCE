@@ -3,237 +3,241 @@
 namespace App\Infrastructure\ServiceRequest;
 
 use App\Core\Database;
+use App\Core\DomainException;
 use App\Infrastructure\ServiceRequest\ServiceRequestValidator;
 
 /**
- * Service Request Service
- * 
- * Business logic for service request management including creation, updates,
- * status transitions, mechanic assignment, and customer rating.
- * 
- * Business Rules:
- * - One active request per customer
- * - One active request per vehicle
- * - Active statuses: pending, assigned, in_progress
- * - Terminal statuses: completed, cancelled, expired
- * - Location privacy: exact coordinates hidden during pending, visible after assignment
+ * Servicio de Solicitudes de Servicio
+ *
+ * Lógica de negocio para la gestión de solicitudes de servicio, incluyendo
+ * creación, actualizaciones, transiciones de estado, asignación de mecánicos
+ * y calificación por parte del cliente.
+ *
+ * Reglas de negocio:
+ * - Una solicitud activa por cliente
+ * - Una solicitud activa por vehículo
+ * - Estados activos: pending, assigned, in_progress
+ * - Estados terminales: completed, cancelled, expired
+ * - Privacidad de ubicación: coordenadas exactas ocultas durante pending, visibles tras asignación
  */
 class ServiceRequestService
 {
     /**
-     * Create a new service request
-     * 
-     * @param int $customerId Customer user ID
-     * @param array $data Service request data
-     * @return int Created service request ID
-     * @throws \Exception On database or business logic error
+     * Crea una nueva solicitud de servicio.
+     *
+     * @param int   $customerId ID del usuario cliente
+     * @param array $data       Datos de la solicitud de servicio
+     * @return int              ID de la solicitud creada
+     * @throws \Exception       Por error de base de datos o lógica de negocio
      */
     public function create(int $customerId, array $data): int
     {
-        // Verify vehicle exists and customer owns it
+        // Verificar que el vehículo exista y pertenezca al cliente
         $vehicle = Database::fetchOne(
             'SELECT id, user_id, status FROM vehicles WHERE id = ? AND deleted_at IS NULL',
             [(int)$data['vehicle_id']]
         );
-        
+
         if ($vehicle === null) {
-            throw new \Exception('Vehicle not found');
+            throw new DomainException('Vehículo no encontrado', 404);
         }
-        
+
         if ((int)$vehicle['user_id'] !== $customerId) {
-            throw new \Exception('You do not own this vehicle');
+            throw new DomainException('No eres el propietario de este vehículo', 403);
         }
-        
+
         if ($vehicle['status'] !== 'active') {
-            throw new \Exception('Vehicle is not active');
+            throw new DomainException('El vehículo no está activo', 400);
         }
-        
-        // Check for active requests by this customer
+
+        // Verificar si el cliente ya tiene una solicitud activa
         $activeCustomerRequest = Database::fetchOne(
-            'SELECT id, service_code FROM service_requests 
-             WHERE customer_id = ? 
-             AND status IN (?, ?, ?) 
+            'SELECT id, service_code FROM service_requests
+             WHERE customer_id = ?
+             AND status IN (?, ?, ?)
              AND deleted_at IS NULL',
             [$customerId, 'pending', 'assigned', 'in_progress']
         );
-        
+
         if ($activeCustomerRequest !== null) {
-            throw new \Exception(
-                'You already have an active service request (' . 
-                $activeCustomerRequest['service_code'] . 
-                '). Please complete or cancel it before creating a new one.'
+            throw new DomainException(
+                'Ya tienes una solicitud de servicio activa (' .
+                $activeCustomerRequest['service_code'] .
+                '). Por favor, complétala o cancélala antes de crear una nueva.',
+                409
             );
         }
-        
-        // Check for active requests for this vehicle
+
+        // Verificar si el vehículo ya tiene una solicitud activa
         $activeVehicleRequest = Database::fetchOne(
-            'SELECT id, service_code FROM service_requests 
-             WHERE vehicle_id = ? 
-             AND status IN (?, ?, ?) 
+            'SELECT id, service_code FROM service_requests
+             WHERE vehicle_id = ?
+             AND status IN (?, ?, ?)
              AND deleted_at IS NULL',
             [(int)$data['vehicle_id'], 'pending', 'assigned', 'in_progress']
         );
-        
+
         if ($activeVehicleRequest !== null) {
-            throw new \Exception(
-                'This vehicle already has an active service request (' . 
-                $activeVehicleRequest['service_code'] . 
-                '). Please complete or cancel it before creating a new one.'
+            throw new DomainException(
+                'Este vehículo ya tiene una solicitud de servicio activa (' .
+                $activeVehicleRequest['service_code'] .
+                '). Por favor, complétala o cancélala antes de crear una nueva.',
+                409
             );
         }
-        
-        // Prepare insert data
+
+        // Preparar datos para la inserción
         $insertData = [
-            'customer_id' => $customerId,
-            'vehicle_id' => (int)$data['vehicle_id'],
+            'customer_id'    => $customerId,
+            'vehicle_id'     => (int)$data['vehicle_id'],
             'emergency_type' => strtolower($data['emergency_type']),
-            'description' => $data['description'],
-            'latitude' => (float)$data['latitude'],
-            'longitude' => (float)$data['longitude'],
-            'priority' => strtolower($data['priority'] ?? 'normal'),
-            'status' => 'pending',
-            'requested_at' => date('Y-m-d H:i:s')
+            'description'    => $data['description'],
+            'latitude'       => (float)$data['latitude'],
+            'longitude'      => (float)$data['longitude'],
+            'priority'       => strtolower($data['priority'] ?? 'normal'),
+            'status'         => 'pending',
+            'requested_at'   => date('Y-m-d H:i:s')
         ];
-        
-        // Insert service request
+
+        // Insertar la solicitud de servicio
         $requestId = Database::insert('service_requests', $insertData);
-        
-        // Generate and update service code
+
+        // Generar y actualizar el código de servicio
         $serviceCode = ServiceRequestValidator::generateServiceCode($requestId);
         Database::update('service_requests', [
             'service_code' => $serviceCode
         ], 'id = ?', [$requestId]);
-        
+
         return $requestId;
     }
-    
+
     /**
-     * Update a pending service request (customer only)
-     * 
-     * @param int $requestId Service request ID
-     * @param int $customerId Customer user ID
-     * @param array $data Update data
-     * @return bool Success
-     * @throws \Exception On database or business logic error
+     * Actualiza una solicitud de servicio pendiente (solo el cliente puede hacerlo).
+     *
+     * @param int   $requestId  ID de la solicitud de servicio
+     * @param int   $customerId ID del usuario cliente
+     * @param array $data       Datos a actualizar
+     * @return bool             Verdadero si la actualización fue exitosa
+     * @throws \Exception       Por error de base de datos o lógica de negocio
      */
     public function update(int $requestId, int $customerId, array $data): bool
     {
-        // Verify request exists and customer owns it
+        // Verificar que la solicitud exista y pertenezca al cliente
         $request = Database::fetchOne(
             'SELECT id, customer_id, status FROM service_requests WHERE id = ? AND deleted_at IS NULL',
             [$requestId]
         );
-        
+
         if ($request === null) {
-            throw new \Exception('Service request not found');
+            throw new DomainException('Solicitud de servicio no encontrada', 404);
         }
-        
+
         if ((int)$request['customer_id'] !== $customerId) {
-            throw new \Exception('You do not own this service request');
+            throw new DomainException('No eres el propietario de esta solicitud de servicio', 403);
         }
-        
-        // Only pending requests can be updated by customers
+
+        // Solo se pueden actualizar solicitudes en estado pendiente
         if ($request['status'] !== 'pending') {
-            throw new \Exception('Only pending requests can be updated');
+            throw new DomainException('Solo se pueden actualizar solicitudes en estado pendiente', 400);
         }
-        
-        // Prepare update data
+
+        // Preparar datos de actualización
         $updateData = [];
-        
+
         if (isset($data['description'])) {
             $updateData['description'] = $data['description'];
         }
-        
+
         if (isset($data['latitude'])) {
             $updateData['latitude'] = (float)$data['latitude'];
         }
-        
+
         if (isset($data['longitude'])) {
             $updateData['longitude'] = (float)$data['longitude'];
         }
-        
+
         if (isset($data['priority'])) {
             $updateData['priority'] = strtolower($data['priority']);
         }
-        
-        // If nothing to update
+
+        // Si no hay nada que actualizar, retornar verdadero directamente
         if (empty($updateData)) {
             return true;
         }
-        
-        // Update service request
+
+        // Ejecutar la actualización en la base de datos
         $rowCount = Database::update('service_requests', $updateData, 'id = ?', [$requestId]);
-        
+
         return $rowCount > 0;
     }
-    
+
     /**
-     * Cancel a service request
-     * 
-     * @param int $requestId Service request ID
-     * @param int $userId User ID (customer or admin)
-     * @param string $reason Cancellation reason
-     * @return bool Success
-     * @throws \Exception On database or business logic error
+     * Cancela una solicitud de servicio.
+     *
+     * @param int    $requestId ID de la solicitud de servicio
+     * @param int    $userId    ID del usuario (cliente o administrador)
+     * @param string $reason    Motivo de la cancelación
+     * @return bool             Verdadero si la cancelación fue exitosa
+     * @throws \Exception       Por error de base de datos o lógica de negocio
      */
     public function cancel(int $requestId, int $userId, string $reason): bool
     {
-        // Verify request exists
+        // Verificar que la solicitud exista
         $request = Database::fetchOne(
             'SELECT id, customer_id, status FROM service_requests WHERE id = ? AND deleted_at IS NULL',
             [$requestId]
         );
-        
+
         if ($request === null) {
-            throw new \Exception('Service request not found');
+            throw new DomainException('Solicitud de servicio no encontrada', 404);
         }
-        
-        // Verify ownership
+
+        // Verificar propiedad de la solicitud
         if ((int)$request['customer_id'] !== $userId) {
-            throw new \Exception('You do not own this service request');
+            throw new DomainException('No eres el propietario de esta solicitud de servicio', 403);
         }
-        
-        // Can only cancel pending or assigned requests
+
+        // Solo se pueden cancelar solicitudes en estado pending o assigned
         if (!in_array($request['status'], ['pending', 'assigned'], true)) {
-            throw new \Exception('Only pending or assigned requests can be cancelled');
+            throw new DomainException('Solo se pueden cancelar solicitudes en estado pendiente o asignado', 400);
         }
-        
-        // Update to cancelled status
+
+        // Actualizar al estado cancelado
         $rowCount = Database::update('service_requests', [
-            'status' => 'cancelled',
+            'status'              => 'cancelled',
             'cancellation_reason' => $reason,
-            'cancelled_by' => $userId,
-            'cancelled_at' => date('Y-m-d H:i:s')
+            'cancelled_by'        => $userId,
+            'cancelled_at'        => date('Y-m-d H:i:s')
         ], 'id = ?', [$requestId]);
-        
+
         return $rowCount > 0;
     }
-    
+
     /**
-     * Mechanic accepts a pending request (self-assignment)
-     * 
-     * @param int $requestId Service request ID
-     * @param int $mechanicId Mechanic user ID
-     * @return bool Success
-     * @throws \Exception On database or business logic error
+     * El mecánico acepta una solicitud pendiente (auto-asignación).
+     *
+     * @param int $requestId  ID de la solicitud de servicio
+     * @param int $mechanicId ID del mecánico
+     * @return bool           Verdadero si la aceptación fue exitosa
+     * @throws \Exception     Por error de base de datos o lógica de negocio
      */
     public function accept(int $requestId, int $mechanicId): bool
     {
-        // Verify request exists and is pending
+        // Verificar que la solicitud exista y esté en estado pendiente
         $request = Database::fetchOne(
             'SELECT id, status FROM service_requests WHERE id = ? AND deleted_at IS NULL',
             [$requestId]
         );
-        
+
         if ($request === null) {
-            throw new \Exception('Service request not found');
+            throw new DomainException('Solicitud de servicio no encontrada', 404);
         }
-        
+
         if ($request['status'] !== 'pending') {
-            throw new \Exception('Only pending requests can be accepted');
+            throw new DomainException('Solo se pueden aceptar solicitudes en estado pendiente', 400);
         }
-        
-        // Check mechanic's driver license expiry (Requirement 3.5, 3.6, 3.7)
+
+        // Verificar vencimiento de la licencia de conducción del mecánico (Requisito 3.5, 3.6, 3.7)
         $mechanic = Database::fetchOne(
             'SELECT driver_license_expiration_date FROM users WHERE id = ?',
             [$mechanicId]
@@ -242,209 +246,200 @@ class ServiceRequestService
         if ($mechanic !== null
             && !empty($mechanic['driver_license_expiration_date'])
             && $mechanic['driver_license_expiration_date'] < date('Y-m-d')) {
-            throw new \Exception(
-                'La licencia de conducción del mecánico está vencida. No puede aceptar solicitudes.'
+            throw new DomainException(
+                'La licencia de conducción del mecánico está vencida. No puede aceptar solicitudes.',
+                403
             );
         }
-        
-        // Validate status transition
+
+        // Validar la transición de estado
         $validation = ServiceRequestValidator::validateStatusTransition($request['status'], 'assigned');
         if (!$validation['valid']) {
-            throw new \Exception($validation['error']);
+            throw new DomainException($validation['error'], 400);
         }
-        
-        // Update to assigned status
+
+        // Actualizar al estado asignado
         $rowCount = Database::update('service_requests', [
-            'status' => 'assigned',
+            'status'      => 'assigned',
             'mechanic_id' => $mechanicId,
             'assigned_at' => date('Y-m-d H:i:s')
         ], 'id = ?', [$requestId]);
-        
+
         return $rowCount > 0;
     }
-    
+
     /**
-     * Mechanic starts work on an assigned request
-     * 
-     * @param int $requestId Service request ID
-     * @param int $mechanicId Mechanic user ID
-     * @return bool Success
-     * @throws \Exception On database or business logic error
+     * El mecánico inicia el trabajo en una solicitud asignada.
+     *
+     * @param int $requestId  ID de la solicitud de servicio
+     * @param int $mechanicId ID del mecánico
+     * @return bool           Verdadero si el inicio fue exitoso
+     * @throws \Exception     Por error de base de datos o lógica de negocio
      */
     public function start(int $requestId, int $mechanicId): bool
     {
-        // Verify request exists and mechanic is assigned
+        // Verificar que la solicitud exista y el mecánico esté asignado
         $request = Database::fetchOne(
             'SELECT id, status, mechanic_id FROM service_requests WHERE id = ? AND deleted_at IS NULL',
             [$requestId]
         );
-        
+
         if ($request === null) {
-            throw new \Exception('Service request not found');
+            throw new DomainException('Solicitud de servicio no encontrada', 404);
         }
-        
+
         if ((int)$request['mechanic_id'] !== $mechanicId) {
-            throw new \Exception('You are not assigned to this service request');
+            throw new DomainException('No estás asignado a esta solicitud de servicio', 403);
         }
-        
+
         if ($request['status'] !== 'assigned') {
-            throw new \Exception('Only assigned requests can be started');
+            throw new DomainException('Solo se pueden iniciar solicitudes en estado asignado', 400);
         }
-        
-        // Validate status transition
+
+        // Validar la transición de estado
         $validation = ServiceRequestValidator::validateStatusTransition($request['status'], 'in_progress');
         if (!$validation['valid']) {
-            throw new \Exception($validation['error']);
+            throw new DomainException($validation['error'], 400);
         }
-        
-        // Update to in_progress status
+
+        // Actualizar al estado en progreso
         $rowCount = Database::update('service_requests', [
-            'status' => 'in_progress',
+            'status'     => 'in_progress',
             'started_at' => date('Y-m-d H:i:s')
         ], 'id = ?', [$requestId]);
-        
+
         return $rowCount > 0;
     }
-    
+
     /**
-     * Mechanic completes a service request
-     * 
-     * @param int $requestId Service request ID
-     * @param int $mechanicId Mechanic user ID
-     * @param float $finalCost Final service cost
-     * @return bool Success
-     * @throws \Exception On database or business logic error
+     * El mecánico completa una solicitud de servicio.
+     *
+     * @param int   $requestId  ID de la solicitud de servicio
+     * @param int   $mechanicId ID del mecánico
+     * @param float $finalCost  Costo final del servicio
+     * @return bool             Verdadero si la finalización fue exitosa
+     * @throws \Exception       Por error de base de datos o lógica de negocio
      */
     public function complete(int $requestId, int $mechanicId, float $finalCost): bool
     {
-        // Verify request exists and mechanic is assigned
+        // Verificar que la solicitud exista y el mecánico esté asignado
         $request = Database::fetchOne(
             'SELECT id, status, mechanic_id FROM service_requests WHERE id = ? AND deleted_at IS NULL',
             [$requestId]
         );
-        
+
         if ($request === null) {
-            throw new \Exception('Service request not found');
+            throw new DomainException('Solicitud de servicio no encontrada', 404);
         }
-        
+
         if ((int)$request['mechanic_id'] !== $mechanicId) {
-            throw new \Exception('You are not assigned to this service request');
+            throw new DomainException('No estás asignado a esta solicitud de servicio', 403);
         }
-        
+
         if ($request['status'] !== 'in_progress') {
-            throw new \Exception('Only in-progress requests can be completed');
+            throw new DomainException('Solo se pueden completar solicitudes en estado en progreso', 400);
         }
-        
-        // Validate status transition
+
+        // Validar la transición de estado
         $validation = ServiceRequestValidator::validateStatusTransition($request['status'], 'completed');
         if (!$validation['valid']) {
-            throw new \Exception($validation['error']);
+            throw new DomainException($validation['error'], 400);
         }
-        
-        // Validate final cost
+
+        // Validar que el costo final sea un número positivo
         if ($finalCost < 0) {
-            throw new \Exception('Final cost must be a positive number');
+            throw new DomainException('El costo final debe ser un número positivo', 400);
         }
-        
-        // Update to completed status
+
+        // Actualizar al estado completado
         $rowCount = Database::update('service_requests', [
-            'status' => 'completed',
-            'final_cost' => $finalCost,
-            'resolved_by' => $mechanicId,
+            'status'       => 'completed',
+            'final_cost'   => $finalCost,
+            'resolved_by'  => $mechanicId,
             'completed_at' => date('Y-m-d H:i:s')
         ], 'id = ?', [$requestId]);
-        
+
         return $rowCount > 0;
     }
-    
+
     /**
      * El cliente califica una solicitud de servicio completada.
      *
-     * Sistema de calificación de 3 componentes:
-     *   customer_rating        — calificación general (1-5, OBLIGATORIO)
-     *   punctuality_rating     — puntualidad del mecánico (1-5, OPCIONAL)
-     *   service_quality_rating — calidad del servicio (1-5, OPCIONAL)
-     *   customer_feedback      — comentario libre (OPCIONAL)
-     *
-     * Solo se puede calificar una vez; intentarlo de nuevo retorna excepción.
-     *
-     * @param int         $requestId           ID de la solicitud
-     * @param int         $customerId          Usuario que califica (debe ser el dueño)
-     * @param int         $rating              Calificación general 1-5
-     * @param string|null $feedback            Comentario libre
-     * @param int|null    $punctualityRating   Calificación de puntualidad 1-5
-     * @param int|null    $serviceQualityRating Calificación de calidad 1-5
-     * @return bool
-     * @throws \Exception
+     * @param int         $requestId             ID de la solicitud de servicio
+     * @param int         $customerId            ID del usuario cliente
+     * @param int         $rating                Calificación general (1-5)
+     * @param string|null $feedback              Comentario opcional del cliente
+     * @param int|null    $punctualityRating     Calificación de puntualidad (1-5), opcional
+     * @param int|null    $serviceQualityRating  Calificación de calidad del servicio (1-5), opcional
+     * @return bool                              Verdadero si la calificación fue registrada
+     * @throws \Exception                        Por error de base de datos o lógica de negocio
      */
     public function rate(
-        int     $requestId,
-        int     $customerId,
-        int     $rating,
-        ?string $feedback             = null,
-        ?int    $punctualityRating    = null,
-        ?int    $serviceQualityRating = null
+        int $requestId,
+        int $customerId,
+        int $rating,
+        ?string $feedback = null,
+        ?int $punctualityRating = null,
+        ?int $serviceQualityRating = null
     ): bool {
-        // Verificar que la solicitud existe y pertenece al cliente
+        // Verificar que la solicitud exista y pertenezca al cliente
         $request = Database::fetchOne(
-            'SELECT id, customer_id, status, customer_rating
-             FROM service_requests WHERE id = ? AND deleted_at IS NULL',
+            'SELECT id, customer_id, status, customer_rating FROM service_requests WHERE id = ? AND deleted_at IS NULL',
             [$requestId]
         );
 
         if ($request === null) {
-            throw new \Exception('Service request not found');
+            throw new DomainException('Solicitud de servicio no encontrada', 404);
         }
+
         if ((int)$request['customer_id'] !== $customerId) {
-            throw new \Exception('You do not own this service request');
+            throw new DomainException('No eres el propietario de esta solicitud de servicio', 403);
         }
 
-        // Solo las solicitudes completadas pueden calificarse
+        // Solo se pueden calificar solicitudes completadas
         if ($request['status'] !== 'completed') {
-            throw new \Exception('Only completed requests can be rated');
+            throw new DomainException('Solo se pueden calificar solicitudes en estado completado', 400);
         }
 
-        // Evitar doble calificación
+        // Verificar si la solicitud ya fue calificada
         if ($request['customer_rating'] !== null) {
-            throw new \Exception('This service request has already been rated');
+            throw new DomainException('Esta solicitud de servicio ya fue calificada', 409);
         }
 
-        // Construir datos de actualización con la calificación general (siempre presente)
+        // Preparar datos de calificación
         $updateData = ['customer_rating' => $rating];
 
-        // Calificación de puntualidad (columna agregada por migración Wave 0)
+        if ($feedback !== null) {
+            $updateData['customer_feedback'] = $feedback;
+        }
+
         if ($punctualityRating !== null) {
             $updateData['punctuality_rating'] = $punctualityRating;
         }
 
-        // Calificación de calidad del servicio (columna agregada por migración Wave 0)
         if ($serviceQualityRating !== null) {
             $updateData['service_quality_rating'] = $serviceQualityRating;
-        }
-
-        // Comentario libre del cliente
-        if ($feedback !== null) {
-            $updateData['customer_feedback'] = $feedback;
         }
 
         $rowCount = Database::update('service_requests', $updateData, 'id = ?', [$requestId]);
 
         return $rowCount > 0;
     }
-    
+
     /**
-     * Get service request by ID
-     * 
-     * @param int $requestId Service request ID
-     * @param int $userId User ID (for ownership/access check)
-     * @param string $userRole User role (customer, mechanic, admin)
-     * @return array|null Service request data with privacy filtering
+     * Obtiene una solicitud de servicio por su ID, aplicando filtros de privacidad según el rol.
+     *
+     * @param int    $requestId ID de la solicitud de servicio
+     * @param int    $userId    ID del usuario (para verificación de acceso)
+     * @param string $userRole  Rol del usuario (customer, mechanic, admin)
+     * @return array|null       Datos de la solicitud con filtros de privacidad aplicados, o null si no tiene acceso
      */
     public function getById(int $requestId, int $userId, string $userRole): ?array
     {
+        // Consultar la solicitud con datos relacionados de cliente, mecánico y vehículo
         $request = Database::fetchOne(
-            'SELECT sr.*, 
-                    c.first_name as customer_first_name, 
+            'SELECT sr.*,
+                    c.first_name as customer_first_name,
                     c.last_name as customer_last_name,
                     c.email as customer_email,
                     c.phone as customer_phone,
@@ -462,44 +457,47 @@ class ServiceRequestService
              WHERE sr.id = ? AND sr.deleted_at IS NULL',
             [$requestId]
         );
-        
+
         if ($request === null) {
             return null;
         }
-        
-        // Apply ownership/access checks
+
+        // Aplicar controles de acceso según el rol del usuario
         $customerId = (int)$request['customer_id'];
         $mechanicId = $request['mechanic_id'] ? (int)$request['mechanic_id'] : null;
-        
+
+        // Los clientes solo pueden ver sus propias solicitudes
         if ($userRole === 'customer' && $customerId !== $userId) {
-            return null; // Customers can only see their own requests
+            return null;
         }
-        
+
+        // Los mecánicos solo pueden ver las solicitudes que tienen asignadas
         if ($userRole === 'mechanic' && $mechanicId !== $userId) {
-            return null; // Mechanics can only see assigned requests
+            return null;
         }
-        
-        // Apply location privacy (hide exact coordinates for pending requests)
+
+        // Aplicar privacidad de ubicación: ocultar coordenadas exactas cuando la solicitud está pendiente
         if ($request['status'] === 'pending' && $userRole === 'mechanic') {
-            $request['latitude_approximate'] = round((float)$request['latitude'], 2);
+            $request['latitude_approximate']  = round((float)$request['latitude'], 2);
             $request['longitude_approximate'] = round((float)$request['longitude'], 2);
             unset($request['latitude']);
             unset($request['longitude']);
         }
-        
+
         return $request;
     }
-    
+
     /**
-     * Get all service requests for a customer
-     * 
-     * @param int $customerId Customer user ID
-     * @param string|null $status Optional status filter
-     * @return array List of service requests
+     * Obtiene todas las solicitudes de servicio de un cliente.
+     *
+     * @param int         $customerId ID del usuario cliente
+     * @param string|null $status     Filtro opcional por estado
+     * @return array                  Lista de solicitudes de servicio
      */
     public function getCustomerRequests(int $customerId, ?string $status = null): array
     {
-        $sql = 'SELECT sr.*, 
+        // Consulta base con datos del vehículo y mecánico asignado
+        $sql = 'SELECT sr.*,
                        v.make as vehicle_make,
                        v.model as vehicle_model,
                        v.license_plate as vehicle_license_plate,
@@ -509,29 +507,31 @@ class ServiceRequestService
                 LEFT JOIN vehicles v ON sr.vehicle_id = v.id
                 LEFT JOIN users m ON sr.mechanic_id = m.id
                 WHERE sr.customer_id = ? AND sr.deleted_at IS NULL';
-        
+
         $params = [$customerId];
-        
+
+        // Aplicar filtro de estado si se proporcionó
         if ($status !== null) {
             $sql .= ' AND sr.status = ?';
             $params[] = $status;
         }
-        
+
         $sql .= ' ORDER BY sr.requested_at DESC';
-        
+
         return Database::fetchAll($sql, $params);
     }
-    
+
     /**
-     * Get all service requests assigned to a mechanic
-     * 
-     * @param int $mechanicId Mechanic user ID
-     * @param string|null $status Optional status filter
-     * @return array List of service requests
+     * Obtiene todas las solicitudes de servicio asignadas a un mecánico.
+     *
+     * @param int         $mechanicId ID del mecánico
+     * @param string|null $status     Filtro opcional por estado
+     * @return array                  Lista de solicitudes de servicio
      */
     public function getMechanicRequests(int $mechanicId, ?string $status = null): array
     {
-        $sql = 'SELECT sr.*, 
+        // Consulta base con datos del cliente y el vehículo
+        $sql = 'SELECT sr.*,
                        c.first_name as customer_first_name,
                        c.last_name as customer_last_name,
                        c.phone as customer_phone,
@@ -542,31 +542,32 @@ class ServiceRequestService
                 LEFT JOIN users c ON sr.customer_id = c.id
                 LEFT JOIN vehicles v ON sr.vehicle_id = v.id
                 WHERE sr.mechanic_id = ? AND sr.deleted_at IS NULL';
-        
+
         $params = [$mechanicId];
-        
+
+        // Aplicar filtro de estado si se proporcionó
         if ($status !== null) {
             $sql .= ' AND sr.status = ?';
             $params[] = $status;
         }
-        
+
         $sql .= ' ORDER BY sr.requested_at DESC';
-        
+
         return Database::fetchAll($sql, $params);
     }
-    
+
     /**
-     * Get nearby pending service requests for mechanics (approximate location only)
-     * 
-     * @param float $latitude Mechanic's current latitude
-     * @param float $longitude Mechanic's current longitude
-     * @param int $radiusKm Search radius in kilometers (default 50km)
-     * @return array List of pending service requests with approximate location
+     * Obtiene solicitudes pendientes cercanas para mecánicos (solo ubicación aproximada).
+     *
+     * @param float $latitude   Latitud actual del mecánico
+     * @param float $longitude  Longitud actual del mecánico
+     * @param int   $radiusKm   Radio de búsqueda en kilómetros (por defecto 50 km)
+     * @return array            Lista de solicitudes pendientes con ubicación aproximada
      */
     public function getNearbyPendingRequests(float $latitude, float $longitude, int $radiusKm = 50): array
     {
-        // Use Haversine formula for distance calculation
-        // Note: This is an approximate calculation for small distances
+        // Usar la fórmula de Haversine para el cálculo de distancia
+        // Nota: es un cálculo aproximado válido para distancias cortas
         $sql = "SELECT sr.id,
                        sr.service_code,
                        sr.emergency_type,
@@ -578,20 +579,20 @@ class ServiceRequestService
                        v.model as vehicle_model,
                        v.year as vehicle_year,
                        (6371 * acos(
-                           cos(radians(?)) * 
-                           cos(radians(sr.latitude)) * 
-                           cos(radians(sr.longitude) - radians(?)) + 
-                           sin(radians(?)) * 
+                           cos(radians(?)) *
+                           cos(radians(sr.latitude)) *
+                           cos(radians(sr.longitude) - radians(?)) +
+                           sin(radians(?)) *
                            sin(radians(sr.latitude))
                        )) AS distance_km
                 FROM service_requests sr
                 LEFT JOIN vehicles v ON sr.vehicle_id = v.id
-                WHERE sr.status = 'pending' 
+                WHERE sr.status = 'pending'
                   AND sr.deleted_at IS NULL
                 HAVING distance_km <= ?
                 ORDER BY sr.priority DESC, distance_km ASC, sr.requested_at ASC
                 LIMIT 50";
-        
+
         return Database::fetchAll($sql, [$latitude, $longitude, $latitude, $radiusKm]);
     }
 }

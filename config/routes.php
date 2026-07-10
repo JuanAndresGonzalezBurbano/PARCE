@@ -111,6 +111,10 @@ $router->get('/api/auth/me', [\App\Controllers\Auth\AuthController::class, 'me']
     ->middleware([\App\Middleware\AuthMiddleware::class])
     ->name('api.auth.me');
 
+$router->put('/api/auth/profile', [\App\Controllers\Auth\AuthController::class, 'profile'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.auth.profile');
+
 // ============================================================================
 // Vehicle API Routes (Protected)
 // ============================================================================
@@ -186,6 +190,13 @@ $router->post('/api/service-requests/{id}/rate', [\App\Controllers\ServiceReques
     ])
     ->name('api.service-requests.rate');
 
+$router->get('/api/service-requests/{id}/evidences', [\App\Controllers\ServiceRequestController::class, 'getEvidences'])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['customer']]
+    ])
+    ->name('api.service-requests.evidences');
+
 // Mechanic endpoints (RBAC: mechanic only)
 $router->get('/api/mechanic/requests', [\App\Controllers\ServiceRequestController::class, 'mechanicIndex'])
     ->middleware([
@@ -200,6 +211,15 @@ $router->get('/api/mechanic/requests/available', [\App\Controllers\ServiceReques
         [\App\Middleware\RBACMiddleware::class, ['mechanic']]
     ])
     ->name('api.mechanic.requests.available');
+
+// IMPORTANTE: debe registrarse después de '/available' — el router hace matching
+// por orden de registro y '{id}' capturaría "available" como si fuera un ID.
+$router->get('/api/mechanic/requests/{id}', [\App\Controllers\ServiceRequestController::class, 'show'])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['mechanic']]
+    ])
+    ->name('api.mechanic.requests.show');
 
 $router->post('/api/mechanic/requests/{id}/accept', [\App\Controllers\ServiceRequestController::class, 'accept'])
     ->middleware([
@@ -222,30 +242,107 @@ $router->put('/api/mechanic/requests/{id}/complete', [\App\Controllers\ServiceRe
     ])
     ->name('api.mechanic.requests.complete');
 
-// Evidencias fotográficas (mecánico — antes/durante/después del servicio)
 $router->post('/api/mechanic/requests/{id}/evidence', [\App\Controllers\ServiceRequestController::class, 'addEvidence'])
     ->middleware([
         \App\Middleware\AuthMiddleware::class,
         [\App\Middleware\RBACMiddleware::class, ['mechanic']]
     ])
-    ->name('api.mechanic.requests.evidence.store');
+    ->name('api.mechanic.requests.addEvidence');
 
 $router->get('/api/mechanic/requests/{id}/evidences', [\App\Controllers\ServiceRequestController::class, 'getEvidences'])
     ->middleware([
         \App\Middleware\AuthMiddleware::class,
         [\App\Middleware\RBACMiddleware::class, ['mechanic']]
     ])
-    ->name('api.mechanic.requests.evidence.index');
-
-// Actualización del perfil del usuario (teléfono, licencia de conducción)
-$router->put('/api/auth/profile', [\App\Controllers\Auth\AuthController::class, 'updateProfile'])
-    ->middleware([\App\Middleware\AuthMiddleware::class])
-    ->name('api.auth.profile.update');
+    ->name('api.mechanic.requests.evidences');
 
 // ============================================================================
-// Future Routes (to be implemented)
+// PQR API Routes (Protected) - PARCE-DEMO sustentación module
 // ============================================================================
 
-// Admin routes will be added here
-// - GET /api/admin/dashboard
-// - GET /api/admin/users
+// Customer & mechanic endpoints (RBAC: customer or mechanic)
+$router->get('/api/pqr', [\App\Controllers\PQRController::class, 'index'])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['customer', 'mechanic']]
+    ])
+    ->name('api.pqr.index');
+
+$router->post('/api/pqr', [\App\Controllers\PQRController::class, 'store'])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['customer', 'mechanic']]
+    ])
+    ->name('api.pqr.store');
+
+$router->get('/api/pqr/{id}', [\App\Controllers\PQRController::class, 'show'])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['customer', 'mechanic']]
+    ])
+    ->name('api.pqr.show');
+
+// Admin endpoints (RBAC: administrator, super_admin)
+$router->get('/api/admin/pqr', [\App\Controllers\PQRController::class, 'adminIndex'])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['administrator', 'super_admin']]
+    ])
+    ->name('api.admin.pqr.index');
+
+$router->put('/api/admin/pqr/{id}/status', [\App\Controllers\PQRController::class, 'adminUpdateStatus'])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['administrator', 'super_admin']]
+    ])
+    ->name('api.admin.pqr.updateStatus');
+
+$router->post('/api/admin/pqr/{id}/respond', [\App\Controllers\PQRController::class, 'adminRespond'])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['administrator', 'super_admin']]
+    ])
+    ->name('api.admin.pqr.respond');
+
+// ============================================================================
+// Survey API Routes (Protected) - PARCE-DEMO sustentación module
+// ============================================================================
+
+$router->post('/api/surveys', [\App\Controllers\SurveyController::class, 'store'])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['customer']]
+    ])
+    ->name('api.surveys.store');
+
+$router->get('/api/surveys', [\App\Controllers\SurveyController::class, 'index'])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['customer']]
+    ])
+    ->name('api.surveys.index');
+
+$router->get('/api/admin/surveys', [\App\Controllers\SurveyController::class, 'adminIndex'])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['administrator', 'super_admin']]
+    ])
+    ->name('api.admin.surveys.index');
+
+// ============================================================================
+// Admin API Routes (Protected) - PARCE-DEMO sustentación module
+// ============================================================================
+
+$router->get('/api/admin/dashboard', [\App\Controllers\AdminController::class, 'dashboard'])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['administrator', 'super_admin']]
+    ])
+    ->name('api.admin.dashboard');
+
+$router->get('/api/admin/ratings', [\App\Controllers\AdminController::class, 'ratings'])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['administrator', 'super_admin']]
+    ])
+    ->name('api.admin.ratings');

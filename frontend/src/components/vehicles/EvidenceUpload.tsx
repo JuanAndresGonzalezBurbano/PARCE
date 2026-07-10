@@ -31,7 +31,6 @@ const EVIDENCE_TYPE_COLORS: Record<string, string> = {
  * a un servicio externo (S3, Cloudinary, etc.).
  */
 export default function EvidenceUpload({
-  serviceRequestId,
   existingEvidences,
   onAdd,
   isLoading,

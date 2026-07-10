@@ -10,10 +10,13 @@ interface RequestContextType {
   currentRequest: ServiceRequest | null;
   isLoading: boolean;
   error: string | null;
+  fieldErrors: Record<string, string> | null;
   loadRequests: (status?: string) => Promise<void>;
+  loadMechanicRequests: (status?: string) => Promise<void>;
+  loadMechanicRequestDetails: (id: number) => Promise<void>;
   createRequest: (data: CreateServiceRequestRequest) => Promise<boolean>;
   cancelRequest: (id: number, reason: string) => Promise<boolean>;
-  rateRequest: (id: number, rating: number, feedback?: string) => Promise<boolean>;
+  rateRequest: (id: number, customerRating: number, punctualityRating: number, serviceQualityRating: number, feedback?: string) => Promise<boolean>;
   loadAvailableRequests: (latitude: number, longitude: number) => Promise<void>;
   acceptRequest: (id: number) => Promise<boolean>;
   startRequest: (id: number) => Promise<boolean>;
@@ -33,21 +36,55 @@ export function RequestProvider({ children }: RequestProviderProps) {
   const [currentRequest, setCurrentRequest] = useState<ServiceRequest | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string> | null>(null);
 
   async function loadRequests(status?: string) {
     setIsLoading(true);
     setError(null);
-
     try {
       const response = await serviceRequestService.getMyRequests(status);
-
       if (response.success) {
-        setRequests(response.data.service_requests);
+        setRequests(response.data.serviceRequests);
       } else {
         setError(response.error);
       }
     } catch {
-      setError('Failed to load requests');
+      setError('Error al cargar las solicitudes');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function loadMechanicRequests(status?: string) {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await serviceRequestService.getMechanicRequests(status);
+      if (response.success) {
+        setRequests(response.data.serviceRequests);
+      } else {
+        setError(response.error);
+      }
+    } catch {
+      setError('Error al cargar las solicitudes');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function loadMechanicRequestDetails(id: number) {
+    setIsLoading(true);
+    setError(null);
+    setCurrentRequest(null);
+    try {
+      const response = await serviceRequestService.getMechanicRequestDetails(id);
+      if (response.success) {
+        setCurrentRequest(response.data.serviceRequest);
+      } else {
+        setError(response.error);
+      }
+    } catch {
+      setError('Error al cargar la solicitud');
     } finally {
       setIsLoading(false);
     }
@@ -56,21 +93,21 @@ export function RequestProvider({ children }: RequestProviderProps) {
   async function createRequest(data: CreateServiceRequestRequest): Promise<boolean> {
     setIsLoading(true);
     setError(null);
-
+    setFieldErrors(null);
     try {
       const response = await serviceRequestService.createRequest(data);
-
       if (response.success) {
-        await loadRequests(); // Refresh list
+        await loadRequests();
         setIsLoading(false);
         return true;
       } else {
         setError(response.error);
+        setFieldErrors(response.fields ?? null);
         setIsLoading(false);
         return false;
       }
     } catch {
-      setError('Failed to create request');
+      setError('Error al crear la solicitud');
       setIsLoading(false);
       return false;
     }
@@ -79,47 +116,55 @@ export function RequestProvider({ children }: RequestProviderProps) {
   async function cancelRequest(id: number, reason: string): Promise<boolean> {
     setIsLoading(true);
     setError(null);
-
+    setFieldErrors(null);
     try {
       const response = await serviceRequestService.cancelRequest(id, { cancellation_reason: reason });
-
       if (response.success) {
-        await loadRequests(); // Refresh list
+        await loadRequests();
         setIsLoading(false);
         return true;
       } else {
         setError(response.error);
+        setFieldErrors(response.fields ?? null);
         setIsLoading(false);
         return false;
       }
     } catch {
-      setError('Failed to cancel request');
+      setError('Error al cancelar la solicitud');
       setIsLoading(false);
       return false;
     }
   }
 
-  async function rateRequest(id: number, rating: number, feedback?: string): Promise<boolean> {
+  async function rateRequest(
+    id: number,
+    customerRating: number,
+    punctualityRating: number,
+    serviceQualityRating: number,
+    feedback?: string
+  ): Promise<boolean> {
     setIsLoading(true);
     setError(null);
-
+    setFieldErrors(null);
     try {
       const response = await serviceRequestService.rateRequest(id, {
-        customer_rating: rating,
+        customer_rating: customerRating,
+        punctuality_rating: punctualityRating,
+        service_quality_rating: serviceQualityRating,
         customer_feedback: feedback,
       });
-
       if (response.success) {
-        await loadRequests(); // Refresh list
+        await loadRequests();
         setIsLoading(false);
         return true;
       } else {
         setError(response.error);
+        setFieldErrors(response.fields ?? null);
         setIsLoading(false);
         return false;
       }
     } catch {
-      setError('Failed to rate request');
+      setError('Error al calificar la solicitud');
       setIsLoading(false);
       return false;
     }
@@ -128,17 +173,15 @@ export function RequestProvider({ children }: RequestProviderProps) {
   async function loadAvailableRequests(latitude: number, longitude: number) {
     setIsLoading(true);
     setError(null);
-
     try {
       const response = await serviceRequestService.getAvailableRequests(latitude, longitude);
-
       if (response.success) {
-        setRequests(response.data.service_requests);
+        setRequests(response.data.serviceRequests);
       } else {
         setError(response.error);
       }
     } catch {
-      setError('Failed to load available requests');
+      setError('Error al cargar solicitudes disponibles');
     } finally {
       setIsLoading(false);
     }
@@ -147,12 +190,10 @@ export function RequestProvider({ children }: RequestProviderProps) {
   async function acceptRequest(id: number): Promise<boolean> {
     setIsLoading(true);
     setError(null);
-
     try {
       const response = await serviceRequestService.acceptRequest(id);
-
       if (response.success) {
-        await loadAvailableRequests(40.7128, -74.0060); // Refresh with default location
+        await loadMechanicRequests(); // Cargar mis solicitudes asignadas
         setIsLoading(false);
         return true;
       } else {
@@ -161,7 +202,7 @@ export function RequestProvider({ children }: RequestProviderProps) {
         return false;
       }
     } catch {
-      setError('Failed to accept request');
+      setError('Error al aceptar la solicitud');
       setIsLoading(false);
       return false;
     }
@@ -170,12 +211,10 @@ export function RequestProvider({ children }: RequestProviderProps) {
   async function startRequest(id: number): Promise<boolean> {
     setIsLoading(true);
     setError(null);
-
     try {
       const response = await serviceRequestService.startRequest(id);
-
       if (response.success) {
-        await loadRequests(); // Refresh list
+        await loadMechanicRequests();
         setIsLoading(false);
         return true;
       } else {
@@ -184,7 +223,7 @@ export function RequestProvider({ children }: RequestProviderProps) {
         return false;
       }
     } catch {
-      setError('Failed to start request');
+      setError('Error al iniciar la solicitud');
       setIsLoading(false);
       return false;
     }
@@ -193,12 +232,10 @@ export function RequestProvider({ children }: RequestProviderProps) {
   async function completeRequest(id: number, finalCost: number): Promise<boolean> {
     setIsLoading(true);
     setError(null);
-
     try {
       const response = await serviceRequestService.completeRequest(id, { final_cost: finalCost });
-
       if (response.success) {
-        await loadRequests(); // Refresh list
+        await loadMechanicRequests();
         setIsLoading(false);
         return true;
       } else {
@@ -207,7 +244,7 @@ export function RequestProvider({ children }: RequestProviderProps) {
         return false;
       }
     } catch {
-      setError('Failed to complete request');
+      setError('Error al completar la solicitud');
       setIsLoading(false);
       return false;
     }
@@ -219,6 +256,7 @@ export function RequestProvider({ children }: RequestProviderProps) {
 
   function clearError() {
     setError(null);
+    setFieldErrors(null);
   }
 
   const value: RequestContextType = {
@@ -226,7 +264,10 @@ export function RequestProvider({ children }: RequestProviderProps) {
     currentRequest,
     isLoading,
     error,
+    fieldErrors,
     loadRequests,
+    loadMechanicRequests,
+    loadMechanicRequestDetails,
     createRequest,
     cancelRequest,
     rateRequest,

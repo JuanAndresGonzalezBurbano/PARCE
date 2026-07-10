@@ -34,6 +34,7 @@ export const API_ENDPOINTS = {
   MECHANIC: {
     REQUESTS: '/mechanic/requests',
     AVAILABLE: '/mechanic/requests/available',
+    DETAILS: (id: number) => `/mechanic/requests/${id}`,
     ACCEPT: (id: number) => `/mechanic/requests/${id}/accept`,
     START: (id: number) => `/mechanic/requests/${id}/start`,
     COMPLETE: (id: number) => `/mechanic/requests/${id}/complete`,

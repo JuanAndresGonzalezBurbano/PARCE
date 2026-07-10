@@ -63,6 +63,11 @@ export const serviceRequestService = {
     return apiClient.get<ServiceRequestListResponse>(endpoint);
   },
 
+  /** Detalle de una solicitud asignada al mecánico autenticado. */
+  async getMechanicRequestDetails(id: number): Promise<ApiResponse<ServiceRequestResponse>> {
+    return apiClient.get<ServiceRequestResponse>(API_ENDPOINTS.MECHANIC.DETAILS(id));
+  },
+
   /** Solicitudes pendientes cercanas a las coordenadas del mecánico. */
   async getAvailableRequests(
     latitude: number,

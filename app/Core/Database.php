@@ -6,23 +6,23 @@ use PDO;
 use PDOException;
 
 /**
- * Database Class
- * 
- * Manages database connections using PDO with connection pooling support.
- * Provides query builder methods and transaction support.
- * Includes connection validation, retry logic, and health checks.
+ * Clase de gestión de base de datos
+ *
+ * Administra las conexiones a la base de datos mediante PDO con soporte de pool de conexiones.
+ * Provee métodos de construcción de consultas y soporte para transacciones.
+ * Incluye validación de conexión, lógica de reintentos y verificación de salud.
  */
 class Database
 {
     private static ?PDO $connection = null;
     private static array $config = [];
     private static int $maxRetries = 3;
-    private static int $retryDelay = 1000; // milliseconds
+    private static int $retryDelay = 1000; // milisegundos
     private static ?string $lastError = null;
     private static bool $healthCheckPassed = false;
 
     /**
-     * Set database configuration
+     * Establece la configuración de la base de datos
      */
     public static function setConfig(array $config): void
     {
@@ -31,7 +31,7 @@ class Database
     }
 
     /**
-     * Get PDO connection (singleton pattern)
+     * Obtiene la conexión PDO activa (patrón singleton)
      */
     public static function getConnection(): PDO
     {
@@ -43,7 +43,7 @@ class Database
     }
 
     /**
-     * Establish database connection with retry logic
+     * Establece la conexión a la base de datos con lógica de reintentos
      */
     private static function connect(): void
     {
@@ -66,8 +66,8 @@ class Database
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     PDO::ATTR_EMULATE_PREPARES => false,
-                    PDO::ATTR_PERSISTENT => true, // Connection pooling
-                    PDO::ATTR_TIMEOUT => 5, // Connection timeout
+                    PDO::ATTR_PERSISTENT => true, // Pool de conexiones
+                    PDO::ATTR_TIMEOUT => 5,       // Tiempo límite de conexión
                 ]);
 
                 self::$lastError = null;
@@ -83,14 +83,14 @@ class Database
                 self::logConnection('failed', $host, $database, $e->getMessage(), $attempt);
 
                 if ($attempt < self::$maxRetries) {
-                    // Exponential backoff: 1s, 2s, 4s
+                    // Retroceso exponencial: 1s, 2s, 4s
                     $delay = self::$retryDelay * pow(2, $attempt - 1);
                     usleep($delay * 1000);
                 }
             }
         }
 
-        // All retries failed
+        // Todos los reintentos fallaron
         self::$healthCheckPassed = false;
         throw new DatabaseException(
             "Database connection failed after " . self::$maxRetries . " attempts: " . $lastException->getMessage(),
@@ -100,7 +100,7 @@ class Database
     }
 
     /**
-     * Execute raw query
+     * Ejecuta una consulta SQL directa con parámetros preparados
      */
     public static function query(string $sql, array $params = []): \PDOStatement
     {
@@ -120,7 +120,7 @@ class Database
     }
 
     /**
-     * Fetch all rows
+     * Obtiene todos los registros que coincidan con la consulta
      */
     public static function fetchAll(string $sql, array $params = []): array
     {
@@ -129,7 +129,7 @@ class Database
     }
 
     /**
-     * Fetch single row
+     * Obtiene un único registro que coincida con la consulta
      */
     public static function fetchOne(string $sql, array $params = []): ?array
     {
@@ -140,22 +140,22 @@ class Database
 
 
     /**
-     * Insert record and return last insert ID
+     * Inserta un registro y retorna el ID del último insertado
      */
     public static function insert(string $table, array $data): int
     {
         $columns = implode(', ', array_keys($data));
         $placeholders = implode(', ', array_fill(0, count($data), '?'));
-        
+
         $sql = "INSERT INTO {$table} ({$columns}) VALUES ({$placeholders})";
-        
+
         self::query($sql, array_values($data));
-        
+
         return (int) self::getConnection()->lastInsertId();
     }
 
     /**
-     * Update records
+     * Actualiza registros en la tabla indicada y retorna la cantidad de filas afectadas
      */
     public static function update(string $table, array $data, string $where, array $whereParams = []): int
     {
@@ -164,17 +164,17 @@ class Database
             $set[] = "{$column} = ?";
         }
         $setClause = implode(', ', $set);
-        
+
         $sql = "UPDATE {$table} SET {$setClause} WHERE {$where}";
-        
+
         $params = array_merge(array_values($data), $whereParams);
         $statement = self::query($sql, $params);
-        
+
         return $statement->rowCount();
     }
 
     /**
-     * Delete records
+     * Elimina registros de la tabla indicada y retorna la cantidad de filas afectadas
      */
     public static function delete(string $table, string $where, array $whereParams = []): int
     {
@@ -184,7 +184,7 @@ class Database
     }
 
     /**
-     * Begin transaction
+     * Inicia una transacción de base de datos
      */
     public static function beginTransaction(): bool
     {
@@ -192,7 +192,7 @@ class Database
     }
 
     /**
-     * Commit transaction
+     * Confirma (commit) la transacción activa
      */
     public static function commit(): bool
     {
@@ -200,7 +200,7 @@ class Database
     }
 
     /**
-     * Rollback transaction
+     * Revierte (rollback) la transacción activa
      */
     public static function rollback(): bool
     {
@@ -208,7 +208,7 @@ class Database
     }
 
     /**
-     * Check if in transaction
+     * Indica si hay una transacción activa en curso
      */
     public static function inTransaction(): bool
     {
@@ -216,7 +216,7 @@ class Database
     }
 
     /**
-     * Close connection
+     * Cierra la conexión activa a la base de datos
      */
     public static function disconnect(): void
     {
@@ -225,7 +225,7 @@ class Database
     }
 
     /**
-     * Perform health check
+     * Realiza una verificación de salud de la conexión a la base de datos
      */
     public static function healthCheck(): array
     {
@@ -235,18 +235,18 @@ class Database
         $details = [];
 
         try {
-            // Test connection
+            // Probar la conexión
             $connection = self::getConnection();
-            
-            // Test simple query
+
+            // Probar con una consulta simple
             $statement = $connection->query('SELECT 1 as test');
             $result = $statement->fetch();
-            
+
             if ($result['test'] !== 1) {
                 throw new \Exception('Health check query returned unexpected result');
             }
 
-            // Get server info
+            // Obtener información del servidor
             $details['driver'] = self::$config['driver'] ?? 'unknown';
             $details['host'] = self::$config['host'] ?? 'unknown';
             $details['database'] = self::$config['database'] ?? 'unknown';
@@ -271,7 +271,7 @@ class Database
     }
 
     /**
-     * Check if connection is alive
+     * Verifica si la conexión a la base de datos está activa
      */
     public static function isConnected(): bool
     {
@@ -288,7 +288,7 @@ class Database
     }
 
     /**
-     * Get last error message
+     * Retorna el último mensaje de error registrado
      */
     public static function getLastError(): ?string
     {
@@ -296,18 +296,18 @@ class Database
     }
 
     /**
-     * Log connection attempt
+     * Registra en log el intento de conexión a la base de datos
      */
     private static function logConnection(string $status, string $host, string $database, ?string $error = null, int $attempt = 1): void
     {
         $logDir = __DIR__ . '/../../storage/logs';
-        
+
         if (!is_dir($logDir)) {
             @mkdir($logDir, 0755, true);
         }
 
         $logFile = $logDir . '/database-' . date('Y-m-d') . '.log';
-        
+
         $message = sprintf(
             "[%s] Connection %s: host=%s, database=%s, attempt=%d",
             date('Y-m-d H:i:s'),
@@ -322,23 +322,23 @@ class Database
         }
 
         $message .= "\n";
-        
+
         @file_put_contents($logFile, $message, FILE_APPEND);
     }
 
     /**
-     * Log query execution
+     * Registra en log la ejecución de una consulta SQL
      */
     private static function logQuery(string $status, string $sql, array $params, ?string $error = null): void
     {
         $logDir = __DIR__ . '/../../storage/logs';
-        
+
         if (!is_dir($logDir)) {
             @mkdir($logDir, 0755, true);
         }
 
         $logFile = $logDir . '/database-' . date('Y-m-d') . '.log';
-        
+
         $message = sprintf(
             "[%s] Query %s: %s",
             date('Y-m-d H:i:s'),
@@ -355,7 +355,7 @@ class Database
         }
 
         $message .= "\n";
-        
+
         @file_put_contents($logFile, $message, FILE_APPEND);
     }
 }

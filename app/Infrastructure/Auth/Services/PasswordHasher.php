@@ -5,91 +5,91 @@ namespace App\Infrastructure\Auth\Services;
 use App\Infrastructure\Auth\Exceptions\AuthenticationException;
 
 /**
- * Password Hasher Service
- * 
- * Provides secure password hashing and verification using Argon2id algorithm.
- * Implements timing-attack protection and automatic hash upgrades.
- * 
- * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 2.4, 2.5, 16.1
+ * Servicio de Hash de Contraseñas
+ *
+ * Proporciona hash seguro y verificación de contraseñas usando el algoritmo Argon2id.
+ * Implementa protección contra ataques de tiempo y actualización automática de hashes.
+ *
+ * Requisitos: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 2.4, 2.5, 16.1
  */
 class PasswordHasher
 {
     /**
-     * Minimum password length
+     * Longitud mínima de contraseña
      */
     private const MIN_PASSWORD_LENGTH = 8;
-    
+
     /**
-     * Hash a password using Argon2id algorithm
-     * 
-     * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5
-     * 
-     * @param string $password Plain text password
-     * @return string Argon2id hash
-     * @throws AuthenticationException If password is invalid
+     * Genera el hash de una contraseña usando el algoritmo Argon2id
+     *
+     * Requisitos: 1.1, 1.2, 1.3, 1.4, 1.5
+     *
+     * @param string $password Contraseña en texto plano
+     * @return string Hash Argon2id
+     * @throws AuthenticationException Si la contraseña es inválida
      */
     public function hash(string $password): string
     {
-        // Requirement 1.4: Reject passwords shorter than 8 characters
+        // Requisito 1.4: Rechazar contraseñas más cortas que 8 caracteres
         if (strlen($password) < self::MIN_PASSWORD_LENGTH) {
             throw new AuthenticationException(
                 'Password must be at least ' . self::MIN_PASSWORD_LENGTH . ' characters long'
             );
         }
-        
-        // Requirement 1.1: Produce an Argon2id hash
+
+        // Requisito 1.1: Producir un hash Argon2id
         $hash = password_hash($password, PASSWORD_ARGON2ID);
-        
+
         if ($hash === false) {
             throw new AuthenticationException(
                 'Failed to hash password'
             );
         }
-        
-        // Requirement 1.2: Ensure hash starts with "$argon2id$" prefix
+
+        // Requisito 1.2: Asegurar que el hash comience con el prefijo "$argon2id$"
         if (!str_starts_with($hash, '$argon2id$')) {
             throw new AuthenticationException(
                 'Hash algorithm verification failed'
             );
         }
-        
-        // Requirement 1.3: Each hash is different due to unique salt
-        // Requirement 1.5: Original password cannot be recovered
-        
+
+        // Requisito 1.3: Cada hash es diferente debido a la sal única
+        // Requisito 1.5: La contraseña original no puede ser recuperada
+
         return $hash;
     }
-    
+
     /**
-     * Verify a password against a hash using timing-safe comparison
-     * 
-     * Requirements: 2.1, 2.2, 2.3, 2.4
-     * 
-     * @param string $password Plain text password to verify
-     * @param string $hash Password hash to verify against
-     * @return bool True if password matches, false otherwise
+     * Verifica una contraseña contra un hash usando comparación segura contra ataques de tiempo
+     *
+     * Requisitos: 2.1, 2.2, 2.3, 2.4
+     *
+     * @param string $password Contraseña en texto plano a verificar
+     * @param string $hash Hash de contraseña contra el cual verificar
+     * @return bool Verdadero si la contraseña coincide, falso en caso contrario
      */
     public function verify(string $password, string $hash): bool
     {
-        // Requirement 2.1, 2.4: Use timing-safe comparison via password_verify()
-        // password_verify() uses constant-time comparison internally
+        // Requisito 2.1, 2.4: Usar comparación segura contra ataques de tiempo mediante password_verify()
+        // password_verify() usa comparación en tiempo constante internamente
         $result = password_verify($password, $hash);
-        
-        // Requirement 2.2: Return true for correct password
-        // Requirement 2.3: Return false for incorrect password
+
+        // Requisito 2.2: Retornar verdadero para contraseña correcta
+        // Requisito 2.3: Retornar falso para contraseña incorrecta
         return $result;
     }
-    
+
     /**
-     * Check if a hash needs rehashing with current algorithm parameters
-     * 
-     * Requirements: 2.5, 16.1
-     * 
-     * @param string $hash Password hash to check
-     * @return bool True if hash needs rehashing, false otherwise
+     * Verifica si un hash necesita ser regenerado con los parámetros del algoritmo actual
+     *
+     * Requisitos: 2.5, 16.1
+     *
+     * @param string $hash Hash de contraseña a verificar
+     * @return bool Verdadero si el hash necesita regenerarse, falso en caso contrario
      */
     public function needsRehash(string $hash): bool
     {
-        // Requirement 2.5: Detect if hash uses outdated algorithm
+        // Requisito 2.5: Detectar si el hash usa un algoritmo desactualizado
         return password_needs_rehash($hash, PASSWORD_ARGON2ID);
     }
 }

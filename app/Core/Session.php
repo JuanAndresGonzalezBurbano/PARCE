@@ -3,17 +3,17 @@
 namespace App\Core;
 
 /**
- * Session Class
- * 
- * Manages PHP sessions with security best practices.
- * Supports flash messages and session regeneration.
+ * Clase de gestión de sesiones
+ *
+ * Administra las sesiones PHP aplicando buenas prácticas de seguridad.
+ * Soporta mensajes flash y regeneración de ID de sesión.
  */
 class Session
 {
     private static bool $started = false;
 
     /**
-     * Start session with secure settings
+     * Inicia la sesión con configuración segura
      */
     public static function start(): void
     {
@@ -21,11 +21,11 @@ class Session
             return;
         }
 
-        // Secure session configuration
+        // Configuración segura de la cookie de sesión
         ini_set('session.cookie_httponly', '1');
         ini_set('session.use_only_cookies', '1');
         ini_set('session.cookie_samesite', 'Lax');
-        
+
         if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
             ini_set('session.cookie_secure', '1');
         }
@@ -35,7 +35,7 @@ class Session
     }
 
     /**
-     * Set session value
+     * Almacena un valor en la sesión bajo la clave indicada
      */
     public static function set(string $key, mixed $value): void
     {
@@ -44,7 +44,7 @@ class Session
     }
 
     /**
-     * Get session value
+     * Obtiene el valor asociado a una clave de la sesión
      */
     public static function get(string $key, mixed $default = null): mixed
     {
@@ -53,7 +53,7 @@ class Session
     }
 
     /**
-     * Check if session key exists
+     * Indica si una clave existe en la sesión activa
      */
     public static function has(string $key): bool
     {
@@ -62,7 +62,7 @@ class Session
     }
 
     /**
-     * Remove session key
+     * Elimina una clave de la sesión
      */
     public static function remove(string $key): void
     {
@@ -71,7 +71,7 @@ class Session
     }
 
     /**
-     * Clear all session data
+     * Limpia todos los datos de la sesión activa
      */
     public static function clear(): void
     {
@@ -80,13 +80,13 @@ class Session
     }
 
     /**
-     * Destroy session completely
+     * Destruye completamente la sesión activa y su cookie
      */
     public static function destroy(): void
     {
         self::start();
         $_SESSION = [];
-        
+
         if (ini_get('session.use_cookies')) {
             $params = session_get_cookie_params();
             setcookie(
@@ -99,14 +99,14 @@ class Session
                 $params['httponly']
             );
         }
-        
+
         session_destroy();
         self::$started = false;
     }
 
 
     /**
-     * Regenerate session ID (security best practice)
+     * Regenera el ID de sesión como medida de seguridad (previene fijación de sesión)
      */
     public static function regenerate(): void
     {
@@ -115,7 +115,7 @@ class Session
     }
 
     /**
-     * Set flash message (available for next request only)
+     * Almacena un mensaje flash disponible únicamente durante la siguiente petición
      */
     public static function flash(string $key, mixed $value): void
     {
@@ -124,7 +124,7 @@ class Session
     }
 
     /**
-     * Get flash message and remove it
+     * Obtiene y elimina un mensaje flash de la sesión
      */
     public static function getFlash(string $key, mixed $default = null): mixed
     {
@@ -135,7 +135,7 @@ class Session
     }
 
     /**
-     * Check if flash message exists
+     * Indica si existe un mensaje flash para la clave indicada
      */
     public static function hasFlash(string $key): bool
     {
@@ -144,7 +144,7 @@ class Session
     }
 
     /**
-     * Get all session data
+     * Retorna todos los datos almacenados en la sesión activa
      */
     public static function all(): array
     {
@@ -153,7 +153,7 @@ class Session
     }
 
     /**
-     * Get session ID
+     * Retorna el identificador único de la sesión activa
      */
     public static function id(): string
     {

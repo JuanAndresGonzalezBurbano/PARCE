@@ -8,12 +8,12 @@ use App\Infrastructure\Auth\Services\RoleValidator;
 use App\Infrastructure\Http\ResponseFormatter;
 
 /**
- * RBAC Middleware
- * 
- * Enforces role-based access control for protected routes.
- * Checks if authenticated user has at least one of the required roles.
- * 
- * Requirements: Design Component 3 (RBACMiddleware)
+ * Middleware RBAC (Control de Acceso Basado en Roles)
+ *
+ * Aplica control de acceso basado en roles para rutas protegidas.
+ * Verifica que el usuario autenticado tenga al menos uno de los roles requeridos.
+ *
+ * Requisitos: Componente de Diseño 3 (RBACMiddleware)
  */
 class RBACMiddleware
 {
@@ -21,9 +21,9 @@ class RBACMiddleware
     private array $allowedRoles;
 
     /**
-     * Create RBAC middleware instance
-     * 
-     * @param array $allowedRoles Array of role slugs that are allowed to access the route
+     * Crea una instancia del middleware RBAC
+     *
+     * @param array $allowedRoles Arreglo de slugs de roles con permiso para acceder a la ruta
      */
     public function __construct(array $allowedRoles)
     {
@@ -32,56 +32,45 @@ class RBACMiddleware
     }
 
     /**
-     * Handle incoming request
-     * 
-     * Requirements: Design Component 3
-     * 
-     * @param Request $request HTTP request object
-     * @param callable $next Next middleware/controller in chain
-     * @return Response HTTP response
+     * Procesa la solicitud entrante
+     *
+     * Requisitos: Componente de Diseño 3
+     *
+     * @param Request $request Objeto de solicitud HTTP
+     * @param callable $next Siguiente middleware/controlador en la cadena
+     * @return Response Respuesta HTTP
      */
     public function handle(Request $request, callable $next): Response
     {
-        // Retrieve authenticated user from request attributes (set by AuthMiddleware)
+        // Obtener el usuario autenticado desde los atributos de la solicitud (asignado por AuthMiddleware)
         $user = $request->getAttribute('user');
 
-        // Return 401 if user not attached (AuthMiddleware should have run first)
+        // Retornar 401 si el usuario no está adjunto (AuthMiddleware debe haber ejecutado primero)
         if ($user === null) {
             return ResponseFormatter::unauthorized('Authentication required');
         }
 
         $userId = (int)$user['id'];
 
-        // Fetch user's active roles via RoleValidator
+        // Obtener los roles activos del usuario mediante RoleValidator
         $userRoles = $this->roleValidator->getUserRoles($userId);
 
-        // Check if user has at least one of the required roles
+        // Verificar si el usuario tiene al menos uno de los roles requeridos
         $hasRequiredRole = $this->roleValidator->hasAnyRole($userId, $this->allowedRoles);
 
-        // Return 403 Forbidden if user lacks required role
+        // Retornar 403 Forbidden si el usuario no tiene el rol requerido
         if (!$hasRequiredRole) {
-            $response = new Response();
-            $response->setHeader('Content-Type', 'application/json; charset=utf-8');
-            $response->setHeader('X-API-Version', '1.0.0');
-            
-            return $response->json([
-                'success' => false,
-                'error' => 'Insufficient permissions',
-                'details' => [
-                    'requiredRoles' => $this->allowedRoles,
-                    'userRoles' => $userRoles
-                ]
-            ], 403);
+            return ResponseFormatter::forbidden('Permisos insuficientes para acceder a este recurso');
         }
 
-        // Allow request to proceed if user has required role
+        // Permitir que la solicitud continúe si el usuario tiene el rol requerido
         return $next($request);
     }
 
     /**
-     * Get allowed roles for this middleware instance
-     * 
-     * @return array Array of allowed role slugs
+     * Obtiene los roles permitidos para esta instancia del middleware
+     *
+     * @return array Arreglo de slugs de roles permitidos
      */
     public function getAllowedRoles(): array
     {

@@ -5,25 +5,25 @@ namespace App\Infrastructure\Auth\DTO;
 use InvalidArgumentException;
 
 /**
- * Authentication Result DTO
- * 
- * Immutable data transfer object representing the result of an authentication attempt.
- * Contains success status, user/session identifiers, and error information.
- * 
- * Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 25.1
+ * DTO de Resultado de Autenticación
+ *
+ * Objeto de transferencia de datos inmutable que representa el resultado de un intento de autenticación.
+ * Contiene el estado de éxito, identificadores de usuario/sesión e información de errores.
+ *
+ * Requisitos: 10.1, 10.2, 10.3, 10.4, 10.5, 25.1
  */
 readonly class AuthResult
 {
     /**
-     * Create a new authentication result
-     * 
-     * @param bool $success Whether authentication succeeded
-     * @param int|null $userId User ID (required if success=true)
-     * @param string|null $sessionId Session ID (required if success=true)
-     * @param string|null $message Result message (required if success=false)
-     * @param array|null $errors Optional validation errors
-     * 
-     * @throws InvalidArgumentException If validation fails
+     * Crea un nuevo resultado de autenticación
+     *
+     * @param bool $success Indica si la autenticación fue exitosa
+     * @param int|null $userId ID del usuario (requerido si success=true)
+     * @param string|null $sessionId ID de sesión (requerido si success=true)
+     * @param string|null $message Mensaje del resultado (requerido si success=false)
+     * @param array|null $errors Errores de validación opcionales
+     *
+     * @throws InvalidArgumentException Si la validación falla
      */
     public function __construct(
         public bool $success,
@@ -32,26 +32,26 @@ readonly class AuthResult
         public ?string $message,
         public ?array $errors = null
     ) {
-        // Requirement 10.3: If success is true, userId and sessionId must not be null
+        // Requisito 10.3: Si success es verdadero, userId y sessionId no deben ser nulos
         if ($this->success && ($this->userId === null || $this->sessionId === null)) {
             throw new InvalidArgumentException(
                 'userId and sessionId are required when success is true'
             );
         }
-        
-        // Requirement 10.4: If success is false, message must be provided
+
+        // Requisito 10.4: Si success es falso, se debe proporcionar un mensaje
         if (!$this->success && empty($this->message)) {
             throw new InvalidArgumentException(
                 'message is required when success is false'
             );
         }
     }
-    
+
     /**
-     * Create a successful authentication result
-     * 
-     * @param int $userId User ID
-     * @param string $sessionId Session ID
+     * Crea un resultado de autenticación exitoso
+     *
+     * @param int $userId ID del usuario
+     * @param string $sessionId ID de sesión
      * @return self
      */
     public static function success(int $userId, string $sessionId): self
@@ -63,12 +63,12 @@ readonly class AuthResult
             message: 'Authentication successful'
         );
     }
-    
+
     /**
-     * Create a failed authentication result
-     * 
-     * @param string $message Error message
-     * @param array|null $errors Optional validation errors
+     * Crea un resultado de autenticación fallido
+     *
+     * @param string $message Mensaje de error
+     * @param array|null $errors Errores de validación opcionales
      * @return self
      */
     public static function failure(string $message, ?array $errors = null): self

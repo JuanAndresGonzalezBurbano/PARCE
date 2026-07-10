@@ -11,12 +11,13 @@ use App\Infrastructure\Http\ResponseFormatter;
 use App\Infrastructure\Http\IPValidator;
 
 /**
- * Authentication Middleware
- * 
- * Validates session authentication for protected routes by extracting session cookie,
- * validating session via SessionManager, fetching user data, and attaching to request.
- * 
- * Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7
+ * Middleware de Autenticación
+ *
+ * Valida la autenticación de sesión para rutas protegidas extrayendo la cookie de sesión,
+ * validando la sesión mediante SessionManager, obteniendo los datos del usuario y
+ * adjuntándolos a la solicitud.
+ *
+ * Requisitos: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7
  */
 class AuthMiddleware
 {
@@ -30,55 +31,55 @@ class AuthMiddleware
     }
 
     /**
-     * Handle incoming request
-     * 
-     * Validates authentication and implements automatic session regeneration
-     * for session fixation protection.
-     * 
-     * Requirements: 10.1-10.7
-     * 
-     * @param Request $request HTTP request object
-     * @param callable $next Next middleware/controller in chain
-     * @return Response HTTP response
+     * Procesa la solicitud entrante
+     *
+     * Valida la autenticación e implementa la regeneración automática de sesión
+     * para protección contra fijación de sesión.
+     *
+     * Requisitos: 10.1-10.7
+     *
+     * @param Request $request Objeto de solicitud HTTP
+     * @param callable $next Siguiente middleware/controlador en la cadena
+     * @return Response Respuesta HTTP
      */
     public function handle(Request $request, callable $next): Response
     {
-        // Requirement 10.1: Extract session ID from cookie
+        // Requisito 10.1: Extraer el ID de sesión desde la cookie
         $sessionId = $request->cookie(ResponseFormatter::getSessionCookieName());
 
-        // Requirement 10.2: Return 401 if no session cookie present
+        // Requisito 10.2: Retornar 401 si no hay cookie de sesión presente
         if ($sessionId === null || empty($sessionId)) {
             return ResponseFormatter::unauthorized('Authentication required');
         }
 
-        // Requirement 10.3, 20.7: Validate session via SessionManager with IP change detection
+        // Requisito 10.3, 20.7: Validar sesión mediante SessionManager con detección de cambio de IP
         $currentIP = IPValidator::getClientIP($request);
         $sessionData = $this->sessionManager->validate($sessionId, $currentIP);
 
-        // Requirement 10.4: Return 401 if session invalid
+        // Requisito 10.4: Retornar 401 si la sesión es inválida
         if ($sessionData === null) {
             return ResponseFormatter::unauthorized('Invalid or expired session');
         }
 
-        // Check if session should be regenerated for security (anti-fixation)
+        // Verificar si la sesión debe regenerarse por seguridad (anti-fijación)
         $shouldRegenerate = $this->sessionManager->shouldRegenerate($sessionId);
-        
+
         if ($shouldRegenerate) {
-            // Regenerate session ID
+            // Regenerar el ID de sesión
             $newSessionId = $this->sessionManager->regenerate($sessionId);
-            
+
             if (!empty($newSessionId)) {
-                // Update session ID in request context
+                // Actualizar el ID de sesión en el contexto de la solicitud
                 $sessionId = $newSessionId;
-                
-                // Note: We'll set the new cookie in the response after calling $next()
-                // Store flag for response modification
+
+                // Nota: la nueva cookie se establecerá en la respuesta después de llamar a $next()
+                // Almacenar indicador para la modificación de la respuesta
                 $request->setAttribute('session_regenerated', true);
                 $request->setAttribute('new_session_id', $newSessionId);
             }
         }
 
-        // Requirement 10.5: Fetch user data from database
+        // Requisito 10.5: Obtener los datos del usuario desde la base de datos
         try {
             $user = Database::fetchOne(
                 'SELECT id, email, first_name, last_name, account_status, last_login_at, created_at
@@ -87,71 +88,71 @@ class AuthMiddleware
                 [$sessionData->userId]
             );
 
-            // Return 401 if user not found or deleted
+            // Retornar 401 si el usuario no existe o fue eliminado
             if ($user === null) {
                 return ResponseFormatter::unauthorized('User not found');
             }
 
-            // Check if account is active
+            // Verificar si la cuenta está activa
             if ($user['account_status'] !== 'active') {
                 return ResponseFormatter::forbidden('Account is not active');
             }
 
-            // Requirement 10.5, 10.6: Attach SessionData and user data to request
+            // Requisito 10.5, 10.6: Adjuntar SessionData y datos del usuario a la solicitud
             $request->setAttribute('session', $sessionData);
             $request->setAttribute('user', $user);
             $request->setAttribute('userId', (int)$user['id']);
 
-            // Fetch user roles and determine primary role
+            // Obtener los roles del usuario y determinar el rol principal
             $userRoles = $this->roleValidator->getUserRoles((int)$user['id']);
             $primaryRole = $this->determinePrimaryRole($userRoles);
-            
-            // Attach roles to request for RBAC and authorization
-            $request->setAttribute('userRoles', $userRoles);  // Array of all active roles
-            $request->setAttribute('userRole', $primaryRole); // Primary role for single-role decisions
 
-            // Requirement 10.7: Continue to next middleware/controller
+            // Adjuntar roles a la solicitud para RBAC y autorización
+            $request->setAttribute('userRoles', $userRoles);  // Arreglo con todos los roles activos
+            $request->setAttribute('userRole', $primaryRole); // Rol principal para decisiones de rol único
+
+            // Requisito 10.7: Continuar hacia el siguiente middleware/controlador
             $response = $next($request);
-            
-            // If session was regenerated, update the cookie in the response
+
+            // Si la sesión fue regenerada, actualizar la cookie en la respuesta
             if ($request->getAttribute('session_regenerated') === true) {
                 $newSessionId = $request->getAttribute('new_session_id');
                 ResponseFormatter::setSessionCookie($response, $newSessionId, false);
             }
-            
+
             return $response;
 
         } catch (\Exception $e) {
-            // Log error
+            // Registrar el error
             error_log("AuthMiddleware error: " . $e->getMessage());
-            
+
             return ResponseFormatter::serverError('Authentication service unavailable');
         }
     }
 
     /**
-     * Determine primary role from array of roles
-     * 
-     * Uses hierarchical priority to select the most privileged role
-     * when a user has multiple active roles.
-     * 
-     * Priority order (highest to lowest):
-     * 1. super_admin     - Full system access
-     * 2. administrator   - Admin access  
-     * 3. mechanic        - Service provider
-     * 4. customer        - Standard user
-     * 5. support         - Read-only
-     * 
-     * @param array $roles Array of role slugs
-     * @return string Primary role slug (defaults to 'customer' if no roles)
+     * Determina el rol principal a partir de un arreglo de roles
+     *
+     * Usa prioridad jerárquica para seleccionar el rol más privilegiado
+     * cuando un usuario tiene múltiples roles activos.
+     *
+     * Orden de prioridad (de mayor a menor):
+     * 1. super_admin     - Acceso total al sistema
+     * 2. administrator   - Acceso administrativo
+     * 3. mechanic        - Proveedor de servicios
+     * 4. customer        - Usuario estándar
+     * 5. support         - Solo lectura
+     *
+     * @param array $roles Arreglo de slugs de roles
+     * @return string Slug del rol principal (por defecto 'customer' si no hay roles)
      */
     private function determinePrimaryRole(array $roles): string
     {
         if (empty($roles)) {
-            return 'customer'; // Default to customer if no roles assigned
+            return 'customer'; // Por defecto 'customer' si no se han asignado roles
         }
 
-        // Role priority (ordered from highest to lowest privilege)
+        // Prioridad de roles (ordenada de mayor a menor privilegio)
         $rolePriority = [
             'super_admin',
             'administrator',
@@ -160,14 +161,14 @@ class AuthMiddleware
             'support'
         ];
 
-        // Return the first role found in priority order
+        // Retornar el primer rol encontrado en orden de prioridad
         foreach ($rolePriority as $role) {
             if (in_array($role, $roles, true)) {
                 return $role;
             }
         }
 
-        // If no recognized role, return the first role alphabetically
+        // Si no se reconoce ningún rol, retornar el primero alfabéticamente
         return $roles[0];
     }
 }

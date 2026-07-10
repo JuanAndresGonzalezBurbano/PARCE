@@ -3,10 +3,10 @@
 namespace App\Core;
 
 /**
- * Base Model Class
- * 
- * Provides common database operations for models.
- * Implements Active Record pattern with query builder support.
+ * Clase base para los modelos de datos
+ *
+ * Provee operaciones comunes de base de datos para todos los modelos.
+ * Implementa el patrón Active Record con soporte de constructor de consultas.
  */
 abstract class Model
 {
@@ -17,31 +17,31 @@ abstract class Model
     protected array $attributes = [];
 
     /**
-     * Find record by ID
+     * Busca un registro por su ID y lo retorna como instancia del modelo
      */
     public static function find(int $id): ?static
     {
         $instance = new static();
         $sql = "SELECT * FROM {$instance->table} WHERE {$instance->primaryKey} = ? LIMIT 1";
         $result = Database::fetchOne($sql, [$id]);
-        
+
         if ($result) {
             $instance->attributes = $result;
             return $instance;
         }
-        
+
         return null;
     }
 
     /**
-     * Find all records
+     * Retorna todos los registros de la tabla como arreglo de instancias del modelo
      */
     public static function all(): array
     {
         $instance = new static();
         $sql = "SELECT * FROM {$instance->table}";
         $results = Database::fetchAll($sql);
-        
+
         return array_map(function($row) {
             $model = new static();
             $model->attributes = $row;
@@ -50,14 +50,14 @@ abstract class Model
     }
 
     /**
-     * Find records by condition
+     * Busca registros que coincidan con una condición de igualdad en una columna
      */
     public static function where(string $column, mixed $value): array
     {
         $instance = new static();
         $sql = "SELECT * FROM {$instance->table} WHERE {$column} = ?";
         $results = Database::fetchAll($sql, [$value]);
-        
+
         return array_map(function($row) {
             $model = new static();
             $model->attributes = $row;
@@ -66,45 +66,45 @@ abstract class Model
     }
 
     /**
-     * Find first record by condition
+     * Retorna el primer registro que coincida con la condición indicada
      */
     public static function firstWhere(string $column, mixed $value): ?static
     {
         $instance = new static();
         $sql = "SELECT * FROM {$instance->table} WHERE {$column} = ? LIMIT 1";
         $result = Database::fetchOne($sql, [$value]);
-        
+
         if ($result) {
             $instance->attributes = $result;
             return $instance;
         }
-        
+
         return null;
     }
 
 
     /**
-     * Create new record
+     * Crea un nuevo registro con los datos proporcionados y retorna la instancia creada
      */
     public static function create(array $data): static
     {
         $instance = new static();
         $fillable = array_intersect_key($data, array_flip($instance->fillable));
-        
+
         $id = Database::insert($instance->table, $fillable);
-        
+
         return static::find($id);
     }
 
     /**
-     * Save current model
+     * Guarda el estado actual del modelo (inserta o actualiza según corresponda)
      */
     public function save(): bool
     {
         $data = array_intersect_key($this->attributes, array_flip($this->fillable));
-        
+
         if (isset($this->attributes[$this->primaryKey])) {
-            // Update existing record
+            // Actualizar registro existente
             $id = $this->attributes[$this->primaryKey];
             $rowCount = Database::update(
                 $this->table,
@@ -114,7 +114,7 @@ abstract class Model
             );
             return $rowCount > 0;
         } else {
-            // Insert new record
+            // Insertar nuevo registro
             $id = Database::insert($this->table, $data);
             $this->attributes[$this->primaryKey] = $id;
             return true;
@@ -122,26 +122,26 @@ abstract class Model
     }
 
     /**
-     * Delete current model
+     * Elimina el registro actual de la base de datos
      */
     public function delete(): bool
     {
         if (!isset($this->attributes[$this->primaryKey])) {
             return false;
         }
-        
+
         $id = $this->attributes[$this->primaryKey];
         $rowCount = Database::delete(
             $this->table,
             "{$this->primaryKey} = ?",
             [$id]
         );
-        
+
         return $rowCount > 0;
     }
 
     /**
-     * Get attribute value
+     * Obtiene el valor de un atributo dinámicamente
      */
     public function __get(string $name): mixed
     {
@@ -149,7 +149,7 @@ abstract class Model
     }
 
     /**
-     * Set attribute value
+     * Asigna el valor de un atributo dinámicamente
      */
     public function __set(string $name, mixed $value): void
     {
@@ -157,7 +157,7 @@ abstract class Model
     }
 
     /**
-     * Check if attribute exists
+     * Verifica si un atributo existe en el modelo
      */
     public function __isset(string $name): bool
     {
@@ -165,22 +165,22 @@ abstract class Model
     }
 
     /**
-     * Convert model to array
+     * Convierte el modelo a un arreglo, excluyendo los atributos ocultos
      */
     public function toArray(): array
     {
         $data = $this->attributes;
-        
-        // Remove hidden attributes
+
+        // Eliminar atributos marcados como ocultos
         foreach ($this->hidden as $key) {
             unset($data[$key]);
         }
-        
+
         return $data;
     }
 
     /**
-     * Convert model to JSON
+     * Convierte el modelo a una cadena JSON
      */
     public function toJson(): string
     {

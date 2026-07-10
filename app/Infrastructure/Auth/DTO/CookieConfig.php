@@ -5,27 +5,27 @@ namespace App\Infrastructure\Auth\DTO;
 use InvalidArgumentException;
 
 /**
- * Cookie Configuration DTO
- * 
- * Immutable data transfer object defining secure cookie parameters for session management.
- * Enforces security best practices including HttpOnly, Secure, and SameSite flags.
- * 
- * Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 25.3
+ * DTO de Configuración de Cookie
+ *
+ * Objeto de transferencia de datos inmutable que define los parámetros seguros de las cookies para la gestión de sesiones.
+ * Aplica las mejores prácticas de seguridad incluyendo los indicadores HttpOnly, Secure y SameSite.
+ *
+ * Requisitos: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 25.3
  */
 readonly class CookieConfig
 {
     /**
-     * Create a new cookie configuration
-     * 
-     * @param string $name Cookie name
-     * @param int $lifetime Cookie lifetime in seconds
-     * @param string $path Cookie path
-     * @param string $domain Cookie domain
-     * @param bool $secure Secure flag (HTTPS only)
-     * @param bool $httpOnly HttpOnly flag (prevents JavaScript access)
-     * @param string $sameSite SameSite policy ('Strict', 'Lax', or 'None')
-     * 
-     * @throws InvalidArgumentException If validation fails
+     * Crea una nueva configuración de cookie
+     *
+     * @param string $name Nombre de la cookie
+     * @param int $lifetime Tiempo de vida de la cookie en segundos
+     * @param string $path Ruta de la cookie
+     * @param string $domain Dominio de la cookie
+     * @param bool $secure Indicador Secure (solo HTTPS)
+     * @param bool $httpOnly Indicador HttpOnly (impide el acceso desde JavaScript)
+     * @param string $sameSite Política SameSite ('Strict', 'Lax' o 'None')
+     *
+     * @throws InvalidArgumentException Si la validación falla
      */
     public function __construct(
         public string $name,
@@ -36,66 +36,66 @@ readonly class CookieConfig
         public bool $httpOnly,
         public string $sameSite
     ) {
-        // Requirement 12.5: Path must start with '/'
+        // Requisito 12.5: La ruta debe comenzar con '/'
         if (!str_starts_with($this->path, '/')) {
             throw new InvalidArgumentException(
                 "Cookie path must start with '/'"
             );
         }
-        
-        // Requirement 12.3: SameSite must be 'Strict', 'Lax', or 'None'
+
+        // Requisito 12.3: SameSite debe ser 'Strict', 'Lax' o 'None'
         if (!in_array($this->sameSite, ['Strict', 'Lax', 'None'], true)) {
             throw new InvalidArgumentException(
                 "SameSite must be 'Strict', 'Lax', or 'None'"
             );
         }
-        
-        // Validate lifetime is positive
+
+        // Validar que el tiempo de vida sea positivo
         if ($this->lifetime <= 0) {
             throw new InvalidArgumentException(
                 'Cookie lifetime must be a positive integer'
             );
         }
-        
-        // Validate name is not empty
+
+        // Validar que el nombre no esté vacío
         if (empty($this->name)) {
             throw new InvalidArgumentException(
                 'Cookie name cannot be empty'
             );
         }
     }
-    
+
     /**
-     * Create a secure cookie configuration with recommended defaults
-     * 
-     * Requirements: 12.1, 12.2, 12.3, 12.4, 12.6
-     * 
+     * Crea una configuración de cookie segura con los valores predeterminados recomendados
+     *
+     * Requisitos: 12.1, 12.2, 12.3, 12.4, 12.6
+     *
      * @return self
      */
     public static function secure(): self
     {
         return new self(
             name: 'parce_session',
-            lifetime: 7200, // 2 hours (Requirement 12.4)
+            lifetime: 7200, // 2 horas (Requisito 12.4)
             path: '/',
             domain: '',
-            secure: true, // Requirement 12.2
-            httpOnly: true, // Requirement 12.1
-            sameSite: 'Lax' // Requirement 12.3
+            secure: true, // Requisito 12.2
+            httpOnly: true, // Requisito 12.1
+            sameSite: 'Lax' // Requisito 12.3
         );
     }
-    
+
     /**
-     * Create cookie configuration from environment variables
-     * 
-     * Loads configuration from .env with production-safe defaults.
-     * Auto-detects HTTPS when SESSION_COOKIE_SECURE=auto.
-     * 
+     * Crea la configuración de cookie desde las variables de entorno
+     *
+     * Carga la configuración desde .env con valores predeterminados seguros para producción.
+     * Detecta automáticamente HTTPS cuando SESSION_COOKIE_SECURE=auto.
+     *
      * @return self
      */
     public static function fromEnv(): self
     {
-        // Auto-detect secure flag based on HTTPS
+        // Detectar automáticamente el indicador secure basándose en HTTPS
         $secureConfig = $_ENV['SESSION_COOKIE_SECURE'] ?? 'auto';
         $secure = match (strtolower($secureConfig)) {
             'true', '1', 'yes' => true,
@@ -103,11 +103,11 @@ readonly class CookieConfig
             'auto' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on',
             default => false
         };
-        
-        // Parse HttpOnly flag
+
+        // Analizar el indicador HttpOnly
         $httpOnlyConfig = $_ENV['SESSION_COOKIE_HTTPONLY'] ?? 'true';
         $httpOnly = in_array(strtolower($httpOnlyConfig), ['true', '1', 'yes'], true);
-        
+
         return new self(
             name: $_ENV['SESSION_COOKIE_NAME'] ?? 'parce_session',
             lifetime: (int)($_ENV['SESSION_LIFETIME'] ?? 7200),

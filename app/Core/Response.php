@@ -3,10 +3,10 @@
 namespace App\Core;
 
 /**
- * Response Class
- * 
- * Handles HTTP responses for both web views and API JSON responses.
- * Supports status codes, headers, cookies, and content types.
+ * Clase de respuesta HTTP
+ *
+ * Gestiona las respuestas HTTP tanto para vistas web como para respuestas JSON de la API.
+ * Soporta códigos de estado, encabezados, cookies y tipos de contenido.
  */
 class Response
 {
@@ -16,7 +16,7 @@ class Response
     private mixed $content = null;
 
     /**
-     * Set HTTP status code
+     * Establece el código de estado HTTP de la respuesta
      */
     public function setStatusCode(int $code): self
     {
@@ -25,7 +25,7 @@ class Response
     }
 
     /**
-     * Get HTTP status code
+     * Retorna el código de estado HTTP actual de la respuesta
      */
     public function getStatusCode(): int
     {
@@ -33,7 +33,7 @@ class Response
     }
 
     /**
-     * Set response header
+     * Establece un encabezado HTTP en la respuesta
      */
     public function setHeader(string $name, string $value): self
     {
@@ -42,7 +42,7 @@ class Response
     }
 
     /**
-     * Set multiple headers
+     * Establece múltiples encabezados HTTP de una sola vez
      */
     public function setHeaders(array $headers): self
     {
@@ -53,7 +53,7 @@ class Response
     }
 
     /**
-     * Set cookie
+     * Agrega una cookie a la respuesta
      */
     public function setCookie(
         string $name,
@@ -77,7 +77,7 @@ class Response
     }
 
     /**
-     * Set response content
+     * Establece el contenido del cuerpo de la respuesta
      */
     public function setContent(mixed $content): self
     {
@@ -87,7 +87,7 @@ class Response
 
 
     /**
-     * Send JSON response
+     * Configura la respuesta como JSON con el código de estado indicado
      */
     public function json(array $data, int $statusCode = 200): self
     {
@@ -98,7 +98,7 @@ class Response
     }
 
     /**
-     * Send HTML response
+     * Configura la respuesta como HTML con el código de estado indicado
      */
     public function html(string $html, int $statusCode = 200): self
     {
@@ -109,12 +109,12 @@ class Response
     }
 
     /**
-     * Render view template
+     * Renderiza una plantilla de vista y la establece como contenido HTML de la respuesta
      */
     public function view(string $view, array $data = [], int $statusCode = 200): self
     {
         $viewPath = __DIR__ . '/../../app/Views/' . str_replace('.', '/', $view) . '.php';
-        
+
         if (!file_exists($viewPath)) {
             throw new \Exception("View not found: {$view}");
         }
@@ -128,7 +128,7 @@ class Response
     }
 
     /**
-     * Redirect to URL
+     * Configura la respuesta como una redirección a la URL indicada
      */
     public function redirect(string $url, int $statusCode = 302): self
     {
@@ -138,19 +138,19 @@ class Response
     }
 
     /**
-     * Send the response
+     * Envía la respuesta al cliente: código de estado, encabezados, cookies y contenido
      */
     public function send(): void
     {
-        // Set status code
+        // Establecer el código de estado HTTP
         http_response_code($this->statusCode);
 
-        // Send headers
+        // Enviar encabezados HTTP
         foreach ($this->headers as $name => $value) {
             header("{$name}: {$value}");
         }
 
-        // Send cookies
+        // Enviar cookies
         foreach ($this->cookies as $cookie) {
             setcookie(
                 $cookie['name'],
@@ -163,14 +163,14 @@ class Response
             );
         }
 
-        // Send content
+        // Enviar el contenido de la respuesta
         if ($this->content !== null) {
             echo $this->content;
         }
     }
 
     /**
-     * Create success JSON response
+     * Crea y retorna una respuesta JSON de éxito estandarizada
      */
     public static function success(mixed $data = null, string $message = 'Success', int $statusCode = 200): self
     {
@@ -183,7 +183,7 @@ class Response
     }
 
     /**
-     * Create error JSON response
+     * Crea y retorna una respuesta JSON de error estandarizada
      */
     public static function error(string $message, mixed $errors = null, int $statusCode = 400): self
     {

@@ -3,10 +3,10 @@
 namespace App\Core;
 
 /**
- * Application Class
- * 
- * Main application bootstrap and lifecycle management.
- * Handles configuration loading, error handling, and request dispatching.
+ * Clase principal de la aplicación
+ *
+ * Gestiona el arranque y el ciclo de vida de la aplicación PARCE.
+ * Se encarga de cargar la configuración, manejar errores y despachar peticiones.
  */
 class App
 {
@@ -24,39 +24,39 @@ class App
     }
 
     /**
-     * Load environment variables from .env file
+     * Carga las variables de entorno desde el archivo .env
      */
     private function loadEnvironment(): void
     {
         $envFile = __DIR__ . '/../../.env';
-        
+
         if (!file_exists($envFile)) {
-            // Check if we're in production - .env is required
+            // Verificar si estamos en producción — el .env es obligatorio
             if (getenv('APP_ENV') === 'production') {
                 throw new \RuntimeException('.env file not found. This is required in production.');
             }
-            // In development, warn but continue with defaults
-            error_log('WARNING: .env file not found. Using default configuration.');
+            // En desarrollo, se advierte pero se continúa con los valores por defecto
+            error_log('ADVERTENCIA: Archivo .env no encontrado. Se usará la configuración por defecto.');
             return;
         }
 
         $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-        
+
         foreach ($lines as $line) {
-            // Skip comments
+            // Omitir líneas de comentario
             if (strpos(trim($line), '#') === 0) {
                 continue;
             }
 
-            // Parse KEY=VALUE
+            // Parsear pares CLAVE=VALOR
             if (strpos($line, '=') !== false) {
                 [$key, $value] = explode('=', $line, 2);
                 $key = trim($key);
                 $value = trim($value);
-                
-                // Remove quotes
+
+                // Eliminar comillas del valor
                 $value = trim($value, '"\'');
-                
+
                 $_ENV[$key] = $value;
                 putenv("{$key}={$value}");
             }
@@ -64,7 +64,7 @@ class App
     }
 
     /**
-     * Load configuration files
+     * Carga los archivos de configuración de la aplicación
      */
     private function loadConfiguration(): void
     {
@@ -90,53 +90,53 @@ class App
             ],
         ];
 
-        // Validate configuration
+        // Validar la configuración cargada
         $validator = new ConfigValidator();
         if (!$validator->validate($this->config)) {
             $errorMessage = $validator->getErrorMessage();
-            
+
             if ($this->config['app']['debug']) {
                 throw new \RuntimeException($errorMessage);
             } else {
-                // Log errors and continue with warnings in production
+                // Registrar errores y continuar con advertencias en producción
                 error_log($errorMessage);
             }
         }
 
-        // Log warnings even if validation passed
+        // Registrar advertencias aunque la validación haya pasado
         $warnings = $validator->getWarnings();
         if (!empty($warnings)) {
             foreach ($warnings as $warning) {
-                error_log("CONFIG WARNING: {$warning}");
+                error_log("ADVERTENCIA DE CONFIG: {$warning}");
             }
         }
     }
 
 
     /**
-     * Setup global error and exception handling
+     * Configura el manejo global de errores y excepciones
      */
     private function setupErrorHandling(): void
     {
         error_reporting(E_ALL);
-        
+
         if ($this->config['app']['debug']) {
             ini_set('display_errors', '1');
         } else {
             ini_set('display_errors', '0');
         }
 
-        // Exception handler
+        // Manejador de excepciones no capturadas
         set_exception_handler(function (\Throwable $e) {
             $this->handleException($e);
         });
 
-        // Error handler
+        // Manejador de errores — convierte errores en excepciones
         set_error_handler(function ($severity, $message, $file, $line) {
             throw new \ErrorException($message, 0, $severity, $file, $line);
         });
 
-        // Shutdown handler for fatal errors
+        // Manejador de cierre para errores fatales
         register_shutdown_function(function () {
             $error = error_get_last();
             if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
@@ -152,39 +152,74 @@ class App
     }
 
     /**
-     * Handle exceptions
+     * Maneja las excepciones no capturadas de la aplicación.
+     *
+     * Si la petición es de tipo API (Content-Type: application/json o URI bajo /api/),
+     * responde con JSON. De lo contrario, responde con HTML.
      */
     private function handleException(\Throwable $e): void
     {
-        // Log error
+        // Registrar el error en el log
         $this->logError($e);
 
-        // Send response
+        // Establecer código de respuesta HTTP 500
         http_response_code(500);
-        
-        if ($this->config['app']['debug']) {
-            // Show detailed error in debug mode
-            echo "<h1>Error</h1>";
-            echo "<p><strong>Message:</strong> " . htmlspecialchars($e->getMessage()) . "</p>";
-            echo "<p><strong>File:</strong> " . htmlspecialchars($e->getFile()) . "</p>";
-            echo "<p><strong>Line:</strong> " . $e->getLine() . "</p>";
-            echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
+
+        // Determinar si la petición es de tipo API
+        $contentType = $_SERVER['HTTP_ACCEPT'] ?? '';
+        $requestContentType = $_SERVER['CONTENT_TYPE'] ?? '';
+        $requestUri = $_SERVER['REQUEST_URI'] ?? '';
+
+        $esApiRequest = str_contains($requestContentType, 'application/json')
+            || str_contains($contentType, 'application/json')
+            || str_starts_with($requestUri, '/api/');
+
+        if ($esApiRequest) {
+            // Responder con JSON para peticiones de API
+            header('Content-Type: application/json');
+
+            $respuesta = [
+                'success' => false,
+                'error'   => 'Error interno del servidor',
+            ];
+
+            if ($this->config['app']['debug']) {
+                // Incluir información de depuración solo en modo debug
+                $respuesta['debug'] = [
+                    'mensaje'      => $e->getMessage(),
+                    'archivo'      => $e->getFile(),
+                    'linea'        => $e->getLine(),
+                    'traza'        => $e->getTraceAsString(),
+                ];
+            }
+
+            echo json_encode($respuesta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         } else {
-            // Show generic error in production
-            echo "<h1>500 Internal Server Error</h1>";
-            echo "<p>Something went wrong. Please try again later.</p>";
+            // Responder con HTML para peticiones web
+            if ($this->config['app']['debug']) {
+                // Mostrar error detallado en modo debug
+                echo "<h1>Error</h1>";
+                echo "<p><strong>Mensaje:</strong> " . htmlspecialchars($e->getMessage()) . "</p>";
+                echo "<p><strong>Archivo:</strong> " . htmlspecialchars($e->getFile()) . "</p>";
+                echo "<p><strong>Línea:</strong> " . $e->getLine() . "</p>";
+                echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
+            } else {
+                // Mostrar mensaje genérico en producción
+                echo "<h1>500 Error Interno del Servidor</h1>";
+                echo "<p>Algo salió mal. Por favor, inténtelo de nuevo más tarde.</p>";
+            }
         }
-        
+
         exit(1);
     }
 
     /**
-     * Log error to file
+     * Registra el error en el archivo de log diario
      */
     private function logError(\Throwable $e): void
     {
         $logDir = __DIR__ . '/../../storage/logs';
-        
+
         if (!is_dir($logDir)) {
             mkdir($logDir, 0755, true);
         }
@@ -199,12 +234,12 @@ class App
             $e->getLine(),
             $e->getTraceAsString()
         );
-        
+
         file_put_contents($logFile, $message, FILE_APPEND);
     }
 
     /**
-     * Setup database connection
+     * Inicializa la conexión a la base de datos con la configuración cargada
      */
     private function setupDatabase(): void
     {
@@ -212,7 +247,7 @@ class App
     }
 
     /**
-     * Start session
+     * Inicia la sesión de usuario
      */
     private function startSession(): void
     {
@@ -220,7 +255,7 @@ class App
     }
 
     /**
-     * Get environment variable
+     * Obtiene el valor de una variable de entorno con valor por defecto
      */
     private function env(string $key, mixed $default = null): mixed
     {
@@ -228,7 +263,7 @@ class App
     }
 
     /**
-     * Get router instance
+     * Retorna la instancia del enrutador
      */
     public function getRouter(): Router
     {
@@ -236,25 +271,25 @@ class App
     }
 
     /**
-     * Get configuration value
+     * Obtiene un valor de configuración usando notación de punto (ej: 'app.debug')
      */
     public function config(string $key, mixed $default = null): mixed
     {
         $keys = explode('.', $key);
         $value = $this->config;
-        
+
         foreach ($keys as $k) {
             if (!isset($value[$k])) {
                 return $default;
             }
             $value = $value[$k];
         }
-        
+
         return $value;
     }
 
     /**
-     * Run the application
+     * Ejecuta la aplicación: despacha la petición y envía la respuesta
      */
     public function run(): void
     {

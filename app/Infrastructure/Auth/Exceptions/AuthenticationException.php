@@ -5,19 +5,19 @@ namespace App\Infrastructure\Auth\Exceptions;
 use Exception;
 
 /**
- * Authentication Exception
- * 
- * Thrown when authentication operations fail due to invalid credentials,
- * validation errors, or security violations.
+ * Excepción de Autenticación
+ *
+ * Se lanza cuando las operaciones de autenticación fallan debido a credenciales inválidas,
+ * errores de validación o violaciones de seguridad.
  */
 class AuthenticationException extends Exception
 {
     /**
-     * Create a new authentication exception
-     * 
-     * @param string $message Error message
-     * @param int $code Error code (default: 0)
-     * @param Exception|null $previous Previous exception for chaining
+     * Crea una nueva excepción de autenticación
+     *
+     * @param string $message Mensaje de error
+     * @param int $code Código de error (predeterminado: 0)
+     * @param Exception|null $previous Excepción anterior para encadenamiento
      */
     public function __construct(
         string $message = "",

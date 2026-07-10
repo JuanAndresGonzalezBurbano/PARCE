@@ -6,49 +6,49 @@ use App\Core\Request;
 use App\Core\Response;
 
 /**
- * Request Logger Middleware
- * 
- * Logs all HTTP requests with structured JSON format including:
- * - Request metadata (timestamp, ID, method, path)
- * - Response metadata (status code, execution time)
- * - Client information (IP, user agent)
- * 
- * Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7
+ * Middleware de Registro de Solicitudes
+ *
+ * Registra todas las solicitudes HTTP en formato JSON estructurado, incluyendo:
+ * - Metadatos de la solicitud (marca de tiempo, ID, método, ruta)
+ * - Metadatos de la respuesta (código de estado, tiempo de ejecución)
+ * - Información del cliente (IP, agente de usuario)
+ *
+ * Requisitos: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7
  */
 class RequestLoggerMiddleware
 {
     /**
-     * Log file path
+     * Ruta del archivo de registro
      */
     private const LOG_FILE = __DIR__ . '/../../storage/logs/requests.log';
 
     /**
-     * Handle incoming request
-     * 
-     * Requirements: 13.1, 13.2, 13.3, 13.4, 13.5
-     * 
-     * @param Request $request HTTP request object
-     * @param callable $next Next middleware/controller in chain
-     * @return Response HTTP response
+     * Procesa la solicitud entrante
+     *
+     * Requisitos: 13.1, 13.2, 13.3, 13.4, 13.5
+     *
+     * @param Request $request Objeto de solicitud HTTP
+     * @param callable $next Siguiente middleware/controlador en la cadena
+     * @return Response Respuesta HTTP
      */
     public function handle(Request $request, callable $next): Response
     {
-        // Requirement 13.1: Generate unique request ID
+        // Requisito 13.1: Generar un ID único de solicitud
         $requestId = $this->generateRequestId();
-        
-        // Requirement 13.2: Record start time for duration calculation
+
+        // Requisito 13.2: Registrar el tiempo de inicio para calcular la duración
         $startTime = microtime(true);
-        
-        // Requirement 13.1: Capture request timestamp
+
+        // Requisito 13.1: Capturar la marca de tiempo de la solicitud
         $timestamp = date('Y-m-d H:i:s');
-        
-        // Execute request through middleware chain
+
+        // Ejecutar la solicitud a través de la cadena de middlewares
         $response = $next($request);
-        
-        // Requirement 13.2: Calculate execution time in milliseconds
+
+        // Requisito 13.2: Calcular el tiempo de ejecución en milisegundos
         $durationMs = round((microtime(true) - $startTime) * 1000, 2);
-        
-        // Requirement 13.3, 13.4, 13.5: Build log entry
+
+        // Requisitos 13.3, 13.4, 13.5: Construir la entrada de registro
         $logEntry = [
             'timestamp' => $timestamp,
             'requestId' => $requestId,
@@ -59,22 +59,22 @@ class RequestLoggerMiddleware
             'ip' => $this->getClientIp($request),
             'userAgent' => $request->userAgent()
         ];
-        
-        // Requirement 13.6: Filter sensitive data (passwords, tokens, session IDs)
-        // Note: We don't log request body or headers to avoid logging sensitive data
-        
-        // Requirement 13.7: Write log entry
+
+        // Requisito 13.6: Filtrar datos sensibles (contraseñas, tokens, IDs de sesión)
+        // Nota: No se registra el cuerpo ni las cabeceras de la solicitud para evitar datos sensibles
+
+        // Requisito 13.7: Escribir la entrada de registro
         $this->writeLog($logEntry);
-        
+
         return $response;
     }
 
     /**
-     * Generate unique request ID
-     * 
-     * Requirement 13.1
-     * 
-     * @return string Unique request identifier
+     * Genera un ID único de solicitud
+     *
+     * Requisito 13.1
+     *
+     * @return string Identificador único de solicitud
      */
     private function generateRequestId(): string
     {
@@ -82,65 +82,65 @@ class RequestLoggerMiddleware
     }
 
     /**
-     * Get client IP address
-     * 
-     * Handles X-Forwarded-For header for proxied requests
-     * 
-     * Requirement 13.5
-     * 
-     * @param Request $request HTTP request
-     * @return string Client IP address
+     * Obtiene la dirección IP del cliente
+     *
+     * Gestiona la cabecera X-Forwarded-For para solicitudes mediante proxy
+     *
+     * Requisito 13.5
+     *
+     * @param Request $request Solicitud HTTP
+     * @return string Dirección IP del cliente
      */
     private function getClientIp(Request $request): string
     {
-        // Check X-Forwarded-For header (for proxied requests)
+        // Verificar la cabecera X-Forwarded-For (para solicitudes mediante proxy)
         $forwardedFor = $request->header('X-Forwarded-For');
         if ($forwardedFor !== null) {
-            // Use first IP in the chain
+            // Usar la primera IP de la cadena
             $ips = explode(',', $forwardedFor);
             return trim($ips[0]);
         }
-        
-        // Fallback to direct IP
+
+        // Alternativa: IP directa
         return $request->ip();
     }
 
     /**
-     * Write log entry to file
-     * 
-     * Uses JSON Lines format (one JSON object per line)
-     * 
-     * Requirements: 13.7
-     * 
-     * @param array $logEntry Log entry data
+     * Escribe la entrada de registro en el archivo
+     *
+     * Usa el formato JSON Lines (un objeto JSON por línea)
+     *
+     * Requisitos: 13.7
+     *
+     * @param array $logEntry Datos de la entrada de registro
      * @return void
      */
     private function writeLog(array $logEntry): void
     {
         try {
-            // Ensure log directory exists
+            // Asegurar que el directorio de registros exista
             $logDir = dirname(self::LOG_FILE);
             if (!is_dir($logDir)) {
                 mkdir($logDir, 0755, true);
             }
-            
-            // Convert to JSON and append newline (JSON Lines format)
+
+            // Convertir a JSON y agregar nueva línea (formato JSON Lines)
             $jsonLine = json_encode($logEntry, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . PHP_EOL;
-            
-            // Append to log file (low overhead, no locking for performance)
+
+            // Agregar al archivo de registro (bajo costo, sin bloqueo para mejor rendimiento)
             file_put_contents(self::LOG_FILE, $jsonLine, FILE_APPEND);
-            
+
         } catch (\Exception $e) {
-            // Fail silently to avoid breaking request flow
-            // Log to error_log as fallback
+            // Fallar silenciosamente para no interrumpir el flujo de la solicitud
+            // Registrar en error_log como alternativa
             error_log("RequestLogger error: " . $e->getMessage());
         }
     }
 
     /**
-     * Get log file path (for testing)
-     * 
-     * @return string Log file path
+     * Obtiene la ruta del archivo de registro (para pruebas)
+     *
+     * @return string Ruta del archivo de registro
      */
     public static function getLogFilePath(): string
     {

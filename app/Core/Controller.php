@@ -3,17 +3,17 @@
 namespace App\Core;
 
 /**
- * Base Controller Class
- * 
- * Provides common functionality for all controllers.
- * Handles view rendering, JSON responses, and redirects.
+ * Clase base para los controladores
+ *
+ * Provee funcionalidad común a todos los controladores de la aplicación.
+ * Gestiona la renderización de vistas, respuestas JSON y redirecciones.
  */
 abstract class Controller
 {
     protected Request $request;
 
     /**
-     * Render view template
+     * Renderiza una plantilla de vista y retorna la respuesta
      */
     protected function view(string $view, array $data = []): Response
     {
@@ -21,7 +21,7 @@ abstract class Controller
     }
 
     /**
-     * Return JSON response
+     * Retorna una respuesta en formato JSON
      */
     protected function json(array $data, int $statusCode = 200): Response
     {
@@ -29,7 +29,7 @@ abstract class Controller
     }
 
     /**
-     * Return success JSON response
+     * Retorna una respuesta JSON de éxito estandarizada
      */
     protected function success(mixed $data = null, string $message = 'Success', int $statusCode = 200): Response
     {
@@ -37,7 +37,7 @@ abstract class Controller
     }
 
     /**
-     * Return error JSON response
+     * Retorna una respuesta JSON de error estandarizada
      */
     protected function error(string $message, mixed $errors = null, int $statusCode = 400): Response
     {
@@ -45,7 +45,7 @@ abstract class Controller
     }
 
     /**
-     * Redirect to URL
+     * Redirige al usuario a la URL indicada
      */
     protected function redirect(string $url, int $statusCode = 302): Response
     {
@@ -53,7 +53,7 @@ abstract class Controller
     }
 
     /**
-     * Redirect back to previous page
+     * Redirige al usuario a la página anterior (referer)
      */
     protected function back(): Response
     {
@@ -62,7 +62,7 @@ abstract class Controller
     }
 
     /**
-     * Set request instance (called by router)
+     * Asigna la instancia de la petición (invocado por el enrutador)
      */
     public function setRequest(Request $request): void
     {

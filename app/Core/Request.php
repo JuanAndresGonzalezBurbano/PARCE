@@ -3,10 +3,10 @@
 namespace App\Core;
 
 /**
- * Request Class
- * 
- * Handles HTTP request data and provides clean access to request information.
- * Supports both web and API requests.
+ * Clase de petición HTTP
+ *
+ * Gestiona los datos de la petición HTTP y provee acceso limpio a su información.
+ * Compatible con peticiones web tradicionales y peticiones de API.
  */
 class Request
 {
@@ -26,14 +26,14 @@ class Request
         $this->cookies = $_COOKIE;
         $this->files = $_FILES;
 
-        // Parse JSON body if content type is application/json
+        // Parsear el cuerpo JSON si el Content-Type es application/json
         if ($this->isJson()) {
             $this->json = json_decode(file_get_contents('php://input'), true) ?? [];
         }
     }
 
     /**
-     * Get request method (GET, POST, PUT, DELETE, etc.)
+     * Retorna el método HTTP de la petición (GET, POST, PUT, DELETE, etc.)
      */
     public function method(): string
     {
@@ -41,7 +41,7 @@ class Request
     }
 
     /**
-     * Get request URI without query string
+     * Retorna la URI de la petición sin la cadena de consulta (query string)
      */
     public function uri(): string
     {
@@ -50,7 +50,7 @@ class Request
     }
 
     /**
-     * Get full URL
+     * Retorna la URL completa de la petición
      */
     public function url(): string
     {
@@ -61,7 +61,7 @@ class Request
 
 
     /**
-     * Check if request is secure (HTTPS)
+     * Indica si la petición fue realizada mediante HTTPS
      */
     public function isSecure(): bool
     {
@@ -69,16 +69,16 @@ class Request
     }
 
     /**
-     * Check if request expects JSON response
+     * Indica si el cliente espera una respuesta en formato JSON
      */
     public function expectsJson(): bool
     {
-        return $this->isJson() || 
+        return $this->isJson() ||
                str_contains($this->header('Accept', ''), 'application/json');
     }
 
     /**
-     * Check if request content type is JSON
+     * Indica si el Content-Type de la petición es application/json
      */
     public function isJson(): bool
     {
@@ -86,21 +86,21 @@ class Request
     }
 
     /**
-     * Get input value from query, post, or json body
+     * Obtiene un valor de entrada buscando en el cuerpo JSON, POST y query string (en ese orden)
      */
     public function input(string $key, mixed $default = null): mixed
     {
-        // Check JSON body first (for API requests)
+        // Buscar primero en el cuerpo JSON (peticiones de API)
         if ($this->json !== null && array_key_exists($key, $this->json)) {
             return $this->json[$key];
         }
 
-        // Check POST data
+        // Buscar en los datos POST
         if (array_key_exists($key, $this->post)) {
             return $this->post[$key];
         }
 
-        // Check query string
+        // Buscar en la cadena de consulta (query string)
         if (array_key_exists($key, $this->query)) {
             return $this->query[$key];
         }
@@ -109,7 +109,7 @@ class Request
     }
 
     /**
-     * Get all input data
+     * Retorna todos los datos de entrada combinados (query, POST y JSON)
      */
     public function all(): array
     {
@@ -117,7 +117,7 @@ class Request
     }
 
     /**
-     * Get only specified keys from input
+     * Retorna únicamente las claves indicadas de los datos de entrada
      */
     public function only(array $keys): array
     {
@@ -129,7 +129,7 @@ class Request
     }
 
     /**
-     * Get all input except specified keys
+     * Retorna todos los datos de entrada excepto las claves indicadas
      */
     public function except(array $keys): array
     {
@@ -142,7 +142,7 @@ class Request
 
 
     /**
-     * Get query parameter
+     * Obtiene un parámetro de la cadena de consulta (query string)
      */
     public function query(string $key, mixed $default = null): mixed
     {
@@ -150,7 +150,7 @@ class Request
     }
 
     /**
-     * Get header value
+     * Obtiene el valor de un encabezado HTTP
      */
     public function header(string $key, mixed $default = null): mixed
     {
@@ -159,7 +159,7 @@ class Request
     }
 
     /**
-     * Get cookie value
+     * Obtiene el valor de una cookie
      */
     public function cookie(string $key, mixed $default = null): mixed
     {
@@ -167,7 +167,7 @@ class Request
     }
 
     /**
-     * Get uploaded file
+     * Obtiene el arreglo de datos de un archivo subido
      */
     public function file(string $key): ?array
     {
@@ -175,7 +175,7 @@ class Request
     }
 
     /**
-     * Get client IP address
+     * Retorna la dirección IP del cliente
      */
     public function ip(): string
     {
@@ -183,7 +183,7 @@ class Request
     }
 
     /**
-     * Get user agent
+     * Retorna el User-Agent del cliente
      */
     public function userAgent(): string
     {
@@ -191,7 +191,7 @@ class Request
     }
 
     /**
-     * Set custom attribute (for middleware to pass data)
+     * Establece un atributo personalizado en la petición (usado por middleware)
      */
     public function setAttribute(string $key, mixed $value): void
     {
@@ -199,7 +199,7 @@ class Request
     }
 
     /**
-     * Get custom attribute
+     * Obtiene un atributo personalizado de la petición
      */
     public function getAttribute(string $key, mixed $default = null): mixed
     {
@@ -207,7 +207,7 @@ class Request
     }
 
     /**
-     * Check if input has key
+     * Indica si la clave especificada existe en los datos de entrada
      */
     public function has(string $key): bool
     {
@@ -215,18 +215,18 @@ class Request
     }
 
     /**
-     * Validate required fields exist
+     * Valida que los campos requeridos estén presentes en los datos de entrada
      */
     public function validate(array $rules): array
     {
         $errors = [];
-        
+
         foreach ($rules as $field => $rule) {
             if ($rule === 'required' && !$this->has($field)) {
                 $errors[$field] = "The {$field} field is required.";
             }
         }
-        
+
         return $errors;
     }
 }

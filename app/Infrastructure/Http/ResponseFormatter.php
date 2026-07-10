@@ -6,126 +6,126 @@ use App\Core\Response;
 use App\Infrastructure\Auth\DTO\CookieConfig;
 
 /**
- * Response Formatter
- * 
- * Standardizes API responses with consistent JSON format, secure cookie handling,
- * and proper HTTP status codes. Implements camelCase conversion and sparse JSON.
- * 
- * Requirements: 8.1-8.7, 11.1-11.7, 12.1-12.7
+ * Formateador de Respuestas
+ *
+ * Estandariza las respuestas de la API con formato JSON consistente, manejo seguro de cookies
+ * y códigos de estado HTTP apropiados. Implementa conversión a camelCase y JSON disperso.
+ *
+ * Requisitos: 8.1-8.7, 11.1-11.7, 12.1-12.7
  */
 class ResponseFormatter
 {
     /**
-     * Session cookie name
+     * Nombre de la cookie de sesión
      */
     private const SESSION_COOKIE_NAME = 'parce_session';
 
     /**
-     * Default cookie expiration (2 hours in seconds)
+     * Expiración predeterminada de la cookie (2 horas en segundos)
      */
     private const DEFAULT_COOKIE_EXPIRATION = 7200;
 
     /**
-     * Remember me cookie expiration (30 days in seconds)
+     * Expiración de la cookie "recordarme" (30 días en segundos)
      */
     private const REMEMBER_COOKIE_EXPIRATION = 2592000;
 
     /**
-     * Create standardized success response
-     * 
-     * Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7
-     * 
-     * @param mixed $data Response data (optional)
-     * @param string $message Success message (optional)
-     * @param int $statusCode HTTP status code (default: 200)
-     * @return Response Response object
+     * Crea una respuesta de éxito estandarizada
+     *
+     * Requisitos: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7
+     *
+     * @param mixed $data Datos de la respuesta (opcional)
+     * @param string $message Mensaje de éxito (opcional)
+     * @param int $statusCode Código de estado HTTP (predeterminado: 200)
+     * @return Response Objeto de respuesta
      */
     public static function success($data = null, string $message = null, int $statusCode = 200): Response
     {
         $response = new Response();
-        
-        // Build response array
+
+        // Construir el arreglo de respuesta
         $responseData = ['success' => true];
-        
-        // Add data if provided
+
+        // Agregar datos si se proporcionaron
         if ($data !== null) {
             $responseData['data'] = self::convertToCamelCase($data);
         }
-        
-        // Add message if provided
+
+        // Agregar mensaje si se proporcionó
         if ($message !== null) {
             $responseData['message'] = $message;
         }
-        
-        // Remove null fields (sparse JSON)
+
+        // Eliminar campos nulos (JSON disperso)
         $responseData = self::removeNullFields($responseData);
-        
-        // Set headers
+
+        // Establecer encabezados
         $response->setHeader('Content-Type', 'application/json; charset=utf-8');
         $response->setHeader('X-API-Version', '1.0.0');
-        
+
         return $response->json($responseData, $statusCode);
     }
 
     /**
-     * Create standardized error response
-     * 
-     * Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7
-     * 
-     * @param string $error Error message
-     * @param array|null $fields Field-specific errors (optional)
-     * @param int $statusCode HTTP status code (default: 400)
-     * @return Response Response object
+     * Crea una respuesta de error estandarizada
+     *
+     * Requisitos: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7
+     *
+     * @param string $error Mensaje de error
+     * @param array|null $fields Errores específicos por campo (opcional)
+     * @param int $statusCode Código de estado HTTP (predeterminado: 400)
+     * @return Response Objeto de respuesta
      */
     public static function error(string $error, ?array $fields = null, int $statusCode = 400): Response
     {
         $response = new Response();
-        
-        // Build response array
+
+        // Construir el arreglo de respuesta
         $responseData = [
             'success' => false,
             'error' => $error
         ];
-        
-        // Add field-specific errors if provided
+
+        // Agregar errores específicos por campo si se proporcionaron
         if ($fields !== null && !empty($fields)) {
             $responseData['fields'] = self::convertToCamelCase($fields);
         }
-        
-        // Remove null fields (sparse JSON)
+
+        // Eliminar campos nulos (JSON disperso)
         $responseData = self::removeNullFields($responseData);
-        
-        // Set headers
+
+        // Establecer encabezados
         $response->setHeader('Content-Type', 'application/json; charset=utf-8');
         $response->setHeader('X-API-Version', '1.0.0');
-        
+
         return $response->json($responseData, $statusCode);
     }
 
     /**
-     * Set session cookie with security attributes
-     * 
-     * Uses environment-aware cookie configuration for production-safe behavior.
-     * Automatically detects HTTPS and applies secure flags accordingly.
-     * 
-     * Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.7
-     * 
-     * @param Response $response Response object
-     * @param string $sessionId Session ID
-     * @param bool $remember Enable remember me (30 days vs 2 hours)
-     * @return Response Response object with cookie set
+     * Establece la cookie de sesión con atributos de seguridad
+     *
+     * Usa la configuración de cookies adaptada al entorno para un comportamiento seguro en producción.
+     * Detecta automáticamente HTTPS y aplica los indicadores de seguridad correspondientes.
+     *
+     * Requisitos: 8.1, 8.2, 8.3, 8.4, 8.5, 8.7
+     *
+     * @param Response $response Objeto de respuesta
+     * @param string $sessionId ID de sesión
+     * @param bool $remember Habilitar "recordarme" (30 días vs 2 horas)
+     * @return Response Objeto de respuesta con la cookie establecida
      */
     public static function setSessionCookie(Response $response, string $sessionId, bool $remember = false): Response
     {
-        // Load cookie configuration from environment
+        // Cargar la configuración de cookies desde el entorno
         $cookieConfig = CookieConfig::fromEnv();
-        
-        // Calculate expiration based on remember flag
-        $expiration = $remember 
-            ? time() + self::REMEMBER_COOKIE_EXPIRATION 
+
+        // Calcular la expiración según el indicador "recordarme"
+        $expiration = $remember
+            ? time() + self::REMEMBER_COOKIE_EXPIRATION
             : time() + $cookieConfig->lifetime;
-        
-        // Set cookie using environment configuration
+
+        // Establecer la cookie usando la configuración del entorno
         $response->setCookie(
             name: $cookieConfig->name,
             value: $sessionId,
@@ -135,139 +135,139 @@ class ResponseFormatter
             secure: $cookieConfig->secure,
             httpOnly: $cookieConfig->httpOnly
         );
-        
-        // Set SameSite header manually for broader compatibility
-        $cookieString = $cookieConfig->name . '=' . $sessionId . 
-            '; Path=' . $cookieConfig->path . 
-            ($cookieConfig->httpOnly ? '; HttpOnly' : '') . 
-            ($cookieConfig->secure ? '; Secure' : '') . 
-            '; SameSite=' . $cookieConfig->sameSite . 
+
+        // Establecer el encabezado SameSite manualmente para mayor compatibilidad
+        $cookieString = $cookieConfig->name . '=' . $sessionId .
+            '; Path=' . $cookieConfig->path .
+            ($cookieConfig->httpOnly ? '; HttpOnly' : '') .
+            ($cookieConfig->secure ? '; Secure' : '') .
+            '; SameSite=' . $cookieConfig->sameSite .
             '; Max-Age=' . ($remember ? self::REMEMBER_COOKIE_EXPIRATION : $cookieConfig->lifetime);
-        
+
         $response->setHeader('Set-Cookie', $cookieString);
-        
+
         return $response;
     }
-    
+
     /**
-     * Determine if we're in a secure context (HTTPS)
-     * 
-     * @return bool True if HTTPS or localhost, false otherwise
+     * Determina si estamos en un contexto seguro (HTTPS)
+     *
+     * @return bool Verdadero si es HTTPS o localhost, falso en caso contrario
      */
     private static function isSecureContext(): bool
     {
-        // Check if HTTPS
+        // Verificar si es HTTPS
         if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
             return true;
         }
-        
-        // Check if localhost (allow HTTP in development)
+
+        // Verificar si es localhost (permitir HTTP en desarrollo)
         $host = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? '';
         if (in_array($host, ['localhost', '127.0.0.1', '::1'], true)) {
-            return false; // Allow HTTP for localhost
+            return false; // Permitir HTTP para localhost
         }
-        
-        // Check for forwarded protocol (behind reverse proxy)
+
+        // Verificar el protocolo reenviado (detrás de un proxy inverso)
         if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
             return true;
         }
-        
-        // Default to secure in production
+
+        // Por defecto, usar modo seguro en producción
         return true;
     }
 
     /**
-     * Clear session cookie
-     * 
-     * Uses environment-aware cookie configuration to properly clear cookies.
-     * 
-     * Requirement 8.6: Set maxAge to 0 to clear cookie
-     * 
-     * @param Response $response Response object
-     * @return Response Response object with cookie cleared
+     * Limpia la cookie de sesión
+     *
+     * Usa la configuración de cookies adaptada al entorno para limpiar correctamente las cookies.
+     *
+     * Requisito 8.6: Establecer maxAge en 0 para limpiar la cookie
+     *
+     * @param Response $response Objeto de respuesta
+     * @return Response Objeto de respuesta con la cookie limpiada
      */
     public static function clearSessionCookie(Response $response): Response
     {
-        // Load cookie configuration from environment
+        // Cargar la configuración de cookies desde el entorno
         $cookieConfig = CookieConfig::fromEnv();
-        
+
         $response->setCookie(
             name: $cookieConfig->name,
             value: '',
-            expires: time() - 3600, // Expire in the past
+            expires: time() - 3600, // Expirar en el pasado
             path: $cookieConfig->path,
             domain: $cookieConfig->domain,
             secure: $cookieConfig->secure,
             httpOnly: $cookieConfig->httpOnly
         );
-        
-        // Set SameSite header manually for cookie clearing
-        $cookieString = $cookieConfig->name . '=; Path=' . $cookieConfig->path . 
-            ($cookieConfig->httpOnly ? '; HttpOnly' : '') . 
-            ($cookieConfig->secure ? '; Secure' : '') . 
-            '; SameSite=' . $cookieConfig->sameSite . 
+
+        // Establecer el encabezado SameSite manualmente para limpiar la cookie
+        $cookieString = $cookieConfig->name . '=; Path=' . $cookieConfig->path .
+            ($cookieConfig->httpOnly ? '; HttpOnly' : '') .
+            ($cookieConfig->secure ? '; Secure' : '') .
+            '; SameSite=' . $cookieConfig->sameSite .
             '; Max-Age=0';
-        
+
         $response->setHeader('Set-Cookie', $cookieString);
-        
+
         return $response;
     }
 
     /**
-     * Convert array keys to camelCase
-     * 
-     * Requirement 12.6: Use camelCase for all JSON field names
-     * 
-     * @param mixed $data Data to convert
-     * @return mixed Converted data
+     * Convierte las claves de un arreglo a camelCase
+     *
+     * Requisito 12.6: Usar camelCase para todos los nombres de campos JSON
+     *
+     * @param mixed $data Datos a convertir
+     * @return mixed Datos convertidos
      */
     private static function convertToCamelCase($data)
     {
         if (!is_array($data)) {
             return $data;
         }
-        
+
         $result = [];
-        
+
         foreach ($data as $key => $value) {
-            // Convert snake_case to camelCase
+            // Convertir snake_case a camelCase
             $camelKey = lcfirst(str_replace('_', '', ucwords($key, '_')));
-            
-            // Recursively convert nested arrays
+
+            // Convertir recursivamente los arreglos anidados
             if (is_array($value)) {
                 $result[$camelKey] = self::convertToCamelCase($value);
             } else {
                 $result[$camelKey] = $value;
             }
         }
-        
+
         return $result;
     }
 
     /**
-     * Remove null fields from array (sparse JSON)
-     * 
-     * Requirement 12.7: Omit null fields from response
-     * 
-     * @param array $data Data array
-     * @return array Array with null fields removed
+     * Elimina los campos nulos de un arreglo (JSON disperso)
+     *
+     * Requisito 12.7: Omitir los campos nulos de la respuesta
+     *
+     * @param array $data Arreglo de datos
+     * @return array Arreglo con los campos nulos eliminados
      */
     private static function removeNullFields(array $data): array
     {
         return array_filter($data, function ($value) {
-            // Keep false and 0, but remove null
+            // Mantener false y 0, pero eliminar null
             return $value !== null;
         });
     }
 
     /**
-     * Create validation error response
-     * 
-     * Requirement 11.4: Include fields with field-specific error messages
-     * 
-     * @param array $errors Field-specific errors
-     * @param int $statusCode HTTP status code (default: 400)
-     * @return Response Response object
+     * Crea una respuesta de error de validación
+     *
+     * Requisito 11.4: Incluir los campos con mensajes de error específicos por campo
+     *
+     * @param array $errors Errores específicos por campo
+     * @param int $statusCode Código de estado HTTP (predeterminado: 400)
+     * @return Response Objeto de respuesta
      */
     public static function validationError(array $errors, int $statusCode = 400): Response
     {
@@ -279,12 +279,12 @@ class ResponseFormatter
     }
 
     /**
-     * Create unauthorized response
-     * 
-     * Requirement 11.7: Map AuthenticationException to HTTP 401
-     * 
-     * @param string $message Error message (default: 'Unauthorized')
-     * @return Response Response object
+     * Crea una respuesta de no autorizado
+     *
+     * Requisito 11.7: Mapear AuthenticationException a HTTP 401
+     *
+     * @param string $message Mensaje de error (predeterminado: 'Unauthorized')
+     * @return Response Objeto de respuesta
      */
     public static function unauthorized(string $message = 'Unauthorized'): Response
     {
@@ -292,10 +292,10 @@ class ResponseFormatter
     }
 
     /**
-     * Create forbidden response
-     * 
-     * @param string $message Error message (default: 'Forbidden')
-     * @return Response Response object
+     * Crea una respuesta de acceso prohibido
+     *
+     * @param string $message Mensaje de error (predeterminado: 'Forbidden')
+     * @return Response Objeto de respuesta
      */
     public static function forbidden(string $message = 'Forbidden'): Response
     {
@@ -303,10 +303,10 @@ class ResponseFormatter
     }
 
     /**
-     * Create not found response
-     * 
-     * @param string $message Error message (default: 'Not found')
-     * @return Response Response object
+     * Crea una respuesta de recurso no encontrado
+     *
+     * @param string $message Mensaje de error (predeterminado: 'Not found')
+     * @return Response Objeto de respuesta
      */
     public static function notFound(string $message = 'Not found'): Response
     {
@@ -314,10 +314,10 @@ class ResponseFormatter
     }
 
     /**
-     * Create conflict response
-     * 
-     * @param string $message Error message
-     * @return Response Response object
+     * Crea una respuesta de conflicto
+     *
+     * @param string $message Mensaje de error
+     * @return Response Objeto de respuesta
      */
     public static function conflict(string $message): Response
     {
@@ -325,12 +325,12 @@ class ResponseFormatter
     }
 
     /**
-     * Create rate limit exceeded response
-     * 
-     * Requirement 6.3, 6.4: Return HTTP 429 with Retry-After header
-     * 
-     * @param int $retryAfter Seconds until rate limit resets
-     * @return Response Response object
+     * Crea una respuesta de límite de tasa excedido
+     *
+     * Requisito 6.3, 6.4: Retornar HTTP 429 con el encabezado Retry-After
+     *
+     * @param int $retryAfter Segundos hasta que se reinicie el límite de tasa
+     * @return Response Objeto de respuesta
      */
     public static function rateLimitExceeded(int $retryAfter): Response
     {
@@ -339,19 +339,19 @@ class ResponseFormatter
             ['retryAfter' => $retryAfter],
             429
         );
-        
+
         $response->setHeader('Retry-After', (string)$retryAfter);
-        
+
         return $response;
     }
 
     /**
-     * Create internal server error response
-     * 
-     * Requirement 11.6: Return generic error message (no stack traces)
-     * 
-     * @param string $message Error message (default: 'Internal server error')
-     * @return Response Response object
+     * Crea una respuesta de error interno del servidor
+     *
+     * Requisito 11.6: Retornar mensaje de error genérico (sin trazas de pila)
+     *
+     * @param string $message Mensaje de error (predeterminado: 'Internal server error')
+     * @return Response Objeto de respuesta
      */
     public static function serverError(string $message = 'Internal server error'): Response
     {
@@ -359,10 +359,10 @@ class ResponseFormatter
     }
 
     /**
-     * Create service unavailable response
-     * 
-     * @param string $message Error message (default: 'Service unavailable')
-     * @return Response Response object
+     * Crea una respuesta de servicio no disponible
+     *
+     * @param string $message Mensaje de error (predeterminado: 'Service unavailable')
+     * @return Response Objeto de respuesta
      */
     public static function serviceUnavailable(string $message = 'Service unavailable'): Response
     {
@@ -370,9 +370,9 @@ class ResponseFormatter
     }
 
     /**
-     * Get session cookie name from environment configuration
-     * 
-     * @return string Cookie name
+     * Obtiene el nombre de la cookie de sesión desde la configuración del entorno
+     *
+     * @return string Nombre de la cookie
      */
     public static function getSessionCookieName(): string
     {

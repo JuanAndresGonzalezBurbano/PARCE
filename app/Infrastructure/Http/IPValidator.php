@@ -5,173 +5,173 @@ namespace App\Infrastructure\Http;
 use App\Core\Request;
 
 /**
- * IP Validator
- * 
- * Provides IP address extraction and validation utilities for HTTP requests:
- * - Extract IP from X-Forwarded-For header (for proxied requests)
- * - Extract IP from REMOTE_ADDR (direct connections)
- * - Handle multiple IPs in X-Forwarded-For (use first IP)
- * - Provide fallback for invalid IPs (0.0.0.0)
- * - Validate IP address format
- * 
- * Requirements: 20.1, 20.2, 20.3, 20.4, 20.5, 20.6, 20.7
+ * Validador de Direcciones IP
+ *
+ * Proporciona utilidades de extracción y validación de direcciones IP para solicitudes HTTP:
+ * - Extraer IP del encabezado X-Forwarded-For (para solicitudes a través de proxy)
+ * - Extraer IP de REMOTE_ADDR (conexiones directas)
+ * - Manejar múltiples IPs en X-Forwarded-For (usar la primera IP)
+ * - Proveer un valor de respaldo para IPs inválidas (0.0.0.0)
+ * - Validar el formato de la dirección IP
+ *
+ * Requisitos: 20.1, 20.2, 20.3, 20.4, 20.5, 20.6, 20.7
  */
 class IPValidator
 {
     /**
-     * Fallback IP address for invalid cases
+     * Dirección IP de respaldo para casos inválidos
      */
     private const FALLBACK_IP = '0.0.0.0';
 
     /**
-     * Get client IP address from request
-     * 
-     * Checks X-Forwarded-For header first (for proxied requests),
-     * then falls back to REMOTE_ADDR (direct connections).
-     * 
-     * Requirements: 20.1, 20.2, 20.3
-     * 
-     * @param Request $request HTTP request object
-     * @return string Client IP address
+     * Obtiene la dirección IP del cliente desde la solicitud
+     *
+     * Verifica primero el encabezado X-Forwarded-For (para solicitudes con proxy),
+     * luego recurre a REMOTE_ADDR (conexiones directas).
+     *
+     * Requisitos: 20.1, 20.2, 20.3
+     *
+     * @param Request $request Objeto de solicitud HTTP
+     * @return string Dirección IP del cliente
      */
     public static function getClientIP(Request $request): string
     {
-        // Requirement 20.1: Check X-Forwarded-For header first
+        // Requisito 20.1: Verificar primero el encabezado X-Forwarded-For
         $forwardedFor = $request->header('X-Forwarded-For');
-        
+
         if ($forwardedFor !== null && $forwardedFor !== '') {
-            // Requirement 20.3: Handle multiple IPs (use first IP in chain)
+            // Requisito 20.3: Manejar múltiples IPs (usar la primera IP de la cadena)
             $ips = explode(',', $forwardedFor);
             $ip = trim($ips[0]);
-            
-            // Validate the extracted IP
+
+            // Validar la IP extraída
             if (self::isValidIP($ip)) {
                 return $ip;
             }
         }
-        
-        // Requirement 20.2: Fallback to REMOTE_ADDR
+
+        // Requisito 20.2: Recurrir a REMOTE_ADDR
         $remoteAddr = $request->ip();
-        
-        // Validate REMOTE_ADDR
+
+        // Validar REMOTE_ADDR
         if (self::isValidIP($remoteAddr)) {
             return $remoteAddr;
         }
-        
-        // Requirement 20.4: Return fallback for invalid IP
+
+        // Requisito 20.4: Retornar el valor de respaldo para IP inválida
         return self::FALLBACK_IP;
     }
 
     /**
-     * Validate IP address format
-     * 
-     * Supports both IPv4 and IPv6 addresses.
-     * 
-     * Requirement 20.5
-     * 
-     * @param string $ip IP address to validate
-     * @return bool True if valid IP format, false otherwise
+     * Valida el formato de una dirección IP
+     *
+     * Soporta tanto direcciones IPv4 como IPv6.
+     *
+     * Requisito 20.5
+     *
+     * @param string $ip Dirección IP a validar
+     * @return bool Verdadero si el formato de IP es válido, falso en caso contrario
      */
     public static function isValidIP(string $ip): bool
     {
-        // Check for empty or whitespace-only strings
+        // Verificar cadenas vacías o con solo espacios
         if (empty(trim($ip))) {
             return false;
         }
-        
-        // Validate IPv4 or IPv6 format
+
+        // Validar el formato IPv4 o IPv6
         return filter_var($ip, FILTER_VALIDATE_IP) !== false;
     }
 
     /**
-     * Extract IP from X-Forwarded-For header
-     * 
-     * Returns the first IP in the X-Forwarded-For chain,
-     * or null if header is not present.
-     * 
-     * Requirement 20.1
-     * 
-     * @param Request $request HTTP request object
-     * @return string|null First IP from X-Forwarded-For or null
+     * Extrae la IP del encabezado X-Forwarded-For
+     *
+     * Retorna la primera IP de la cadena X-Forwarded-For,
+     * o nulo si el encabezado no está presente.
+     *
+     * Requisito 20.1
+     *
+     * @param Request $request Objeto de solicitud HTTP
+     * @return string|null Primera IP del encabezado X-Forwarded-For o nulo
      */
     public static function getForwardedIP(Request $request): ?string
     {
         $forwardedFor = $request->header('X-Forwarded-For');
-        
+
         if ($forwardedFor === null || $forwardedFor === '') {
             return null;
         }
-        
-        // Handle multiple IPs (use first IP)
+
+        // Manejar múltiples IPs (usar la primera IP)
         $ips = explode(',', $forwardedFor);
         $ip = trim($ips[0]);
-        
+
         return self::isValidIP($ip) ? $ip : null;
     }
 
     /**
-     * Extract IP from REMOTE_ADDR
-     * 
-     * Returns the direct connection IP address.
-     * 
-     * Requirement 20.2
-     * 
-     * @param Request $request HTTP request object
-     * @return string|null IP from REMOTE_ADDR or null if invalid
+     * Extrae la IP de REMOTE_ADDR
+     *
+     * Retorna la dirección IP de la conexión directa.
+     *
+     * Requisito 20.2
+     *
+     * @param Request $request Objeto de solicitud HTTP
+     * @return string|null IP de REMOTE_ADDR o nulo si es inválida
      */
     public static function getRemoteIP(Request $request): ?string
     {
         $remoteAddr = $request->ip();
-        
+
         return self::isValidIP($remoteAddr) ? $remoteAddr : null;
     }
 
     /**
-     * Get all IPs from X-Forwarded-For header
-     * 
-     * Returns array of all IPs in the forwarding chain.
-     * Useful for logging and security analysis.
-     * 
-     * Requirement 20.3
-     * 
-     * @param Request $request HTTP request object
-     * @return array Array of IP addresses from X-Forwarded-For
+     * Obtiene todas las IPs del encabezado X-Forwarded-For
+     *
+     * Retorna un arreglo con todas las IPs de la cadena de reenvío.
+     * Útil para registro y análisis de seguridad.
+     *
+     * Requisito 20.3
+     *
+     * @param Request $request Objeto de solicitud HTTP
+     * @return array Arreglo de direcciones IP del encabezado X-Forwarded-For
      */
     public static function getAllForwardedIPs(Request $request): array
     {
         $forwardedFor = $request->header('X-Forwarded-For');
-        
+
         if ($forwardedFor === null || $forwardedFor === '') {
             return [];
         }
-        
-        // Split by comma and trim whitespace
+
+        // Dividir por coma y eliminar espacios en blanco
         $ips = array_map('trim', explode(',', $forwardedFor));
-        
-        // Filter out invalid IPs
+
+        // Filtrar las IPs inválidas
         return array_filter($ips, [self::class, 'isValidIP']);
     }
 
     /**
-     * Get IP address with metadata
-     * 
-     * Returns detailed information about the client IP including:
-     * - ip: The client IP address
-     * - source: Where the IP came from ('x-forwarded-for', 'remote-addr', or 'fallback')
-     * - forwarded_chain: Array of all IPs in X-Forwarded-For (if present)
-     * 
-     * Requirements: 20.1, 20.2, 20.3, 20.4, 20.6, 20.7
-     * 
-     * @param Request $request HTTP request object
-     * @return array IP metadata
+     * Obtiene la dirección IP con metadatos
+     *
+     * Retorna información detallada sobre la IP del cliente que incluye:
+     * - ip: La dirección IP del cliente
+     * - source: Origen de la IP ('x-forwarded-for', 'remote-addr' o 'fallback')
+     * - forwarded_chain: Arreglo de todas las IPs en X-Forwarded-For (si está presente)
+     *
+     * Requisitos: 20.1, 20.2, 20.3, 20.4, 20.6, 20.7
+     *
+     * @param Request $request Objeto de solicitud HTTP
+     * @return array Metadatos de la IP
      */
     public static function getIPMetadata(Request $request): array
     {
         $forwardedIP = self::getForwardedIP($request);
         $remoteIP = self::getRemoteIP($request);
         $forwardedChain = self::getAllForwardedIPs($request);
-        
-        // Determine source and IP
+
+        // Determinar el origen y la IP
         if ($forwardedIP !== null) {
             return [
                 'ip' => $forwardedIP,
@@ -180,7 +180,7 @@ class IPValidator
                 'remote_addr' => $remoteIP
             ];
         }
-        
+
         if ($remoteIP !== null) {
             return [
                 'ip' => $remoteIP,
@@ -189,8 +189,8 @@ class IPValidator
                 'remote_addr' => $remoteIP
             ];
         }
-        
-        // Fallback case
+
+        // Caso de respaldo
         return [
             'ip' => self::FALLBACK_IP,
             'source' => 'fallback',
@@ -200,23 +200,23 @@ class IPValidator
     }
 
     /**
-     * Check if IP address has changed between requests
-     * 
-     * Useful for detecting session hijacking attempts.
-     * 
-     * Requirement 20.7
-     * 
-     * @param string $previousIP Previous IP address
-     * @param string $currentIP Current IP address
-     * @return bool True if IP has changed, false otherwise
+     * Verifica si la dirección IP ha cambiado entre solicitudes
+     *
+     * Útil para detectar intentos de secuestro de sesión.
+     *
+     * Requisito 20.7
+     *
+     * @param string $previousIP Dirección IP anterior
+     * @param string $currentIP Dirección IP actual
+     * @return bool Verdadero si la IP ha cambiado, falso en caso contrario
      */
     public static function hasIPChanged(string $previousIP, string $currentIP): bool
     {
-        // Normalize IPs (trim whitespace)
+        // Normalizar las IPs (eliminar espacios en blanco)
         $previousIP = trim($previousIP);
         $currentIP = trim($currentIP);
-        
-        // Compare IPs
+
+        // Comparar las IPs
         return $previousIP !== $currentIP;
     }
 }

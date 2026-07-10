@@ -3,10 +3,10 @@
 namespace App\Core;
 
 /**
- * Router Class
- * 
- * Handles route registration and dispatching.
- * Supports middleware pipeline for future authentication/authorization.
+ * Clase enrutadora de la aplicación
+ *
+ * Gestiona el registro y el despacho de rutas HTTP.
+ * Soporta un pipeline de middleware para autenticación y autorización.
  */
 class Router
 {
@@ -17,7 +17,7 @@ class Router
     private array $globalMiddleware = [];
 
     /**
-     * Register GET route
+     * Registra una ruta para el método GET
      */
     public function get(string $uri, callable|array $action): Route
     {
@@ -25,7 +25,7 @@ class Router
     }
 
     /**
-     * Register POST route
+     * Registra una ruta para el método POST
      */
     public function post(string $uri, callable|array $action): Route
     {
@@ -33,7 +33,7 @@ class Router
     }
 
     /**
-     * Register PUT route
+     * Registra una ruta para el método PUT
      */
     public function put(string $uri, callable|array $action): Route
     {
@@ -41,7 +41,7 @@ class Router
     }
 
     /**
-     * Register DELETE route
+     * Registra una ruta para el método DELETE
      */
     public function delete(string $uri, callable|array $action): Route
     {
@@ -49,7 +49,7 @@ class Router
     }
 
     /**
-     * Register route for any method
+     * Registra una ruta que responde a cualquier método HTTP
      */
     public function any(string $uri, callable|array $action): Route
     {
@@ -57,30 +57,30 @@ class Router
     }
 
     /**
-     * Add route to routes array
+     * Agrega una ruta al registro interno del enrutador
      */
     private function addRoute(string $method, string $uri, callable|array $action): Route
     {
         $uri = $this->groupPrefix . $uri;
         $uri = '/' . trim($uri, '/');
-        
+
         $route = new Route($method, $uri, $action);
-        
-        // Apply group middleware
+
+        // Aplicar el middleware del grupo activo a la ruta
         if (!empty($this->groupMiddleware)) {
             $route->middleware($this->groupMiddleware);
         }
-        
+
         $this->routes[] = $route;
-        
+
         return $route;
     }
 
 
     /**
-     * Register global middleware (runs on every request)
-     * 
-     * @param string|array $middleware Middleware class name(s)
+     * Registra middleware global que se ejecuta en cada petición
+     *
+     * @param string|array $middleware Nombre(s) de clase del middleware
      * @return void
      */
     public function middleware(string|array $middleware): void
@@ -90,51 +90,51 @@ class Router
     }
 
     /**
-     * Group routes with common prefix and middleware
+     * Agrupa rutas bajo un prefijo y/o middleware común
      */
     public function group(array $attributes, callable $callback): void
     {
         $previousPrefix = $this->groupPrefix;
         $previousMiddleware = $this->groupMiddleware;
 
-        // Set group prefix
+        // Establecer el prefijo del grupo
         if (isset($attributes['prefix'])) {
             $this->groupPrefix = $previousPrefix . '/' . trim($attributes['prefix'], '/');
         }
 
-        // Set group middleware
+        // Establecer el middleware del grupo
         if (isset($attributes['middleware'])) {
-            $middleware = is_array($attributes['middleware']) 
-                ? $attributes['middleware'] 
+            $middleware = is_array($attributes['middleware'])
+                ? $attributes['middleware']
                 : [$attributes['middleware']];
             $this->groupMiddleware = array_merge($this->groupMiddleware, $middleware);
         }
 
-        // Execute callback to register routes
+        // Ejecutar el callback para registrar las rutas del grupo
         $callback($this);
 
-        // Restore previous values
+        // Restaurar los valores anteriores al grupo
         $this->groupPrefix = $previousPrefix;
         $this->groupMiddleware = $previousMiddleware;
     }
 
     /**
-     * Dispatch request to matching route
+     * Despacha la petición entrante hacia la ruta que corresponda
      */
     public function dispatch(Request $request): Response
     {
         $method = $request->method();
         $uri = $request->uri();
 
-        // Handle OPTIONS preflight through global middleware first
-        // This allows CORS middleware to intercept without route registration
+        /* Manejar el preflight OPTIONS mediante el middleware global primero.
+         * Esto permite que el middleware CORS intercepte sin requerir registro de ruta. */
         if ($method === 'OPTIONS' && !empty($this->globalMiddleware)) {
-            // Create a dummy route for OPTIONS to pass through middleware
+            // Crear una ruta ficticia para OPTIONS y pasarla por el middleware
             $dummyRoute = new Route('OPTIONS', $uri, function($request) {
-                // If no middleware handled it, return 204 No Content
+                // Si ningún middleware la maneja, retornar 204 No Content
                 return (new Response())->setStatusCode(204);
             });
-            
+
             $response = $this->runMiddleware($dummyRoute, $request);
             if ($response !== null) {
                 return $response;
@@ -143,73 +143,73 @@ class Router
 
         foreach ($this->routes as $route) {
             if ($route->matches($method, $uri)) {
-                // Execute middleware pipeline (which includes the route action)
+                // Ejecutar el pipeline de middleware (que incluye la acción de la ruta)
                 $response = $this->runMiddleware($route, $request);
-                
+
                 if ($response !== null) {
                     return $response;
                 }
-                
-                // If no middleware, execute route action directly
+
+                // Si no hay middleware, ejecutar la acción directamente
                 $params = $route->extractParams($uri);
                 return $this->executeAction($route->getAction(), $request, $params);
             }
         }
 
-        // No route found - 404
+        // Ninguna ruta coincidió — retornar 404
         return Response::error('Route not found', null, 404);
     }
 
     /**
-     * Run middleware pipeline
+     * Ejecuta el pipeline de middleware para la ruta indicada
      */
     private function runMiddleware(Route $route, Request $request): ?Response
     {
-        // Merge global middleware with route middleware
+        // Combinar el middleware global con el middleware específico de la ruta
         $routeMiddleware = $route->getMiddleware();
         $allMiddleware = array_merge($this->globalMiddleware, $routeMiddleware);
-        
+
         if (empty($allMiddleware)) {
             return null;
         }
-        
-        // Build middleware pipeline
+
+        // Construir el pipeline de middleware con la acción de la ruta como destino final
         $pipeline = function($request) use ($route) {
-            // This is the final handler - execute the route action
+            // Manejador final: ejecutar la acción de la ruta
             $params = $route->extractParams($request->uri());
             return $this->executeAction($route->getAction(), $request, $params);
         };
-        
-        // Wrap each middleware around the pipeline (reverse order)
+
+        // Envolver cada middleware alrededor del pipeline (en orden inverso)
         foreach (array_reverse($allMiddleware) as $middlewareClass) {
             $pipeline = function($request) use ($middlewareClass, $pipeline) {
-                // Handle string middleware (no parameters)
+                // Middleware como cadena de texto (sin parámetros)
                 if (is_string($middlewareClass)) {
                     $middlewareInstance = new $middlewareClass();
                 }
-                // Handle array middleware [ClassName, params]
+                // Middleware como arreglo [NombreClase, parámetros]
                 elseif (is_array($middlewareClass) && count($middlewareClass) === 2) {
                     $className = $middlewareClass[0];
                     $params = $middlewareClass[1];
-                    // Pass the params as-is (already an array for RBACMiddleware)
+                    // Pasar los parámetros tal cual (ya es un arreglo para RBACMiddleware)
                     $middlewareInstance = new $className($params);
                 }
-                // Handle already-instantiated middleware
+                // Middleware ya instanciado
                 else {
                     $middlewareInstance = $middlewareClass;
                 }
-                
-                // Execute middleware
+
+                // Ejecutar el middleware
                 return $middlewareInstance->handle($request, $pipeline);
             };
         }
-        
-        // Execute the pipeline
+
+        // Ejecutar el pipeline completo
         return $pipeline($request);
     }
 
     /**
-     * Execute route action
+     * Ejecuta la acción de una ruta (closure o método de controlador)
      */
     private function executeAction(callable|array $action, Request $request, array $params): Response
     {
@@ -217,17 +217,17 @@ class Router
             $result = $action($request, ...$params);
         } elseif (is_array($action) && count($action) === 2) {
             [$controller, $method] = $action;
-            
+
             if (is_string($controller)) {
                 $controller = new $controller();
             }
-            
+
             $result = $controller->$method($request, ...$params);
         } else {
             throw new \Exception('Invalid route action');
         }
 
-        // Convert result to Response if needed
+        // Convertir el resultado en una instancia de Response si es necesario
         if ($result instanceof Response) {
             return $result;
         }
@@ -244,7 +244,7 @@ class Router
     }
 
     /**
-     * Get all registered routes
+     * Retorna todas las rutas registradas en el enrutador
      */
     public function getRoutes(): array
     {

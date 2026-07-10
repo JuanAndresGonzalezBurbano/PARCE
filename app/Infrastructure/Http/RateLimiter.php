@@ -3,38 +3,38 @@
 namespace App\Infrastructure\Http;
 
 /**
- * Rate Limiter Utility
- * 
- * Implements IP-based rate limiting using sliding window algorithm.
- * Tracks login attempts per IP address with automatic expiration.
- * 
- * Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7
+ * Utilidad de Limitación de Tasa
+ *
+ * Implementa la limitación de tasa basada en IP usando el algoritmo de ventana deslizante.
+ * Rastrea los intentos de inicio de sesión por dirección IP con expiración automática.
+ *
+ * Requisitos: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7
  */
 class RateLimiter
 {
     /**
-     * In-memory storage for attempt tracking
-     * 
-     * Structure: [
+     * Almacenamiento en memoria para el seguimiento de intentos
+     *
+     * Estructura: [
      *   'endpoint:ip' => [
      *     'attempts' => int,
      *     'window_start' => int (timestamp),
      *     'locked_until' => int|null (timestamp)
      *   ]
      * ]
-     * 
+     *
      * @var array
      */
     private static array $storage = [];
 
     /**
-     * Storage file path for persistence
+     * Ruta del archivo de almacenamiento para persistencia
      */
     private const STORAGE_FILE = __DIR__ . '/../../../storage/rate_limit.json';
 
     /**
-     * Load storage from file
-     * 
+     * Carga el almacenamiento desde el archivo
+     *
      * @return void
      */
     private static function loadStorage(): void
@@ -48,8 +48,8 @@ class RateLimiter
     }
 
     /**
-     * Save storage to file
-     * 
+     * Guarda el almacenamiento en el archivo
+     *
      * @return void
      */
     private static function saveStorage(): void
@@ -62,39 +62,39 @@ class RateLimiter
     }
 
     /**
-     * Sliding window duration in seconds (15 minutes)
-     * 
-     * Requirement 6.2, 17.2
+     * Duración de la ventana deslizante en segundos (15 minutos)
+     *
+     * Requisito 6.2, 17.2
      */
-    private const WINDOW_DURATION = 900; // 15 minutes
+    private const WINDOW_DURATION = 900; // 15 minutos
 
     /**
-     * Maximum attempts allowed per window
-     * 
-     * Requirement 6.3, 17.3
+     * Máximo de intentos permitidos por ventana
+     *
+     * Requisito 6.3, 17.3
      */
     private const MAX_ATTEMPTS = 5;
 
     /**
-     * Check if request is rate limited
-     * 
-     * Requirements: 6.1, 6.2, 6.3, 6.4, 17.1, 17.2, 17.3, 17.4
-     * 
-     * @param string $endpoint Endpoint identifier (e.g., 'login')
-     * @param string $ipAddress Client IP address
+     * Verifica si la solicitud está limitada por tasa
+     *
+     * Requisitos: 6.1, 6.2, 6.3, 6.4, 17.1, 17.2, 17.3, 17.4
+     *
+     * @param string $endpoint Identificador del endpoint (ej. 'login')
+     * @param string $ipAddress Dirección IP del cliente
      * @return array ['allowed' => bool, 'remaining' => int, 'reset_at' => int|null]
      */
     public static function check(string $endpoint, string $ipAddress): array
     {
         self::loadStorage();
-        
+
         $key = self::getKey($endpoint, $ipAddress);
         $now = time();
 
-        // Requirement 6.4, 17.4: Clean up expired entries
+        // Requisito 6.4, 17.4: Limpiar entradas expiradas
         self::cleanupExpired();
 
-        // Get or initialize tracking data
+        // Obtener o inicializar los datos de seguimiento
         if (!isset(self::$storage[$key])) {
             self::$storage[$key] = [
                 'attempts' => 0,
@@ -105,7 +105,7 @@ class RateLimiter
 
         $data = &self::$storage[$key];
 
-        // Check if currently locked
+        // Verificar si está bloqueado actualmente
         if ($data['locked_until'] !== null && $now < $data['locked_until']) {
             return [
                 'allowed' => false,
@@ -114,21 +114,21 @@ class RateLimiter
             ];
         }
 
-        // Requirement 6.2, 17.2: Check if window has expired (sliding window)
+        // Requisito 6.2, 17.2: Verificar si la ventana ha expirado (ventana deslizante)
         if ($now - $data['window_start'] >= self::WINDOW_DURATION) {
-            // Reset window
+            // Reiniciar la ventana
             $data['attempts'] = 0;
             $data['window_start'] = $now;
             $data['locked_until'] = null;
         }
 
-        // Requirement 6.3, 17.3: Check if max attempts reached
+        // Requisito 6.3, 17.3: Verificar si se alcanzó el máximo de intentos
         if ($data['attempts'] >= self::MAX_ATTEMPTS) {
-            // Lock until window expires
+            // Bloquear hasta que expire la ventana
             $data['locked_until'] = $data['window_start'] + self::WINDOW_DURATION;
-            
+
             self::saveStorage();
-            
+
             return [
                 'allowed' => false,
                 'remaining' => 0,
@@ -136,7 +136,7 @@ class RateLimiter
             ];
         }
 
-        // Requirement 6.1, 17.1: Allow request
+        // Requisito 6.1, 17.1: Permitir la solicitud
         return [
             'allowed' => true,
             'remaining' => self::MAX_ATTEMPTS - $data['attempts'],
@@ -145,22 +145,22 @@ class RateLimiter
     }
 
     /**
-     * Record a failed attempt
-     * 
-     * Requirements: 6.1, 6.3, 17.1, 17.3
-     * 
-     * @param string $endpoint Endpoint identifier
-     * @param string $ipAddress Client IP address
+     * Registra un intento fallido
+     *
+     * Requisitos: 6.1, 6.3, 17.1, 17.3
+     *
+     * @param string $endpoint Identificador del endpoint
+     * @param string $ipAddress Dirección IP del cliente
      * @return void
      */
     public static function recordAttempt(string $endpoint, string $ipAddress): void
     {
         self::loadStorage();
-        
+
         $key = self::getKey($endpoint, $ipAddress);
         $now = time();
 
-        // Initialize if not exists
+        // Inicializar si no existe
         if (!isset(self::$storage[$key])) {
             self::$storage[$key] = [
                 'attempts' => 0,
@@ -169,44 +169,44 @@ class RateLimiter
             ];
         }
 
-        // Requirement 6.1, 17.1: Increment attempt counter
+        // Requisito 6.1, 17.1: Incrementar el contador de intentos
         self::$storage[$key]['attempts']++;
-        
+
         self::saveStorage();
     }
 
     /**
-     * Reset attempts for successful login
-     * 
-     * Requirements: 6.5, 17.5
-     * 
-     * @param string $endpoint Endpoint identifier
-     * @param string $ipAddress Client IP address
+     * Reinicia los intentos tras un inicio de sesión exitoso
+     *
+     * Requisitos: 6.5, 17.5
+     *
+     * @param string $endpoint Identificador del endpoint
+     * @param string $ipAddress Dirección IP del cliente
      * @return void
      */
     public static function reset(string $endpoint, string $ipAddress): void
     {
         self::loadStorage();
-        
+
         $key = self::getKey($endpoint, $ipAddress);
-        
-        // Requirement 6.5, 17.5: Clear tracking data on success
+
+        // Requisito 6.5, 17.5: Limpiar los datos de seguimiento al tener éxito
         unset(self::$storage[$key]);
-        
+
         self::saveStorage();
     }
 
     /**
-     * Get remaining attempts for an IP
-     * 
-     * @param string $endpoint Endpoint identifier
-     * @param string $ipAddress Client IP address
-     * @return int Remaining attempts
+     * Obtiene los intentos restantes para una IP
+     *
+     * @param string $endpoint Identificador del endpoint
+     * @param string $ipAddress Dirección IP del cliente
+     * @return int Intentos restantes
      */
     public static function getRemaining(string $endpoint, string $ipAddress): int
     {
         $key = self::getKey($endpoint, $ipAddress);
-        
+
         if (!isset(self::$storage[$key])) {
             return self::MAX_ATTEMPTS;
         }
@@ -216,22 +216,22 @@ class RateLimiter
     }
 
     /**
-     * Get time until rate limit resets
-     * 
-     * @param string $endpoint Endpoint identifier
-     * @param string $ipAddress Client IP address
-     * @return int|null Timestamp when limit resets, or null if not limited
+     * Obtiene el tiempo hasta que se reinicia el límite de tasa
+     *
+     * @param string $endpoint Identificador del endpoint
+     * @param string $ipAddress Dirección IP del cliente
+     * @return int|null Timestamp cuando se reinicia el límite, o nulo si no está limitado
      */
     public static function getResetTime(string $endpoint, string $ipAddress): ?int
     {
         $key = self::getKey($endpoint, $ipAddress);
-        
+
         if (!isset(self::$storage[$key])) {
             return null;
         }
 
         $data = self::$storage[$key];
-        
+
         if ($data['locked_until'] !== null) {
             return $data['locked_until'];
         }
@@ -240,50 +240,50 @@ class RateLimiter
     }
 
     /**
-     * Clean up expired tracking entries
-     * 
-     * Requirements: 6.4, 17.4
-     * 
+     * Limpia las entradas de seguimiento expiradas
+     *
+     * Requisitos: 6.4, 17.4
+     *
      * @return void
      */
     private static function cleanupExpired(): void
     {
         $now = time();
-        
+
         foreach (self::$storage as $key => $data) {
-            // Remove if window has expired and not locked
-            if ($data['locked_until'] === null && 
+            // Eliminar si la ventana expiró y no está bloqueada
+            if ($data['locked_until'] === null &&
                 $now - $data['window_start'] >= self::WINDOW_DURATION) {
                 unset(self::$storage[$key]);
             }
-            
-            // Remove if lock has expired
+
+            // Eliminar si el bloqueo expiró
             if ($data['locked_until'] !== null && $now >= $data['locked_until']) {
                 unset(self::$storage[$key]);
             }
         }
-        
+
         self::saveStorage();
     }
 
     /**
-     * Generate storage key for endpoint and IP
-     * 
-     * Requirements: 6.7, 17.7
-     * 
-     * @param string $endpoint Endpoint identifier
-     * @param string $ipAddress Client IP address
-     * @return string Storage key
+     * Genera la clave de almacenamiento para el endpoint y la IP
+     *
+     * Requisitos: 6.7, 17.7
+     *
+     * @param string $endpoint Identificador del endpoint
+     * @param string $ipAddress Dirección IP del cliente
+     * @return string Clave de almacenamiento
      */
     private static function getKey(string $endpoint, string $ipAddress): string
     {
-        // Requirement 6.7, 17.7: Per-endpoint tracking
+        // Requisito 6.7, 17.7: Seguimiento por endpoint
         return $endpoint . ':' . $ipAddress;
     }
 
     /**
-     * Clear all rate limit data (for testing)
-     * 
+     * Limpia todos los datos de límite de tasa (para pruebas)
+     *
      * @return void
      */
     public static function clearAll(): void
@@ -292,16 +292,16 @@ class RateLimiter
     }
 
     /**
-     * Get current attempt count (for testing/debugging)
-     * 
-     * @param string $endpoint Endpoint identifier
-     * @param string $ipAddress Client IP address
-     * @return int Current attempt count
+     * Obtiene el conteo de intentos actual (para pruebas y depuración)
+     *
+     * @param string $endpoint Identificador del endpoint
+     * @param string $ipAddress Dirección IP del cliente
+     * @return int Conteo de intentos actual
      */
     public static function getAttempts(string $endpoint, string $ipAddress): int
     {
         $key = self::getKey($endpoint, $ipAddress);
-        
+
         if (!isset(self::$storage[$key])) {
             return 0;
         }

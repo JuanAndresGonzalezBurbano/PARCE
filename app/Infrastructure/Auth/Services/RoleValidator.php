@@ -5,37 +5,37 @@ namespace App\Infrastructure\Auth\Services;
 use App\Core\Database;
 
 /**
- * Role Validator Service
- * 
- * Provides role validation and checking functionality for RBAC.
- * Queries user_roles and roles tables with active role filtering,
- * expiration checking, and per-request caching for performance.
- * 
- * Requirements: Design RBAC Integration section
+ * Servicio de Validación de Roles
+ *
+ * Proporciona funcionalidad de validación y verificación de roles para el control de acceso basado en roles (RBAC).
+ * Consulta las tablas user_roles y roles con filtrado de roles activos,
+ * verificación de expiración y caché por solicitud para mejorar el rendimiento.
+ *
+ * Requisitos: Sección de Integración de Diseño RBAC
  */
 class RoleValidator
 {
     /**
-     * Role cache to avoid repeated database queries within a single request
-     * 
+     * Caché de roles para evitar consultas repetidas a la base de datos dentro de una misma solicitud
+     *
      * @var array<int, array<string>>
      */
     private array $roleCache = [];
 
     /**
-     * Get all active roles for a user
-     * 
-     * Fetches roles from user_roles table with filtering:
-     * - Only active roles (is_active = true)
-     * - Non-expired roles (expires_at IS NULL OR expires_at > NOW())
-     * - Active role definitions (roles.is_active = true)
-     * 
-     * @param int $userId User ID
-     * @return array Array of role slugs
+     * Obtiene todos los roles activos de un usuario
+     *
+     * Obtiene roles de la tabla user_roles con los siguientes filtros:
+     * - Solo roles activos (is_active = true)
+     * - Roles no expirados (expires_at IS NULL OR expires_at > NOW())
+     * - Definiciones de roles activos (roles.is_active = true)
+     *
+     * @param int $userId ID del usuario
+     * @return array Arreglo de slugs de roles
      */
     public function getUserRoles(int $userId): array
     {
-        // Check cache first (per-request cache, not static)
+        // Verificar caché primero (caché por solicitud, no estático)
         if (isset($this->roleCache[$userId])) {
             return $this->roleCache[$userId];
         }
@@ -53,12 +53,12 @@ class RoleValidator
                 [$userId]
             );
 
-            // Extract slugs from result
+            // Extraer slugs del resultado
             $slugs = array_map(function($role) {
                 return $role['slug'];
             }, $roles);
 
-            // Cache the result (per-request, not static)
+            // Almacenar en caché el resultado (por solicitud, no estático)
             $this->roleCache[$userId] = $slugs;
 
             return $slugs;
@@ -70,11 +70,11 @@ class RoleValidator
     }
 
     /**
-     * Check if user has a specific role
-     * 
-     * @param int $userId User ID
-     * @param string $roleSlug Role slug to check
-     * @return bool True if user has the role, false otherwise
+     * Verifica si el usuario tiene un rol específico
+     *
+     * @param int $userId ID del usuario
+     * @param string $roleSlug Slug del rol a verificar
+     * @return bool Verdadero si el usuario tiene el rol, falso en caso contrario
      */
     public function hasRole(int $userId, string $roleSlug): bool
     {
@@ -83,11 +83,11 @@ class RoleValidator
     }
 
     /**
-     * Check if user has at least one of the specified roles
-     * 
-     * @param int $userId User ID
-     * @param array $roleSlugs Array of role slugs to check
-     * @return bool True if user has at least one role, false otherwise
+     * Verifica si el usuario tiene al menos uno de los roles especificados
+     *
+     * @param int $userId ID del usuario
+     * @param array $roleSlugs Arreglo de slugs de roles a verificar
+     * @return bool Verdadero si el usuario tiene al menos un rol, falso en caso contrario
      */
     public function hasAnyRole(int $userId, array $roleSlugs): bool
     {
@@ -96,7 +96,7 @@ class RoleValidator
         }
 
         $userRoles = $this->getUserRoles($userId);
-        
+
         foreach ($roleSlugs as $roleSlug) {
             if (in_array($roleSlug, $userRoles, true)) {
                 return true;
@@ -107,11 +107,11 @@ class RoleValidator
     }
 
     /**
-     * Check if user has all of the specified roles
-     * 
-     * @param int $userId User ID
-     * @param array $roleSlugs Array of role slugs to check
-     * @return bool True if user has all roles, false otherwise
+     * Verifica si el usuario tiene todos los roles especificados
+     *
+     * @param int $userId ID del usuario
+     * @param array $roleSlugs Arreglo de slugs de roles a verificar
+     * @return bool Verdadero si el usuario tiene todos los roles, falso en caso contrario
      */
     public function hasAllRoles(int $userId, array $roleSlugs): bool
     {
@@ -120,7 +120,7 @@ class RoleValidator
         }
 
         $userRoles = $this->getUserRoles($userId);
-        
+
         foreach ($roleSlugs as $roleSlug) {
             if (!in_array($roleSlug, $userRoles, true)) {
                 return false;
@@ -131,11 +131,11 @@ class RoleValidator
     }
 
     /**
-     * Clear role cache for a specific user
-     * 
-     * Useful when roles are modified and cache needs to be invalidated
-     * 
-     * @param int $userId User ID
+     * Limpia la caché de roles para un usuario específico
+     *
+     * Útil cuando los roles son modificados y la caché necesita ser invalidada
+     *
+     * @param int $userId ID del usuario
      * @return void
      */
     public function clearCache(int $userId): void
@@ -144,8 +144,8 @@ class RoleValidator
     }
 
     /**
-     * Clear all role caches
-     * 
+     * Limpia todas las cachés de roles
+     *
      * @return void
      */
     public function clearAllCaches(): void

@@ -19,21 +19,11 @@ use App\Infrastructure\Auth\Exceptions\AuthenticationException;
 
 /**
  * Authentication Controller
- *
- * Expone los endpoints HTTP de autenticación:
- *   POST /api/auth/register  — registro de nuevo usuario
- *   POST /api/auth/login     — inicio de sesión
- *   POST /api/auth/logout    — cierre de sesión
- *   GET  /api/auth/me        — perfil del usuario autenticado
- *   PUT  /api/auth/profile   — actualización del perfil (licencia del mecánico)
- *   GET  /api/auth/health    — health-check del servicio de auth
- *
- * Convenciones de este controller:
- *  - Cada método está envuelto en try/catch; los errores van a ErrorHandler.
- *  - Toda respuesta usa ResponseFormatter para garantizar el formato JSON estándar.
- *  - Las cookies de sesión siempre se capturan del valor de retorno de
- *    ResponseFormatter::setSessionCookie() — este método retorna un nuevo
- *    Response con la cookie adjunta, no modifica el objeto original.
+ * 
+ * Handles HTTP requests for authentication operations including
+ * registration, login, logout, and current user retrieval.
+ * 
+ * Requirements: Design API Endpoints 1-4
  */
 class AuthController extends Controller
 {
@@ -46,289 +36,326 @@ class AuthController extends Controller
     {
         $this->passwordHasher = new PasswordHasher();
         $this->sessionManager = new SessionManager();
-        $this->authService    = new AuthService($this->passwordHasher, $this->sessionManager);
-        $this->roleValidator  = new RoleValidator();
+        $this->authService = new AuthService($this->passwordHasher, $this->sessionManager);
+        $this->roleValidator = new RoleValidator();
     }
 
-    // =========================================================================
-    // POST /api/auth/register
-    // =========================================================================
-
     /**
-     * Registra un nuevo usuario como 'customer' y crea su sesión inicial.
-     *
-     * Flujo:
-     *  1. Valida Content-Type y parsea JSON.
-     *  2. Valida campos de registro (email, password, first_name, last_name).
-     *  3. Verifica que el email no exista ya en la BD.
-     *  4. Hashea el password con Argon2id via PasswordHasher.
-     *  5. Transacción: crea usuario, asigna rol 'customer', crea sesión en BD.
-     *  6. Retorna 201 con datos del usuario y la cookie de sesión.
+     * Register new user
+     * 
+     * POST /api/auth/register
+     * 
+     * Requirements: 1.1-1.8, Design API Endpoint 1
+     * 
+     * @param Request $request HTTP request
+     * @return Response HTTP response
      */
     public function register(Request $request): Response
     {
         try {
-            // Validar que el request sea JSON
-            $ctValidation = RequestValidator::validateContentType($request, 'POST');
-            if (!$ctValidation['valid']) {
-                return ResponseFormatter::error($ctValidation['error'], null, $ctValidation['statusCode']);
+            // Validate Content-Type
+            $contentTypeValidation = RequestValidator::validateContentType($request, 'POST');
+            if (!$contentTypeValidation['valid']) {
+                return ResponseFormatter::error(
+                    $contentTypeValidation['error'],
+                    null,
+                    $contentTypeValidation['statusCode']
+                );
             }
 
+            // Parse JSON body
             $jsonValidation = RequestValidator::parseJsonBody($request);
             if (!$jsonValidation['valid']) {
-                return ResponseFormatter::error($jsonValidation['error'], null, $jsonValidation['statusCode']);
+                return ResponseFormatter::error(
+                    $jsonValidation['error'],
+                    null,
+                    $jsonValidation['statusCode']
+                );
             }
 
-            // Validar todos los campos de registro
+            // Validate registration request
             $validation = RequestValidator::validateRegistrationRequest($request);
             if (!$validation['valid']) {
                 return ResponseFormatter::validationError($validation['errors']);
             }
 
-            // Sanitizar inputs (elimina null bytes, trim)
-            $email     = RequestValidator::sanitizeString($request->input('email'));
-            $password  = $request->input('password');
+            // Extract and sanitize input
+            $email = RequestValidator::sanitizeString($request->input('email'));
+            $password = $request->input('password');
             $firstName = RequestValidator::sanitizeString($request->input('first_name'));
-            $lastName  = RequestValidator::sanitizeString($request->input('last_name'));
-            $phone     = $request->input('phone')
-                ? RequestValidator::sanitizeString($request->input('phone'))
-                : null;
+            $lastName = RequestValidator::sanitizeString($request->input('last_name'));
+            $phone = $request->input('phone') ? RequestValidator::sanitizeString($request->input('phone')) : null;
 
-            // Verificar que el email no esté registrado
+            // Check if email already exists
             $existingUser = Database::fetchOne(
                 'SELECT id FROM users WHERE email = ? AND deleted_at IS NULL',
                 [$email]
             );
+
             if ($existingUser !== null) {
-                // 409 Conflict: el email ya está en uso
                 return ResponseFormatter::conflict('Email already exists');
             }
 
-            // Hashear la contraseña (Argon2id, memory-hard)
+            // Hash password
             $passwordHash = $this->passwordHasher->hash($password);
 
-            // Transacción para garantizar consistencia: usuario + rol + sesión
+            // Start database transaction
             Database::beginTransaction();
+
             try {
+                // Insert user
                 $userId = Database::insert('users', [
-                    'email'          => $email,
-                    'password_hash'  => $passwordHash,
-                    'first_name'     => $firstName,
-                    'last_name'      => $lastName,
-                    'phone'          => $phone,
+                    'email' => $email,
+                    'password_hash' => $passwordHash,
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
+                    'phone' => $phone,
                     'account_status' => 'active',
-                    'created_at'     => date('Y-m-d H:i:s'),
-                    'updated_at'     => date('Y-m-d H:i:s'),
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s')
                 ]);
 
-                // El rol por defecto para cualquier registro es 'customer'
+                // Get default 'customer' role ID
                 $customerRole = Database::fetchOne(
                     'SELECT id FROM roles WHERE slug = ? AND is_active = TRUE',
                     ['customer']
                 );
+
                 if ($customerRole === null) {
-                    throw new \Exception('Default customer role not found in database');
+                    throw new \Exception('Default customer role not found');
                 }
 
+                // Assign default 'customer' role
                 Database::insert('user_roles', [
-                    'user_id'     => $userId,
-                    'role_id'     => $customerRole['id'],
+                    'user_id' => $userId,
+                    'role_id' => $customerRole['id'],
                     'assigned_at' => date('Y-m-d H:i:s'),
-                    'is_active'   => true,
+                    'is_active' => true
                 ]);
 
-                // Crear sesión en la tabla sessions (no filesystem)
+                // Create session
                 $sessionId = $this->sessionManager->create($userId, [
                     'ip_address' => IPValidator::getClientIP($request),
                     'user_agent' => $request->userAgent(),
-                    'remember'   => false, // los nuevos registros nunca tienen remember
+                    'remember' => false
                 ]);
 
+                // Commit transaction
                 Database::commit();
+
+                // Fetch created user
+                $user = Database::fetchOne(
+                    'SELECT id, email, first_name, last_name, account_status, created_at
+                     FROM users
+                     WHERE id = ?',
+                    [$userId]
+                );
+
+                // Get user roles
+                $roles = $this->roleValidator->getUserRoles($userId);
+
+                // Prepare response data
+                $responseData = [
+                    'user' => [
+                        'id' => (int)$user['id'],
+                        'email' => $user['email'],
+                        'firstName' => $user['first_name'],
+                        'lastName' => $user['last_name'],
+                        'accountStatus' => $user['account_status'],
+                        'roles' => $roles
+                    ],
+                    'session' => [
+                        'id' => $sessionId,
+                        'expiresAt' => time() + 7200 // 2 hours
+                    ]
+                ];
+
+                // Set session cookie
+                $response = ResponseFormatter::success(
+                    $responseData,
+                    'Registration successful',
+                    201
+                );
+
+                ResponseFormatter::setSessionCookie($response, $sessionId, false);
+
+                return $response;
+
             } catch (\Exception $e) {
+                // Rollback transaction on error
                 Database::rollback();
                 throw $e;
             }
 
-            // Recuperar usuario recién creado para incluirlo en la respuesta
-            $user  = Database::fetchOne(
-                'SELECT id, email, first_name, last_name, phone, account_status, created_at
-                 FROM users WHERE id = ?',
-                [$userId]
-            );
-            $roles = $this->roleValidator->getUserRoles($userId);
-
-            $responseData = [
-                'user' => [
-                    'id'            => (int)$user['id'],
-                    'email'         => $user['email'],
-                    'firstName'     => $user['first_name'],
-                    'lastName'      => $user['last_name'],
-                    'phone'         => $user['phone'],
-                    'accountStatus' => $user['account_status'],
-                    'roles'         => $roles,
-                ],
-                'session' => [
-                    'expiresAt' => time() + 7200, // 2 horas
-                ],
-            ];
-
-            // CORRECCIÓN: setSessionCookie() retorna un Response nuevo con la cookie.
-            // Debe capturarse; ignorar el return deja la cookie sin settear.
-            $response = ResponseFormatter::success($responseData, 'Registration successful', 201);
-            $response = ResponseFormatter::setSessionCookie($response, $sessionId, false);
-
-            return $response;
-
         } catch (AuthenticationException $e) {
             return ErrorHandler::handleException($e);
+
         } catch (\Exception $e) {
             return ErrorHandler::handleException($e);
         }
     }
 
-    // =========================================================================
-    // POST /api/auth/login
-    // =========================================================================
-
     /**
-     * Autentica un usuario y abre una sesión.
-     *
-     * Flujo:
-     *  1. Extrae la IP real del cliente (IPValidator maneja proxies).
-     *  2. Verifica rate limit: 5 intentos / 15 minutos / IP.
-     *  3. Valida Content-Type y JSON.
-     *  4. Llama a AuthService::authenticate() que internamente:
-     *     - Busca el usuario por email.
-     *     - Si no existe: hace un dummy hash para que el tiempo de respuesta
-     *       sea idéntico al caso de contraseña incorrecta (timing-attack protection).
-     *     - Verifica el hash Argon2id.
-     *     - Crea la sesión en BD y actualiza last_login_at / last_login_ip.
-     *  5. Si falla: incrementa el contador de rate limiting.
-     *  6. Si exitoso: resetea el contador y retorna 200 con cookie de sesión.
+     * Login user
+     * 
+     * POST /api/auth/login
+     * 
+     * Requirements: 1.1-1.8, 19.1-19.7, Design API Endpoint 2
+     * 
+     * @param Request $request HTTP request
+     * @return Response HTTP response
      */
     public function login(Request $request): Response
     {
-        // La IP se extrae fuera del try para que esté disponible en los catch
-        // (necesitamos registrar el intento fallido incluso si hay excepción)
-        $ipAddress = IPValidator::getClientIP($request);
-
         try {
-            // Verificar rate limit antes de procesar el request
+            // Requirement 20.1, 20.2: Get client IP address using IPValidator
+            $ipAddress = IPValidator::getClientIP($request);
+
+            // Requirement 6.1, 6.2, 6.3: Check rate limit before authentication
             $rateLimitCheck = RateLimiter::check('login', $ipAddress);
+            
             if (!$rateLimitCheck['allowed']) {
+                // Requirement 6.4: Return 429 with Retry-After header
                 $retryAfter = $rateLimitCheck['reset_at'] - time();
                 return ResponseFormatter::rateLimitExceeded($retryAfter);
             }
 
-            $ctValidation = RequestValidator::validateContentType($request, 'POST');
-            if (!$ctValidation['valid']) {
-                return ResponseFormatter::error($ctValidation['error'], null, $ctValidation['statusCode']);
+            // Validate Content-Type
+            $contentTypeValidation = RequestValidator::validateContentType($request, 'POST');
+            if (!$contentTypeValidation['valid']) {
+                return ResponseFormatter::error(
+                    $contentTypeValidation['error'],
+                    null,
+                    $contentTypeValidation['statusCode']
+                );
             }
 
+            // Parse JSON body
             $jsonValidation = RequestValidator::parseJsonBody($request);
             if (!$jsonValidation['valid']) {
-                return ResponseFormatter::error($jsonValidation['error'], null, $jsonValidation['statusCode']);
+                return ResponseFormatter::error(
+                    $jsonValidation['error'],
+                    null,
+                    $jsonValidation['statusCode']
+                );
             }
 
+            // Validate login request
             $validation = RequestValidator::validateLoginRequest($request);
             if (!$validation['valid']) {
                 return ResponseFormatter::validationError($validation['errors']);
             }
 
-            $email    = RequestValidator::sanitizeString($request->input('email'));
+            // Extract input
+            $email = RequestValidator::sanitizeString($request->input('email'));
             $password = $request->input('password');
             $remember = $request->input('remember', false);
+
+            // Normalize remember to boolean
             if (!is_bool($remember)) {
                 $remember = filter_var($remember, FILTER_VALIDATE_BOOLEAN);
             }
 
-            // AuthService::authenticate() orquesta toda la lógica de seguridad
-            $authResult = $this->authService->authenticate(
-                $email,
-                $password,
-                $remember,
-                $ipAddress,
-                $request->userAgent()
-            );
+            // Requirement 20.2: Authenticate via AuthService with IP address and user agent
+            $userAgent = $request->userAgent();
+            $authResult = $this->authService->authenticate($email, $password, $remember, $ipAddress, $userAgent);
 
+            // Check authentication result
             if (!$authResult->success) {
-                // Credenciales inválidas: registrar intento para el rate limiter
+                // Record failed attempt for rate limiting
                 RateLimiter::recordAttempt('login', $ipAddress);
-                // Mensaje genérico: no decimos si el email existe
+                
+                // Return 401 with generic error message (prevent user enumeration)
                 return ResponseFormatter::unauthorized($authResult->message);
             }
 
-            // Login exitoso: limpiar el contador para que la IP no quede bloqueada
+            // Requirement 6.5: Reset rate limit on successful login
             RateLimiter::reset('login', $ipAddress);
 
-            // Recuperar datos completos del usuario para la respuesta
-            $user  = Database::fetchOne(
-                'SELECT id, email, first_name, last_name, phone, account_status, last_login_at
-                 FROM users WHERE id = ?',
+            // Fetch user data
+            $user = Database::fetchOne(
+                'SELECT id, email, first_name, last_name, account_status, last_login_at
+                 FROM users
+                 WHERE id = ?',
                 [$authResult->userId]
             );
+
+            // Get user roles
             $roles = $this->roleValidator->getUserRoles($authResult->userId);
 
-            $expiresAt = $remember
-                ? time() + (30 * 24 * 60 * 60) // 30 días con remember me
-                : time() + 7200;                 // 2 horas sin remember me
+            // Calculate session expiration
+            $expiresAt = $remember 
+                ? time() + (30 * 24 * 60 * 60) // 30 days
+                : time() + 7200; // 2 hours
 
+            // Prepare response data
             $responseData = [
                 'user' => [
-                    'id'            => (int)$user['id'],
-                    'email'         => $user['email'],
-                    'firstName'     => $user['first_name'],
-                    'lastName'      => $user['last_name'],
-                    'phone'         => $user['phone'],
+                    'id' => (int)$user['id'],
+                    'email' => $user['email'],
+                    'firstName' => $user['first_name'],
+                    'lastName' => $user['last_name'],
                     'accountStatus' => $user['account_status'],
-                    'lastLoginAt'   => $user['last_login_at'],
-                    'roles'         => $roles,
+                    'lastLoginAt' => $user['last_login_at'],
+                    'roles' => $roles
                 ],
                 'session' => [
-                    'expiresAt' => $expiresAt,
-                ],
+                    'id' => $authResult->sessionId,
+                    'expiresAt' => $expiresAt
+                ]
             ];
 
-            // CORRECCIÓN: capturar el retorno de setSessionCookie()
-            $response = ResponseFormatter::success($responseData, 'Login successful', 200);
-            $response = ResponseFormatter::setSessionCookie($response, $authResult->sessionId, $remember);
+            // Set session cookie
+            $response = ResponseFormatter::success(
+                $responseData,
+                'Login successful',
+                200
+            );
+
+            ResponseFormatter::setSessionCookie($response, $authResult->sessionId, $remember);
 
             return $response;
 
         } catch (AuthenticationException $e) {
-            // Las excepciones de autenticación también cuentan como intento fallido
+            // Record failed attempt for rate limiting
             RateLimiter::recordAttempt('login', $ipAddress);
+            
             return ErrorHandler::handleException($e);
+
         } catch (\Exception $e) {
             return ErrorHandler::handleException($e);
         }
     }
 
-    // =========================================================================
-    // POST /api/auth/logout
-    // =========================================================================
-
     /**
-     * Cierra la sesión del usuario y expira la cookie.
-     *
-     * Es idempotente: si la cookie no existe o la sesión ya fue destruida,
-     * retorna 200 de todas formas. Así el cliente siempre puede hacer logout limpio
-     * sin preocuparse por el estado previo.
+     * Logout user
+     * 
+     * POST /api/auth/logout
+     * 
+     * Requirements: 2.1-2.7, Design API Endpoint 3
+     * 
+     * @param Request $request HTTP request
+     * @return Response HTTP response
      */
     public function logout(Request $request): Response
     {
         try {
+            // Extract session ID from cookie
             $sessionId = $request->cookie(ResponseFormatter::getSessionCookieName());
 
-            if (!empty($sessionId)) {
-                // Eliminar la sesión de la tabla sessions en la BD
-                $this->authService->logout($sessionId);
+            // If no session cookie, return success anyway (idempotent)
+            if ($sessionId === null || empty($sessionId)) {
+                $response = ResponseFormatter::success(null, 'Logout successful', 200);
+                ResponseFormatter::clearSessionCookie($response);
+                return $response;
             }
 
-            // Expirar la cookie en el browser (Max-Age=0)
-            $response = ResponseFormatter::success(null, 'Logged out successfully', 200);
-            $response = ResponseFormatter::clearSessionCookie($response);
+            // Destroy session via AuthService
+            $this->authService->logout($sessionId);
+
+            // Clear session cookie
+            $response = ResponseFormatter::success(null, 'Logout successful', 200);
+            ResponseFormatter::clearSessionCookie($response);
 
             return $response;
 
@@ -337,169 +364,170 @@ class AuthController extends Controller
         }
     }
 
-    // =========================================================================
-    // GET /api/auth/me
-    // =========================================================================
-
     /**
-     * Retorna el perfil completo del usuario autenticado.
+     * Obtener usuario autenticado actual
      *
-     * El AuthMiddleware ya validó la sesión y adjuntó userId al request.
-     * Hacemos una consulta adicional a la BD para obtener todos los campos,
-     * incluyendo los de licencia de conducción (relevantes para mecánicos).
+     * GET /api/auth/me
      *
-     * Retorna también un campo 'driverLicense.status' calculado:
-     *   'not_set'       — el usuario no ha cargado licencia
-     *   'valid'         — vigente (vence en más de 30 días)
-     *   'expiring_soon' — vence en 30 días o menos
-     *   'expired'       — ya venció
+     * Retorna el perfil completo del usuario incluyendo datos de licencia de conducción.
+     *
+     * @param Request $request HTTP request
+     * @return Response HTTP response
      */
     public function me(Request $request): Response
     {
         try {
-            $userId = (int)$request->getAttribute('userId');
+            // Obtener usuario desde los atributos del request (establecido por AuthMiddleware)
+            $user = $request->getAttribute('user');
 
-            if ($userId === 0) {
-                return ResponseFormatter::unauthorized('Authentication required');
+            if ($user === null) {
+                return ResponseFormatter::unauthorized('Autenticación requerida');
             }
 
-            // Consulta completa: campos básicos + licencia de conducción
-            $user = Database::fetchOne(
-                'SELECT id, email, first_name, last_name, phone,
-                        account_status, last_login_at,
-                        driver_license_number,
-                        driver_license_expiration_date,
-                        driver_license_document_url,
+            $userId = (int)$user['id'];
+
+            // Obtener datos completos del usuario incluyendo licencia y teléfono
+            $userData = Database::fetchOne(
+                'SELECT id, email, first_name, last_name, phone, account_status,
+                        last_login_at, created_at,
+                        driver_license_number, driver_license_expiration_date,
+                        driver_license_document_url, driver_license_status,
                         driver_license_uploaded_at
                  FROM users
                  WHERE id = ? AND deleted_at IS NULL',
                 [$userId]
             );
 
-            if ($user === null) {
-                return ResponseFormatter::unauthorized('User not found');
+            if ($userData === null) {
+                return ResponseFormatter::unauthorized('Usuario no encontrado');
             }
 
-            $roles         = $this->roleValidator->getUserRoles($userId);
-            $licenseStatus = $this->resolveLicenseStatus($user['driver_license_expiration_date'] ?? null);
+            // Obtener roles del usuario
+            $roles = $this->roleValidator->getUserRoles($userId);
 
+            // Construir objeto de licencia de conducción (null si no se ha registrado)
+            $driverLicense = null;
+            if ($userData['driver_license_status'] !== 'not_set' || $userData['driver_license_number'] !== null) {
+                $driverLicense = [
+                    'number'         => $userData['driver_license_number'],
+                    'expirationDate' => $userData['driver_license_expiration_date'],
+                    'documentUrl'    => $userData['driver_license_document_url'],
+                    'status'         => $userData['driver_license_status'] ?? 'not_set',
+                    'uploadedAt'     => $userData['driver_license_uploaded_at'],
+                ];
+            }
+
+            // Construir respuesta
             $responseData = [
-                'id'            => (int)$user['id'],
-                'email'         => $user['email'],
-                'firstName'     => $user['first_name'],
-                'lastName'      => $user['last_name'],
-                'phone'         => $user['phone'],
-                'accountStatus' => $user['account_status'],
-                'lastLoginAt'   => $user['last_login_at'],
+                'id'            => $userId,
+                'email'         => $userData['email'],
+                'firstName'     => $userData['first_name'],
+                'lastName'      => $userData['last_name'],
+                'phone'         => $userData['phone'],
+                'accountStatus' => $userData['account_status'],
+                'createdAt'     => $userData['created_at'],
+                'lastLoginAt'   => $userData['last_login_at'],
                 'roles'         => $roles,
-                // Bloque de licencia: siempre presente (campos null si no se cargó)
-                'driverLicense' => [
-                    'number'         => $user['driver_license_number'],
-                    'expirationDate' => $user['driver_license_expiration_date'],
-                    'documentUrl'    => $user['driver_license_document_url'],
-                    'uploadedAt'     => $user['driver_license_uploaded_at'],
-                    'status'         => $licenseStatus,
-                ],
+                'driverLicense' => $driverLicense,
             ];
 
-            return ResponseFormatter::success($responseData, 'User retrieved successfully', 200);
+            return ResponseFormatter::success($responseData, 'Usuario obtenido correctamente', 200);
 
         } catch (\Exception $e) {
             return ErrorHandler::handleException($e);
         }
     }
 
-    // =========================================================================
-    // PUT /api/auth/profile
-    // =========================================================================
-
     /**
-     * Actualiza los campos del perfil del usuario autenticado.
+     * Actualizar perfil del usuario autenticado
      *
-     * Campos actualizables:
-     *   phone                          — todos los usuarios
-     *   driver_license_number          — principalmente mecánicos
-     *   driver_license_expiration_date — principalmente mecánicos (YYYY-MM-DD)
-     *   driver_license_document_url    — URL del documento cargado
+     * PUT /api/auth/profile
      *
-     * No se permite cambiar el email (identificador único) ni la contraseña
-     * por este endpoint. El email es inmutable; la contraseña tendrá su propio
-     * endpoint en versiones futuras.
+     * Permite actualizar los datos de la licencia de conducción.
+     * El estado de la licencia se recalcula automáticamente según la fecha de vencimiento.
+     *
+     * @param Request $request HTTP request
+     * @return Response HTTP response
      */
-    public function updateProfile(Request $request): Response
+    public function profile(Request $request): Response
     {
         try {
-            $ctValidation = RequestValidator::validateContentType($request, 'PUT');
-            if (!$ctValidation['valid']) {
-                return ResponseFormatter::error($ctValidation['error'], null, $ctValidation['statusCode']);
+            // Obtener usuario desde los atributos del request (establecido por AuthMiddleware)
+            $user = $request->getAttribute('user');
+
+            if ($user === null) {
+                return ResponseFormatter::unauthorized('Autenticación requerida');
             }
 
+            $userId = (int)$user['id'];
+
+            // Parsear cuerpo JSON
             $jsonValidation = RequestValidator::parseJsonBody($request);
             if (!$jsonValidation['valid']) {
-                return ResponseFormatter::error($jsonValidation['error'], null, $jsonValidation['statusCode']);
+                return ResponseFormatter::error(
+                    $jsonValidation['error'],
+                    null,
+                    $jsonValidation['statusCode']
+                );
             }
 
-            $userId     = (int)$request->getAttribute('userId');
-            $updateData = ['updated_at' => date('Y-m-d H:i:s')];
-            $errors     = [];
+            // Recopilar campos permitidos para actualización
+            $updates = [];
+            $now     = date('Y-m-d H:i:s');
 
-            // --- phone ---
-            if ($request->input('phone') !== null) {
-                $phone = RequestValidator::sanitizeString($request->input('phone'));
-                if (strlen($phone) > 20) {
-                    $errors['phone'] = 'Phone must not exceed 20 characters';
-                } else {
-                    $updateData['phone'] = $phone ?: null;
+            // Número de licencia
+            $licenseNumber = $request->input('driver_license_number');
+            if ($licenseNumber !== null) {
+                $updates['driver_license_number'] = RequestValidator::sanitizeString($licenseNumber);
+                $updates['driver_license_uploaded_at'] = $now;
+            }
+
+            // Fecha de vencimiento + recálculo de estado
+            $expirationDate = $request->input('driver_license_expiration_date');
+            if ($expirationDate !== null) {
+                // Validar formato YYYY-MM-DD
+                if (!\DateTime::createFromFormat('Y-m-d', $expirationDate)) {
+                    return ResponseFormatter::validationError([
+                        'driver_license_expiration_date' => 'El formato debe ser YYYY-MM-DD'
+                    ]);
                 }
-            }
 
-            // --- driver_license_number ---
-            if ($request->input('driver_license_number') !== null) {
-                $num = RequestValidator::sanitizeString($request->input('driver_license_number'));
-                if (strlen($num) > 50) {
-                    $errors['driver_license_number'] = 'License number must not exceed 50 characters';
+                $updates['driver_license_expiration_date'] = $expirationDate;
+
+                // Calcular estado según la fecha de vencimiento
+                $today      = new \DateTime('today');
+                $expiry     = new \DateTime($expirationDate);
+                $daysToExpiry = (int)$today->diff($expiry)->days;
+                $isPast     = $expiry < $today;
+
+                if ($isPast) {
+                    $updates['driver_license_status'] = 'expired';
+                } elseif ($daysToExpiry <= 30) {
+                    $updates['driver_license_status'] = 'expiring_soon';
                 } else {
-                    $updateData['driver_license_number'] = $num ?: null;
+                    $updates['driver_license_status'] = 'valid';
                 }
+
+                $updates['driver_license_uploaded_at'] = $now;
             }
 
-            // --- driver_license_expiration_date (YYYY-MM-DD) ---
-            if ($request->input('driver_license_expiration_date') !== null) {
-                $dateStr = $request->input('driver_license_expiration_date');
-                $parsed  = \DateTime::createFromFormat('Y-m-d', $dateStr);
-                if (!$parsed || $parsed->format('Y-m-d') !== $dateStr) {
-                    $errors['driver_license_expiration_date'] = 'Date must be in YYYY-MM-DD format';
-                } else {
-                    $updateData['driver_license_expiration_date'] = $dateStr;
-                }
+            // URL del documento
+            $documentUrl = $request->input('driver_license_document_url');
+            if ($documentUrl !== null) {
+                $updates['driver_license_document_url'] = RequestValidator::sanitizeString($documentUrl);
             }
 
-            // --- driver_license_document_url ---
-            if ($request->input('driver_license_document_url') !== null) {
-                $url = $request->input('driver_license_document_url');
-                if (!empty($url) && (strlen($url) > 500 || !filter_var($url, FILTER_VALIDATE_URL))) {
-                    $errors['driver_license_document_url'] = 'Must be a valid URL not exceeding 500 characters';
-                } else {
-                    $updateData['driver_license_document_url'] = $url ?: null;
-                    // Registrar cuándo se subió el documento
-                    if (!empty($url)) {
-                        $updateData['driver_license_uploaded_at'] = date('Y-m-d H:i:s');
-                    }
-                }
+            // Si no hay nada que actualizar, retornar el perfil actual
+            if (empty($updates)) {
+                return $this->me($request);
             }
 
-            if (!empty($errors)) {
-                return ResponseFormatter::validationError($errors);
-            }
+            $updates['updated_at'] = $now;
 
-            // Si solo tiene 'updated_at', no hay nada que actualizar
-            if (count($updateData) === 1) {
-                return ResponseFormatter::error('No fields provided to update', null, 400);
-            }
+            // Aplicar actualización
+            Database::update('users', $updates, ['id' => $userId]);
 
-            Database::update('users', $updateData, 'id = ?', [$userId]);
-
-            // Retornar el perfil actualizado (reutiliza la lógica de me())
+            // Retornar perfil actualizado
             return $this->me($request);
 
         } catch (\Exception $e) {
@@ -507,73 +535,61 @@ class AuthController extends Controller
         }
     }
 
-    // =========================================================================
-    // GET /api/auth/health
-    // =========================================================================
-
     /**
-     * Health-check del servicio. Verifica la conexión a la BD.
-     * Útil para monitoreo y para el load balancer en producción.
+     * Health check endpoint
+     * 
+     * GET /api/auth/health
+     * 
+     * Requirements: 14.1-14.7
+     * 
+     * @param Request $request HTTP request
+     * @return Response HTTP response
      */
     public function health(Request $request): Response
     {
         $startTime = microtime(true);
 
         try {
+            // Test database connectivity
             $result = Database::fetchOne('SELECT 1 as test');
-            if ($result === null || (int)$result['test'] !== 1) {
-                throw new \Exception('Database health check query returned unexpected result');
+
+            if ($result === null || $result['test'] !== 1) {
+                throw new \Exception('Database health check failed');
             }
 
+            // Calculate response time in milliseconds
             $responseTime = round((microtime(true) - $startTime) * 1000, 2);
 
-            return ResponseFormatter::success([
-                'status'       => 'healthy',
-                'version'      => '1.0.0',
-                'timestamp'    => date('Y-m-d H:i:s'),
-                'responseTime' => $responseTime,
-            ], 'Service is healthy', 200);
+            // Prepare response data
+            $responseData = [
+                'status' => 'healthy',
+                'version' => '1.0.0',
+                'timestamp' => date('Y-m-d H:i:s'),
+                'responseTime' => $responseTime
+            ];
+
+            return ResponseFormatter::success($responseData, 'Service is healthy', 200);
 
         } catch (\Exception $e) {
+            // Calculate response time even on failure
             $responseTime = round((microtime(true) - $startTime) * 1000, 2);
+
+            // Prepare unhealthy response data
+            $responseData = [
+                'status' => 'unhealthy',
+                'version' => '1.0.0',
+                'timestamp' => date('Y-m-d H:i:s'),
+                'responseTime' => $responseTime
+            ];
+
+            // Log exception via ErrorHandler
             ErrorHandler::logException($e);
 
-            return ResponseFormatter::error('Service is unhealthy', [
-                'status'       => 'unhealthy',
-                'version'      => '1.0.0',
-                'timestamp'    => date('Y-m-d H:i:s'),
-                'responseTime' => $responseTime,
-            ], 503);
+            return ResponseFormatter::error(
+                'Service is unhealthy',
+                $responseData,
+                503
+            );
         }
-    }
-
-    // =========================================================================
-    // Helpers privados
-    // =========================================================================
-
-    /**
-     * Calcula el estado de la licencia de conducción para mostrar en el frontend.
-     *
-     * @param string|null $expirationDate Fecha en formato Y-m-d o null
-     * @return string 'not_set' | 'expired' | 'expiring_soon' | 'valid'
-     */
-    private function resolveLicenseStatus(?string $expirationDate): string
-    {
-        if (empty($expirationDate)) {
-            return 'not_set';
-        }
-
-        $today     = new \DateTime('today');
-        $expiry    = new \DateTime($expirationDate);
-        // format('%r%a'): prefijo '-' si el resultado es negativo (fecha pasada)
-        $daysToExp = (int)$today->diff($expiry)->format('%r%a');
-
-        if ($daysToExp < 0) {
-            return 'expired';
-        }
-        if ($daysToExp <= 30) {
-            return 'expiring_soon';
-        }
-        return 'valid';
     }
 }

@@ -13,6 +13,7 @@ import RequestsPage from './pages/customer/RequestsPage';
 import AvailableRequestsPage from './pages/mechanic/AvailableRequestsPage';
 import MyRequestsPage from './pages/mechanic/MyRequestsPage';
 import RequestDetailsPage from './pages/mechanic/RequestDetailsPage';
+import ProfilePage from './pages/ProfilePage';
 import NotFoundPage from './pages/NotFoundPage';
 import ProtectedRoute from './routes/ProtectedRoute';
 
@@ -85,6 +86,15 @@ function App() {
                   element={
                     <ProtectedRoute requireRole="mechanic">
                       <RequestDetailsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                {/* Profile route - accessible to all authenticated users */}
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <ProfilePage />
                     </ProtectedRoute>
                   }
                 />

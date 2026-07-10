@@ -22,7 +22,7 @@ export default function Navbar() {
           {/* Logo & Navigation */}
           <div className="flex items-center gap-8">
             <h1 className="text-xl font-bold text-white">P.A.R.C.E</h1>
-            
+
             {/* Navigation Links */}
             <div className="flex items-center gap-4">
               <Link
@@ -38,13 +38,13 @@ export default function Navbar() {
                     to="/mechanic/available"
                     className="text-sm text-gray-300 hover:text-white transition-colors"
                   >
-                    Available Requests
+                    Solicitudes Disponibles
                   </Link>
                   <Link
                     to="/mechanic/requests"
                     className="text-sm text-gray-300 hover:text-white transition-colors"
                   >
-                    My Requests
+                    Mis Solicitudes
                   </Link>
                 </>
               )}
@@ -55,36 +55,43 @@ export default function Navbar() {
                     to="/vehicles"
                     className="text-sm text-gray-300 hover:text-white transition-colors"
                   >
-                    Vehicles
+                    Mis Vehículos
                   </Link>
                   <Link
                     to="/requests"
                     className="text-sm text-gray-300 hover:text-white transition-colors"
                   >
-                    Requests
+                    Solicitudes
                   </Link>
                 </>
               )}
+
+              <Link
+                to="/profile"
+                className="text-sm text-gray-300 hover:text-white transition-colors"
+              >
+                Mi Perfil
+              </Link>
             </div>
           </div>
 
           {/* User Info */}
           <div className="flex items-center gap-4">
-            <div className="text-right">
+            <Link to="/profile" className="text-right hover:opacity-80 transition-opacity">
               <p className="text-sm font-medium text-white">
                 {user.firstName} {user.lastName}
               </p>
               <p className="text-xs text-gray-400 capitalize">
                 {user.roles.join(', ')}
               </p>
-            </div>
+            </Link>
 
             {/* Logout Button */}
             <button
               onClick={handleLogout}
               className="px-4 py-2 text-sm bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors"
             >
-              Logout
+              Cerrar Sesión
             </button>
           </div>
         </div>

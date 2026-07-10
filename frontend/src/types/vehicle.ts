@@ -1,14 +1,7 @@
-// ============================================================
-// Vehicle Types — PARCE
-// Incluye campos de documentos obligatorios colombianos:
-//   SOAT (Seguro Obligatorio de Accidentes de Tránsito)
-//   Tecnomecánica (Revisión técnico-mecánica)
-// ============================================================
-
-/** Estado calculado de un documento de vehículo */
+// Estado de documento colombiano (SOAT o Tecnomecánica)
 export type DocumentStatus = 'not_set' | 'valid' | 'expiring_soon' | 'expired';
 
-/** Vehículo completo tal como lo devuelve el backend */
+// Vehículo del usuario
 export interface Vehicle {
   id: number;
   userId: number;
@@ -24,24 +17,13 @@ export interface Vehicle {
   primaryPhotoUrl: string | null;
   isPrimary: boolean;
   status: 'active' | 'inactive' | 'deleted';
+  soatExpirationDate: string | null;           // YYYY-MM-DD
+  tecnomecanicaExpirationDate: string | null;  // YYYY-MM-DD
   createdAt: string;
   updatedAt: string;
-
-  // ---- Campos SOAT ----
-  // Número de póliza, fecha de vencimiento y URL del documento
-  soatNumber: string | null;
-  soatExpirationDate: string | null;   // YYYY-MM-DD
-  soatDocumentUrl: string | null;
-  soatUploadedAt: string | null;
-
-  // ---- Campos Tecnomecánica ----
-  tecnomecanicaNumber: string | null;
-  tecnomecanicaExpirationDate: string | null;  // YYYY-MM-DD
-  tecnomecanicaDocumentUrl: string | null;
-  tecnomecanicaUploadedAt: string | null;
 }
 
-/** Payload para crear un nuevo vehículo (snake_case — va directo a la API) */
+// Crear vehículo
 export interface CreateVehicleRequest {
   license_plate: string;
   make: string;
@@ -54,16 +36,11 @@ export interface CreateVehicleRequest {
   nickname?: string;
   primary_photo_url?: string;
   is_primary?: boolean;
-  // Documentos opcionales al crear
-  soat_number?: string;
-  soat_expiration_date?: string;       // YYYY-MM-DD
-  soat_document_url?: string;
-  tecnomecanica_number?: string;
-  tecnomecanica_expiration_date?: string;  // YYYY-MM-DD
-  tecnomecanica_document_url?: string;
+  soat_expiration_date?: string;            // YYYY-MM-DD
+  tecnomecanica_expiration_date?: string;   // YYYY-MM-DD
 }
 
-/** Payload para actualizar un vehículo (todos los campos opcionales) */
+// Actualizar vehículo
 export interface UpdateVehicleRequest {
   license_plate?: string;
   make?: string;
@@ -77,21 +54,17 @@ export interface UpdateVehicleRequest {
   primary_photo_url?: string;
   is_primary?: boolean;
   status?: 'active' | 'inactive';
-  // Documentos
-  soat_number?: string;
-  soat_expiration_date?: string;
-  soat_document_url?: string;
-  tecnomecanica_number?: string;
-  tecnomecanica_expiration_date?: string;
-  tecnomecanica_document_url?: string;
+  soat_expiration_date?: string;            // YYYY-MM-DD
+  tecnomecanica_expiration_date?: string;   // YYYY-MM-DD
 }
 
-// Respuestas de la API
+// Respuesta lista de vehículos
 export interface VehicleListResponse {
   vehicles: Vehicle[];
   count: number;
 }
 
+// Respuesta vehículo individual
 export interface VehicleResponse {
   vehicle: Vehicle;
 }

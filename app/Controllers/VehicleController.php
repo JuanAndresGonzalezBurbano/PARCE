@@ -12,18 +12,10 @@ use App\Infrastructure\Http\ResponseFormatter;
 use App\Infrastructure\Http\ErrorHandler;
 
 /**
- * Vehicle Controller
+ * Controlador de Vehículos
  *
- * Expone los endpoints HTTP de gestión de vehículos:
- *   GET    /api/vehicles          — listar vehículos del usuario
- *   POST   /api/vehicles          — crear vehículo
- *   GET    /api/vehicles/{id}     — detalle de un vehículo
- *   PUT    /api/vehicles/{id}     — actualizar vehículo
- *   DELETE /api/vehicles/{id}     — soft-delete
- *   PUT    /api/vehicles/{id}/primary — marcar como principal
- *
- * Los campos de SOAT y tecnomecánica se extraen y pasan al servicio
- * tanto en la creación como en la actualización.
+ * Maneja las peticiones HTTP para gestión de vehículos:
+ * creación, consulta, actualización, eliminación y designación de vehículo principal.
  */
 class VehicleController extends Controller
 {
@@ -34,57 +26,83 @@ class VehicleController extends Controller
         $this->vehicleService = new VehicleService();
     }
 
-    // =========================================================================
-    // GET /api/vehicles
-    // =========================================================================
+    /**
+     * Convierte una fila de la base de datos (snake_case) al formato camelCase
+     * esperado por el frontend.
+     *
+     * @param array $vehicle Fila de la tabla vehicles
+     * @return array Vehículo formateado
+     */
+    private function formatVehicle(array $vehicle): array
+    {
+        return [
+            'id'                          => (int)$vehicle['id'],
+            'userId'                      => (int)$vehicle['user_id'],
+            'licensePlate'                => $vehicle['license_plate'],
+            'make'                        => $vehicle['make'],
+            'model'                       => $vehicle['model'],
+            'year'                        => (int)$vehicle['year'],
+            'color'                       => $vehicle['color'],
+            'vin'                         => $vehicle['vin'],
+            'vehicleType'                 => $vehicle['vehicle_type'],
+            'fuelType'                    => $vehicle['fuel_type'],
+            'nickname'                    => $vehicle['nickname'],
+            'primaryPhotoUrl'             => $vehicle['primary_photo_url'],
+            'isPrimary'                   => (bool)$vehicle['is_primary'],
+            'status'                      => $vehicle['status'],
+            'soatExpirationDate'          => $vehicle['soat_expiration_date'] ?? null,
+            'tecnomecanicaExpirationDate' => $vehicle['tecnomecanica_expiration_date'] ?? null,
+            'createdAt'                   => $vehicle['created_at'],
+            'updatedAt'                   => $vehicle['updated_at'],
+        ];
+    }
 
     /**
-     * Lista los vehículos del usuario autenticado.
-     * Admite ?active_only=false para incluir inactivos.
+     * Listar vehículos del usuario
+     *
+     * GET /api/vehicles
      */
     public function index(Request $request): Response
     {
         try {
             $userId     = $request->getAttribute('userId');
-            // Por defecto solo activos; enviar ?active_only=false para ver todos
             $activeOnly = $request->query('active_only', 'true') !== 'false';
 
-            $vehicles = $this->vehicleService->getUserVehicles($userId, $activeOnly);
+            $vehicles         = $this->vehicleService->getUserVehicles($userId, $activeOnly);
+            $formattedVehicles = array_map([$this, 'formatVehicle'], $vehicles);
 
             return ResponseFormatter::success([
-                'vehicles' => $vehicles,
-                'count'    => count($vehicles),
-            ], 'Vehicles retrieved successfully', 200);
+                'vehicles' => $formattedVehicles,
+                'count'    => count($formattedVehicles),
+            ], 'Vehículos obtenidos correctamente', 200);
 
         } catch (\Exception $e) {
             return ErrorHandler::handleException($e);
         }
     }
 
-    // =========================================================================
-    // POST /api/vehicles
-    // =========================================================================
-
     /**
-     * Crea un nuevo vehículo.
+     * Crear nuevo vehículo
      *
-     * Extrae los campos de documentos (SOAT y tecnomecánica) además
-     * de los campos básicos del vehículo y los pasa al servicio.
+     * POST /api/vehicles
      */
     public function store(Request $request): Response
     {
         try {
-            $ctValidation = RequestValidator::validateContentType($request, 'POST');
-            if (!$ctValidation['valid']) {
-                return ResponseFormatter::error($ctValidation['error'], null, $ctValidation['statusCode']);
+            $contentTypeValidation = RequestValidator::validateContentType($request, 'POST');
+            if (!$contentTypeValidation['valid']) {
+                return ResponseFormatter::error(
+                    $contentTypeValidation['error'], null, $contentTypeValidation['statusCode']
+                );
             }
 
             $jsonValidation = RequestValidator::parseJsonBody($request);
             if (!$jsonValidation['valid']) {
-                return ResponseFormatter::error($jsonValidation['error'], null, $jsonValidation['statusCode']);
+                return ResponseFormatter::error(
+                    $jsonValidation['error'], null, $jsonValidation['statusCode']
+                );
             }
 
-            // VehicleValidator ya valida SOAT y tecnomecánica (Wave 1, ya existente)
             $validation = VehicleValidator::validateCreateRequest($request);
             if (!$validation['valid']) {
                 return ResponseFormatter::validationError($validation['errors']);
@@ -92,7 +110,6 @@ class VehicleController extends Controller
 
             $userId = $request->getAttribute('userId');
 
-            // ---- Campos base obligatorios ----
             $data = [
                 'license_plate' => RequestValidator::sanitizeString($request->input('license_plate')),
                 'make'          => RequestValidator::sanitizeString($request->input('make')),
@@ -102,52 +119,34 @@ class VehicleController extends Controller
                 'fuel_type'     => $request->input('fuel_type'),
             ];
 
-            // ---- Campos base opcionales ----
-            if ($request->input('color') !== null) {
+            if ($request->input('color') !== null)
                 $data['color'] = RequestValidator::sanitizeString($request->input('color'));
-            }
-            if ($request->input('vin') !== null) {
+
+            if ($request->input('vin') !== null)
                 $data['vin'] = RequestValidator::sanitizeString($request->input('vin'));
-            }
-            if ($request->input('nickname') !== null) {
+
+            if ($request->input('nickname') !== null)
                 $data['nickname'] = RequestValidator::sanitizeString($request->input('nickname'));
-            }
-            if ($request->input('primary_photo_url') !== null) {
-                $data['primary_photo_url'] = $request->input('primary_photo_url');
-            }
-            if ($request->input('is_primary') !== null) {
+
+            if ($request->input('primary_photo_url') !== null)
+                $data['primary_photo_url'] = RequestValidator::sanitizeString($request->input('primary_photo_url'));
+
+            if ($request->input('is_primary') !== null)
                 $data['is_primary'] = filter_var($request->input('is_primary'), FILTER_VALIDATE_BOOLEAN);
-            }
 
-            // ---- Campos SOAT (opcionales en la creación) ----
-            if ($request->input('soat_number') !== null) {
-                $data['soat_number'] = RequestValidator::sanitizeString($request->input('soat_number'));
-            }
-            if ($request->input('soat_expiration_date') !== null) {
+            // Documentos colombianos (opcionales)
+            if ($request->input('soat_expiration_date') !== null)
                 $data['soat_expiration_date'] = $request->input('soat_expiration_date');
-            }
-            if ($request->input('soat_document_url') !== null) {
-                $data['soat_document_url'] = $request->input('soat_document_url');
-            }
 
-            // ---- Campos Tecnomecánica (opcionales en la creación) ----
-            if ($request->input('tecnomecanica_number') !== null) {
-                $data['tecnomecanica_number'] = RequestValidator::sanitizeString($request->input('tecnomecanica_number'));
-            }
-            if ($request->input('tecnomecanica_expiration_date') !== null) {
+            if ($request->input('tecnomecanica_expiration_date') !== null)
                 $data['tecnomecanica_expiration_date'] = $request->input('tecnomecanica_expiration_date');
-            }
-            if ($request->input('tecnomecanica_document_url') !== null) {
-                $data['tecnomecanica_document_url'] = $request->input('tecnomecanica_document_url');
-            }
 
             $vehicleId = $this->vehicleService->create($userId, $data);
-
-            $vehicle = $this->vehicleService->getById($vehicleId, $userId);
+            $vehicle   = $this->vehicleService->getById($vehicleId, $userId);
 
             return ResponseFormatter::success(
-                ['vehicle' => $vehicle],
-                'Vehicle created successfully',
+                ['vehicle' => $this->formatVehicle($vehicle)],
+                'Vehículo creado correctamente',
                 201
             );
 
@@ -156,12 +155,10 @@ class VehicleController extends Controller
         }
     }
 
-    // =========================================================================
-    // GET /api/vehicles/{id}
-    // =========================================================================
-
     /**
-     * Retorna el detalle de un vehículo del usuario, incluyendo documentos.
+     * Obtener detalle de un vehículo
+     *
+     * GET /api/vehicles/{id}
      */
     public function show(Request $request, int $id): Response
     {
@@ -170,12 +167,12 @@ class VehicleController extends Controller
             $vehicle = $this->vehicleService->getById($id, $userId);
 
             if ($vehicle === null) {
-                return ResponseFormatter::notFound('Vehicle not found');
+                return ResponseFormatter::notFound('Vehículo no encontrado');
             }
 
             return ResponseFormatter::success(
-                ['vehicle' => $vehicle],
-                'Vehicle retrieved successfully',
+                ['vehicle' => $this->formatVehicle($vehicle)],
+                'Vehículo obtenido correctamente',
                 200
             );
 
@@ -184,28 +181,26 @@ class VehicleController extends Controller
         }
     }
 
-    // =========================================================================
-    // PUT /api/vehicles/{id}
-    // =========================================================================
-
     /**
-     * Actualiza un vehículo existente.
+     * Actualizar vehículo
      *
-     * Permite actualizar campos de SOAT y tecnomecánica.
-     * El servicio validará que no se reactive el vehículo si los documentos
-     * están vencidos.
+     * PUT /api/vehicles/{id}
      */
     public function update(Request $request, int $id): Response
     {
         try {
-            $ctValidation = RequestValidator::validateContentType($request, 'PUT');
-            if (!$ctValidation['valid']) {
-                return ResponseFormatter::error($ctValidation['error'], null, $ctValidation['statusCode']);
+            $contentTypeValidation = RequestValidator::validateContentType($request, 'PUT');
+            if (!$contentTypeValidation['valid']) {
+                return ResponseFormatter::error(
+                    $contentTypeValidation['error'], null, $contentTypeValidation['statusCode']
+                );
             }
 
             $jsonValidation = RequestValidator::parseJsonBody($request);
             if (!$jsonValidation['valid']) {
-                return ResponseFormatter::error($jsonValidation['error'], null, $jsonValidation['statusCode']);
+                return ResponseFormatter::error(
+                    $jsonValidation['error'], null, $jsonValidation['statusCode']
+                );
             }
 
             $validation = VehicleValidator::validateUpdateRequest($request);
@@ -216,73 +211,43 @@ class VehicleController extends Controller
             $userId = $request->getAttribute('userId');
             $data   = [];
 
-            // ---- Campos base (solo los que vienen en el request) ----
-            if ($request->input('license_plate') !== null) {
+            if ($request->input('license_plate') !== null)
                 $data['license_plate'] = RequestValidator::sanitizeString($request->input('license_plate'));
-            }
-            if ($request->input('make') !== null) {
+            if ($request->input('make') !== null)
                 $data['make'] = RequestValidator::sanitizeString($request->input('make'));
-            }
-            if ($request->input('model') !== null) {
+            if ($request->input('model') !== null)
                 $data['model'] = RequestValidator::sanitizeString($request->input('model'));
-            }
-            if ($request->input('year') !== null) {
+            if ($request->input('year') !== null)
                 $data['year'] = $request->input('year');
-            }
-            if ($request->input('color') !== null) {
+            if ($request->input('color') !== null)
                 $data['color'] = RequestValidator::sanitizeString($request->input('color'));
-            }
-            if ($request->input('vin') !== null) {
+            if ($request->input('vin') !== null)
                 $data['vin'] = RequestValidator::sanitizeString($request->input('vin'));
-            }
-            if ($request->input('vehicle_type') !== null) {
+            if ($request->input('vehicle_type') !== null)
                 $data['vehicle_type'] = $request->input('vehicle_type');
-            }
-            if ($request->input('fuel_type') !== null) {
+            if ($request->input('fuel_type') !== null)
                 $data['fuel_type'] = $request->input('fuel_type');
-            }
-            if ($request->input('nickname') !== null) {
+            if ($request->input('nickname') !== null)
                 $data['nickname'] = RequestValidator::sanitizeString($request->input('nickname'));
-            }
-            if ($request->input('primary_photo_url') !== null) {
-                $data['primary_photo_url'] = $request->input('primary_photo_url');
-            }
-            if ($request->input('status') !== null) {
+            if ($request->input('primary_photo_url') !== null)
+                $data['primary_photo_url'] = RequestValidator::sanitizeString($request->input('primary_photo_url'));
+            if ($request->input('status') !== null)
                 $data['status'] = $request->input('status');
-            }
-            if ($request->input('is_primary') !== null) {
+            if ($request->input('is_primary') !== null)
                 $data['is_primary'] = filter_var($request->input('is_primary'), FILTER_VALIDATE_BOOLEAN);
-            }
 
-            // ---- Campos SOAT ----
-            if ($request->input('soat_number') !== null) {
-                $data['soat_number'] = RequestValidator::sanitizeString($request->input('soat_number'));
-            }
-            if ($request->input('soat_expiration_date') !== null) {
+            // Documentos colombianos
+            if ($request->input('soat_expiration_date') !== null)
                 $data['soat_expiration_date'] = $request->input('soat_expiration_date');
-            }
-            if ($request->input('soat_document_url') !== null) {
-                $data['soat_document_url'] = $request->input('soat_document_url');
-            }
-
-            // ---- Campos Tecnomecánica ----
-            if ($request->input('tecnomecanica_number') !== null) {
-                $data['tecnomecanica_number'] = RequestValidator::sanitizeString($request->input('tecnomecanica_number'));
-            }
-            if ($request->input('tecnomecanica_expiration_date') !== null) {
+            if ($request->input('tecnomecanica_expiration_date') !== null)
                 $data['tecnomecanica_expiration_date'] = $request->input('tecnomecanica_expiration_date');
-            }
-            if ($request->input('tecnomecanica_document_url') !== null) {
-                $data['tecnomecanica_document_url'] = $request->input('tecnomecanica_document_url');
-            }
 
             $this->vehicleService->update($id, $userId, $data);
-
             $vehicle = $this->vehicleService->getById($id, $userId);
 
             return ResponseFormatter::success(
-                ['vehicle' => $vehicle],
-                'Vehicle updated successfully',
+                ['vehicle' => $this->formatVehicle($vehicle)],
+                'Vehículo actualizado correctamente',
                 200
             );
 
@@ -291,12 +256,10 @@ class VehicleController extends Controller
         }
     }
 
-    // =========================================================================
-    // DELETE /api/vehicles/{id}
-    // =========================================================================
-
     /**
-     * Soft-delete de un vehículo (marca deleted_at, no borra la fila).
+     * Eliminar vehículo (soft delete)
+     *
+     * DELETE /api/vehicles/{id}
      */
     public function destroy(Request $request, int $id): Response
     {
@@ -304,32 +267,28 @@ class VehicleController extends Controller
             $userId = $request->getAttribute('userId');
             $this->vehicleService->delete($id, $userId);
 
-            return ResponseFormatter::success(null, 'Vehicle deleted successfully', 200);
+            return ResponseFormatter::success(null, 'Vehículo eliminado correctamente', 200);
 
         } catch (\Exception $e) {
             return ErrorHandler::handleException($e);
         }
     }
 
-    // =========================================================================
-    // PUT /api/vehicles/{id}/primary
-    // =========================================================================
-
     /**
-     * Marca un vehículo como el principal del usuario.
-     * Automáticamente desmarca cualquier otro vehículo que fuera principal.
+     * Establecer vehículo como principal
+     *
+     * PUT /api/vehicles/{id}/primary
      */
     public function setPrimary(Request $request, int $id): Response
     {
         try {
             $userId = $request->getAttribute('userId');
             $this->vehicleService->setPrimary($id, $userId);
-
             $vehicle = $this->vehicleService->getById($id, $userId);
 
             return ResponseFormatter::success(
-                ['vehicle' => $vehicle],
-                'Vehicle set as primary successfully',
+                ['vehicle' => $this->formatVehicle($vehicle)],
+                'Vehículo principal establecido correctamente',
                 200
             );
 

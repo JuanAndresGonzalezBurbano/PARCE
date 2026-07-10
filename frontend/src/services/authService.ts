@@ -6,6 +6,7 @@ import type {
   AuthResponse,
   User,
   ApiResponse,
+  UpdateProfileRequest,
 } from '@/types/auth';
 
 export const authService = {
@@ -33,5 +34,9 @@ export const authService = {
 
   async health(): Promise<ApiResponse<{ status: string; version: string }>> {
     return apiClient.get(API_ENDPOINTS.AUTH.HEALTH);
+  },
+
+  async updateProfile(data: UpdateProfileRequest): Promise<ApiResponse<User>> {
+    return apiClient.put<User>(API_ENDPOINTS.AUTH.PROFILE, data);
   },
 };

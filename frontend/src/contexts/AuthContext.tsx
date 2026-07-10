@@ -1,6 +1,6 @@
 import { createContext, useState, useEffect, ReactNode } from 'react';
 import { authService } from '@/services/authService';
-import type { User, LoginRequest, RegisterRequest } from '@/types/auth';
+import type { User, LoginRequest, RegisterRequest, UpdateProfileRequest } from '@/types/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -12,6 +12,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   clearError: () => void;
+  updateProfile: (data: UpdateProfileRequest) => Promise<boolean>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,7 +37,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setIsLoading(true);
     try {
       const response = await authService.me();
-      
+
       if (response.success) {
         setUser(response.data);
       } else {
@@ -105,6 +106,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }
 
+  async function updateProfile(data: UpdateProfileRequest): Promise<boolean> {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await authService.updateProfile(data);
+      if (response.success) {
+        setUser(response.data);
+        setIsLoading(false);
+        return true;
+      } else {
+        setError(response.error);
+        setIsLoading(false);
+        return false;
+      }
+    } catch {
+      setError('No se pudo actualizar el perfil. Inténtalo de nuevo.');
+      setIsLoading(false);
+      return false;
+    }
+  }
+
   function clearError() {
     setError(null);
   }
@@ -119,6 +141,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     logout,
     checkAuth,
     clearError,
+    updateProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

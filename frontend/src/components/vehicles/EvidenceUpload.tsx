@@ -4,8 +4,10 @@ import type { ServiceRequestEvidence, AddEvidenceRequest } from '@/types/service
 interface EvidenceUploadProps {
   serviceRequestId: number;
   existingEvidences: ServiceRequestEvidence[];
-  onAdd: (data: AddEvidenceRequest) => Promise<boolean>;
-  isLoading: boolean;
+  onAdd?: (data: AddEvidenceRequest) => Promise<boolean>;
+  isLoading?: boolean;
+  /** Cuando es true, solo muestra las evidencias registradas (sin formulario de carga). Vista del cliente. */
+  readOnly?: boolean;
 }
 
 const EVIDENCE_TYPE_LABELS: Record<string, string> = {
@@ -33,7 +35,8 @@ const EVIDENCE_TYPE_COLORS: Record<string, string> = {
 export default function EvidenceUpload({
   existingEvidences,
   onAdd,
-  isLoading,
+  isLoading = false,
+  readOnly = false,
 }: EvidenceUploadProps) {
   const [formData, setFormData] = useState<AddEvidenceRequest>({
     evidence_type: 'before',
@@ -46,6 +49,8 @@ export default function EvidenceUpload({
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (!onAdd) return;
 
     if (!formData.image_url.trim()) {
       setError('La URL de la imagen es requerida');
@@ -124,7 +129,14 @@ export default function EvidenceUpload({
         </div>
       )}
 
+      {existingEvidences.length === 0 && readOnly && (
+        <p className="text-sm text-gray-400">
+          El mecánico aún no ha registrado evidencias fotográficas para esta solicitud.
+        </p>
+      )}
+
       {/* ---- Formulario para agregar nueva evidencia ---- */}
+      {!readOnly && onAdd && (
       <form onSubmit={handleSubmit} className="space-y-3">
         <h4 className="text-sm font-semibold text-gray-300">Agregar nueva evidencia</h4>
 
@@ -190,6 +202,7 @@ export default function EvidenceUpload({
           {isLoading ? 'Guardando...' : 'Agregar evidencia'}
         </button>
       </form>
+      )}
     </div>
   );
 }

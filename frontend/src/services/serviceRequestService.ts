@@ -51,6 +51,11 @@ export const serviceRequestService = {
     return apiClient.post<ServiceRequestResponse>(API_ENDPOINTS.REQUESTS.RATE(id), data);
   },
 
+  /** Lista las evidencias de una solicitud propia (solo lectura). */
+  async getMyRequestEvidences(id: number): Promise<ApiResponse<EvidenceListResponse>> {
+    return apiClient.get<EvidenceListResponse>(API_ENDPOINTS.REQUESTS.EVIDENCES(id));
+  },
+
   // ==========================================================================
   // Endpoints de mecánicos
   // ==========================================================================

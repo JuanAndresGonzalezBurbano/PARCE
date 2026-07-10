@@ -30,6 +30,8 @@ export const API_ENDPOINTS = {
     UPDATE: (id: number) => `/service-requests/${id}`,
     CANCEL: (id: number) => `/service-requests/${id}/cancel`,
     RATE: (id: number) => `/service-requests/${id}/rate`,
+    // Evidencias fotográficas (solo lectura para el cliente propietario)
+    EVIDENCES: (id: number) => `/service-requests/${id}/evidences`,
   },
   MECHANIC: {
     REQUESTS: '/mechanic/requests',

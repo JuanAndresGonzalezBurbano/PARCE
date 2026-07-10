@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useRequests } from '@/hooks/useRequests';
 import { useVehicles } from '@/hooks/useVehicles';
+import { serviceRequestService } from '@/services/serviceRequestService';
+import EvidenceUpload from '@/components/vehicles/EvidenceUpload';
+import type { ServiceRequestEvidence } from '@/types/serviceRequest';
 
 const EMERGENCY_LABELS: Record<string, string> = {
   tire: 'Llanta pinchada', battery: 'Batería descargada', fuel: 'Sin combustible',
@@ -57,7 +60,32 @@ export default function RequestsPage() {
   const [serviceQualityRating, setServiceQualityRating] = useState(5);
   const [feedback, setFeedback] = useState('');
 
+  // Evidencias fotográficas (solo lectura para el cliente)
+  const [showEvidencesFor, setShowEvidencesFor] = useState<number | null>(null);
+  const [evidencesByRequest, setEvidencesByRequest] = useState<Record<number, ServiceRequestEvidence[]>>({});
+  const [evidenceLoading, setEvidenceLoading] = useState(false);
+
   useEffect(() => { loadRequests(); loadVehicles(); }, []);
+
+  async function handleToggleEvidences(id: number) {
+    if (showEvidencesFor === id) {
+      setShowEvidencesFor(null);
+      return;
+    }
+    setShowEvidencesFor(id);
+    if (evidencesByRequest[id]) return; // ya cargadas
+    setEvidenceLoading(true);
+    try {
+      const response = await serviceRequestService.getMyRequestEvidences(id);
+      if (response.success) {
+        setEvidencesByRequest((prev) => ({ ...prev, [id]: response.data.evidences }));
+      }
+    } catch {
+      // Silencioso: la sección simplemente mostrará "sin evidencias"
+    } finally {
+      setEvidenceLoading(false);
+    }
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -197,8 +225,32 @@ export default function RequestsPage() {
                           Calificar
                         </button>
                       )}
+                      {['assigned', 'in_progress', 'completed'].includes(request.status) && (
+                        <button
+                          onClick={() => handleToggleEvidences(request.id)}
+                          className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 border border-gray-600 text-gray-200 text-sm rounded-lg transition-colors"
+                        >
+                          {showEvidencesFor === request.id ? 'Ocultar evidencias' : 'Ver evidencias'}
+                        </button>
+                      )}
                     </div>
                   </div>
+
+                  {/* Evidencias fotográficas (solo lectura) */}
+                  {showEvidencesFor === request.id && (
+                    <div className="mt-4 p-4 bg-gray-700/60 border border-gray-600 rounded-lg">
+                      <h4 className="text-white font-semibold mb-4">Evidencias fotográficas</h4>
+                      {evidenceLoading && !evidencesByRequest[request.id] ? (
+                        <p className="text-gray-400 text-sm">Cargando evidencias...</p>
+                      ) : (
+                        <EvidenceUpload
+                          serviceRequestId={request.id}
+                          existingEvidences={evidencesByRequest[request.id] ?? []}
+                          readOnly
+                        />
+                      )}
+                    </div>
+                  )}
 
                   {/* Formulario de calificación */}
                   {showRateForm === request.id && (

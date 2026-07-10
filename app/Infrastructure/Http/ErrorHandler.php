@@ -3,52 +3,64 @@
 namespace App\Infrastructure\Http;
 
 use App\Core\Response;
+use App\Core\DomainException;
 use App\Infrastructure\Auth\Exceptions\AuthenticationException;
 
 /**
- * Error Handler
- * 
- * Handles exception to HTTP status code mapping, error logging, and
- * standardized error response generation. Prevents information disclosure
- * by returning generic error messages to clients while logging full details.
- * 
- * Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7
+ * Manejador de Errores
+ *
+ * Gestiona el mapeo de excepciones a códigos de estado HTTP, el registro de errores y
+ * la generación estandarizada de respuestas de error. Previene la divulgación de información
+ * retornando mensajes de error genéricos al cliente mientras registra los detalles completos.
+ *
+ * Requisitos: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7
  */
 class ErrorHandler
 {
     /**
-     * Handle exception and return standardized error response
-     * 
-     * Requirements: 11.1, 11.5, 11.6, 11.7
-     * 
-     * @param \Throwable $e Exception to handle
-     * @return Response Standardized error response
+     * Maneja una excepción y retorna una respuesta de error estandarizada
+     *
+     * Requisitos: 11.1, 11.5, 11.6, 11.7
+     *
+     * @param \Throwable $e Excepción a manejar
+     * @return Response Respuesta de error estandarizada
      */
     public static function handleException(\Throwable $e): Response
     {
-        // Log full exception details for debugging
+        // Registrar los detalles completos de la excepción para depuración
         self::logException($e);
 
-        // Map exception to HTTP status code
+        // Mapear la excepción al código de estado HTTP
         $statusCode = self::mapExceptionToStatusCode($e);
 
-        // Get generic error message (no stack traces)
-        $message = self::getGenericErrorMessage($statusCode);
+        // Las DomainException e InvalidArgumentException son violaciones de reglas de
+        // negocio o de validación esperadas y seguras de mostrar al usuario (ej. "Ya
+        // existe un vehículo con esta placa"); el resto de excepciones se enmascaran
+        // con un mensaje genérico para no filtrar detalles internos (consultas SQL,
+        // rutas de archivos, etc.)
+        $message = ($e instanceof DomainException || $e instanceof \InvalidArgumentException)
+            ? $e->getMessage()
+            : self::getGenericErrorMessage($statusCode);
 
-        // Return standardized error response
+        // Retornar la respuesta de error estandarizada
         return ResponseFormatter::error($message, null, $statusCode);
     }
 
     /**
-     * Map exception to HTTP status code
-     * 
-     * Requirement 11.7: Map AuthenticationException to HTTP 401
-     * 
-     * @param \Throwable $e Exception
-     * @return int HTTP status code
+     * Mapea una excepción al código de estado HTTP correspondiente
+     *
+     * Requisito 11.7: Mapear AuthenticationException a HTTP 401
+     *
+     * @param \Throwable $e Excepción
+     * @return int Código de estado HTTP
      */
     public static function mapExceptionToStatusCode(\Throwable $e): int
     {
+        // DomainException → código de estado que trae consigo la excepción
+        if ($e instanceof DomainException) {
+            return $e->getStatusCode();
+        }
+
         // AuthenticationException → 401
         if ($e instanceof AuthenticationException) {
             return 401;
@@ -64,17 +76,17 @@ class ErrorHandler
             return 500;
         }
 
-        // Default → 500
+        // Predeterminado → 500
         return 500;
     }
 
     /**
-     * Get generic error message for status code
-     * 
-     * Requirement 11.6: Return generic error message (no stack traces)
-     * 
-     * @param int $statusCode HTTP status code
-     * @return string Generic error message
+     * Obtiene el mensaje de error genérico para un código de estado
+     *
+     * Requisito 11.6: Retornar mensaje de error genérico (sin trazas de pila)
+     *
+     * @param int $statusCode Código de estado HTTP
+     * @return string Mensaje de error genérico
      */
     public static function getGenericErrorMessage(int $statusCode): string
     {
@@ -92,24 +104,24 @@ class ErrorHandler
     }
 
     /**
-     * Log exception with full details
-     * 
-     * Requirement 11.5: Log full error details for debugging
-     * 
-     * @param \Throwable $e Exception to log
+     * Registra la excepción con los detalles completos
+     *
+     * Requisito 11.5: Registrar los detalles completos del error para depuración
+     *
+     * @param \Throwable $e Excepción a registrar
      * @return void
      */
     public static function logException(\Throwable $e): void
     {
         $logDir = __DIR__ . '/../../../storage/logs';
-        
+
         if (!is_dir($logDir)) {
             @mkdir($logDir, 0755, true);
         }
 
         $logFile = $logDir . '/error-' . date('Y-m-d') . '.log';
 
-        // Format exception details
+        // Formatear los detalles de la excepción
         $message = sprintf(
             "[%s] %s: %s in %s:%d\nStack trace:\n%s\n\n",
             date('Y-m-d H:i:s'),
@@ -120,17 +132,17 @@ class ErrorHandler
             $e->getTraceAsString()
         );
 
-        // Write to log file
+        // Escribir en el archivo de log
         @file_put_contents($logFile, $message, FILE_APPEND);
     }
 
     /**
-     * Format validation errors for response
-     * 
-     * Requirement 11.4: Include fields with field-specific error messages
-     * 
-     * @param array $errors Field-specific validation errors
-     * @return Response Validation error response
+     * Formatea los errores de validación para la respuesta
+     *
+     * Requisito 11.4: Incluir los campos con mensajes de error específicos por campo
+     *
+     * @param array $errors Errores de validación específicos por campo
+     * @return Response Respuesta de error de validación
      */
     public static function validationError(array $errors): Response
     {

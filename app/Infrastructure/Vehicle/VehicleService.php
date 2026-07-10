@@ -3,72 +3,63 @@
 namespace App\Infrastructure\Vehicle;
 
 use App\Core\Database;
+use App\Core\DomainException;
 use App\Infrastructure\Vehicle\VehicleValidator;
 
 /**
- * Vehicle Service
+ * Servicio de Vehículos
  *
- * Lógica de negocio para la gestión de vehículos:
- *  - CRUD completo con soft-delete (nunca se borran filas físicamente)
- *  - Manejo del vehículo principal (is_primary)
- *  - Almacenamiento y validación de documentos obligatorios en Colombia:
- *      · SOAT (Seguro Obligatorio de Accidentes de Tránsito)
- *      · Tecnomecánica (Revisión técnico-mecánica)
- *  - Bloqueo de reactivación si los documentos están vencidos
+ * Lógica de negocio para gestión de vehículos: creación, actualización,
+ * eliminación, y designación de vehículo principal.
  */
 class VehicleService
 {
-    // =========================================================================
-    // create()
-    // =========================================================================
-
     /**
-     * Crea un nuevo vehículo para el usuario.
+     * Crear un nuevo vehículo
      *
-     * Los campos de SOAT y tecnomecánica son opcionales en la creación,
-     * pero si se envían se persisten junto con el vehículo.
-     *
-     * @param int   $userId Propietario del vehículo
-     * @param array $data   Datos del vehículo (validados por VehicleValidator antes de llegar aquí)
-     * @return int          ID del vehículo creado
-     * @throws \Exception
+     * @param int $userId ID del propietario
+     * @param array $data Datos del vehículo
+     * @return int ID del vehículo creado
+     * @throws \Exception Si hay error de base de datos o de lógica de negocio
      */
     public function create(int $userId, array $data): int
     {
-        // Normalizar placa (mayúsculas, sin espacios)
+        // Normalizar placa
         $data['license_plate'] = VehicleValidator::normalizeLicensePlate($data['license_plate']);
 
-        // Normalizar VIN si fue enviado
+        // Normalizar VIN si se proporcionó
         if (!empty($data['vin'])) {
             $data['vin'] = VehicleValidator::normalizeVIN($data['vin']);
         }
 
-        // La placa debe ser única en todo el sistema
+        // Verificar que la placa no exista
         $existing = Database::fetchOne(
             'SELECT id FROM vehicles WHERE license_plate = ?',
             [$data['license_plate']]
         );
+
         if ($existing !== null) {
-            throw new \Exception('Vehicle with this license plate already exists');
+            throw new DomainException('Ya existe un vehículo con esta placa', 409);
         }
 
-        // El VIN también debe ser único (si se proporcionó)
+        // Verificar que el VIN no exista (si se proporcionó)
         if (!empty($data['vin'])) {
             $existingVin = Database::fetchOne(
                 'SELECT id FROM vehicles WHERE vin = ?',
                 [$data['vin']]
             );
+
             if ($existingVin !== null) {
-                throw new \Exception('Vehicle with this VIN already exists');
+                throw new DomainException('Ya existe un vehículo con este VIN', 409);
             }
         }
 
-        // Si se pide que sea el vehículo principal, desmarcar los demás del usuario
+        // Si es_principal es true, quitar el principal actual del usuario
         if (!empty($data['is_primary'])) {
             Database::update('vehicles', ['is_primary' => false], 'user_id = ?', [$userId]);
         }
 
-        // ---- Campos base obligatorios ----
+        // Preparar datos de inserción
         $insertData = [
             'user_id'      => $userId,
             'license_plate'=> $data['license_plate'],
@@ -81,193 +72,123 @@ class VehicleService
             'status'       => 'active',
         ];
 
-        // ---- Campos opcionales estándar ----
-        if (!empty($data['color']))             $insertData['color']              = $data['color'];
-        if (!empty($data['vin']))               $insertData['vin']                = $data['vin'];
-        if (!empty($data['nickname']))          $insertData['nickname']           = $data['nickname'];
-        if (!empty($data['primary_photo_url'])) $insertData['primary_photo_url']  = $data['primary_photo_url'];
+        // Campos opcionales
+        if (!empty($data['color']))             $insertData['color']             = $data['color'];
+        if (!empty($data['vin']))               $insertData['vin']               = $data['vin'];
+        if (!empty($data['nickname']))          $insertData['nickname']          = $data['nickname'];
+        if (!empty($data['primary_photo_url'])) $insertData['primary_photo_url'] = $data['primary_photo_url'];
 
-        // ---- Campos SOAT (Seguro Obligatorio) ----
-        // Almacenamos número, fecha de vencimiento y URL del documento escaneado
-        if (!empty($data['soat_number']))           $insertData['soat_number']            = $data['soat_number'];
-        if (!empty($data['soat_expiration_date']))   $insertData['soat_expiration_date']   = $data['soat_expiration_date'];
-        if (!empty($data['soat_document_url']))      $insertData['soat_document_url']      = $data['soat_document_url'];
-        // Registrar cuándo se subió el documento SOAT
-        if (!empty($data['soat_document_url']))      $insertData['soat_uploaded_at']       = date('Y-m-d H:i:s');
-
-        // ---- Campos Tecnomecánica (Revisión técnica) ----
-        if (!empty($data['tecnomecanica_number']))           $insertData['tecnomecanica_number']            = $data['tecnomecanica_number'];
-        if (!empty($data['tecnomecanica_expiration_date']))  $insertData['tecnomecanica_expiration_date']   = $data['tecnomecanica_expiration_date'];
-        if (!empty($data['tecnomecanica_document_url']))     $insertData['tecnomecanica_document_url']      = $data['tecnomecanica_document_url'];
-        // Registrar cuándo se subió el documento de tecnomecánica
-        if (!empty($data['tecnomecanica_document_url']))     $insertData['tecnomecanica_uploaded_at']       = date('Y-m-d H:i:s');
+        // Documentos colombianos (SOAT y Tecnomecánica)
+        if (!empty($data['soat_expiration_date']))
+            $insertData['soat_expiration_date'] = $data['soat_expiration_date'];
+        if (!empty($data['tecnomecanica_expiration_date']))
+            $insertData['tecnomecanica_expiration_date'] = $data['tecnomecanica_expiration_date'];
 
         return Database::insert('vehicles', $insertData);
     }
 
-    // =========================================================================
-    // update()
-    // =========================================================================
-
     /**
-     * Actualiza los datos de un vehículo existente.
+     * Actualizar un vehículo existente
      *
-     * Regla de negocio extra:
-     *   Si se intenta cambiar el estado a 'active' pero los documentos SOAT
-     *   o tecnomecánica están vencidos, se lanza excepción. El usuario debe
-     *   renovar los documentos antes de reactivar el vehículo.
-     *
-     * @param int   $vehicleId ID del vehículo
-     * @param int   $userId    Propietario (para verificar pertenencia)
-     * @param array $data      Campos a actualizar
-     * @return bool            true si al menos una fila fue modificada
-     * @throws \Exception
+     * @param int $vehicleId ID del vehículo
+     * @param int $userId ID del propietario (para verificar ownership)
+     * @param array $data Datos a actualizar
+     * @return bool Éxito
+     * @throws \Exception Si hay error o el usuario no es propietario
      */
     public function update(int $vehicleId, int $userId, array $data): bool
     {
-        // Verificar que el vehículo exista y pertenezca al usuario
+        // Verificar que el vehículo existe y pertenece al usuario
         $vehicle = Database::fetchOne(
-            'SELECT id, user_id, license_plate, vin,
-                    soat_expiration_date, tecnomecanica_expiration_date
-             FROM vehicles WHERE id = ? AND deleted_at IS NULL',
+            'SELECT id, user_id, license_plate, vin FROM vehicles WHERE id = ? AND deleted_at IS NULL',
             [$vehicleId]
         );
 
         if ($vehicle === null) {
-            throw new \Exception('Vehicle not found');
+            throw new DomainException('Vehículo no encontrado', 404);
         }
+
         if ((int)$vehicle['user_id'] !== $userId) {
-            throw new \Exception('You do not own this vehicle');
+            throw new DomainException('No eres propietario de este vehículo', 403);
         }
 
         $updateData = [];
 
-        // ---- Placa ----
+        // Placa
         if (isset($data['license_plate'])) {
             $normalizedPlate = VehicleValidator::normalizeLicensePlate($data['license_plate']);
+
             if ($normalizedPlate !== $vehicle['license_plate']) {
-                $dup = Database::fetchOne(
+                $existing = Database::fetchOne(
                     'SELECT id FROM vehicles WHERE license_plate = ? AND id != ?',
                     [$normalizedPlate, $vehicleId]
                 );
-                if ($dup !== null) {
-                    throw new \Exception('Vehicle with this license plate already exists');
+
+                if ($existing !== null) {
+                    throw new DomainException('Ya existe un vehículo con esta placa', 409);
                 }
             }
+
             $updateData['license_plate'] = $normalizedPlate;
         }
 
-        // ---- VIN ----
+        // VIN
         if (isset($data['vin'])) {
             $normalizedVin = VehicleValidator::normalizeVIN($data['vin']);
+
             if ($normalizedVin !== null && $normalizedVin !== $vehicle['vin']) {
-                $dupVin = Database::fetchOne(
+                $existingVin = Database::fetchOne(
                     'SELECT id FROM vehicles WHERE vin = ? AND id != ?',
                     [$normalizedVin, $vehicleId]
                 );
-                if ($dupVin !== null) {
-                    throw new \Exception('Vehicle with this VIN already exists');
+
+                if ($existingVin !== null) {
+                    throw new DomainException('Ya existe un vehículo con este VIN', 409);
                 }
             }
+
             $updateData['vin'] = $normalizedVin;
         }
 
-        // ---- Campos simples estándar ----
-        if (isset($data['make']))              $updateData['make']              = $data['make'];
-        if (isset($data['model']))             $updateData['model']             = $data['model'];
-        if (isset($data['year']))              $updateData['year']              = (int)$data['year'];
-        if (isset($data['color']))             $updateData['color']             = $data['color'];
-        if (isset($data['vehicle_type']))      $updateData['vehicle_type']      = $data['vehicle_type'];
-        if (isset($data['fuel_type']))         $updateData['fuel_type']         = $data['fuel_type'];
-        if (isset($data['nickname']))          $updateData['nickname']          = $data['nickname'];
+        // Campos simples
+        if (isset($data['make']))             $updateData['make']              = $data['make'];
+        if (isset($data['model']))            $updateData['model']             = $data['model'];
+        if (isset($data['year']))             $updateData['year']              = (int)$data['year'];
+        if (isset($data['color']))            $updateData['color']             = $data['color'];
+        if (isset($data['vehicle_type']))     $updateData['vehicle_type']      = $data['vehicle_type'];
+        if (isset($data['fuel_type']))        $updateData['fuel_type']         = $data['fuel_type'];
+        if (isset($data['nickname']))         $updateData['nickname']          = $data['nickname'];
         if (isset($data['primary_photo_url'])) $updateData['primary_photo_url'] = $data['primary_photo_url'];
+        if (isset($data['status']))           $updateData['status']            = $data['status'];
 
-        // ---- Actualización de campos SOAT ----
-        if (isset($data['soat_number']))           $updateData['soat_number']            = $data['soat_number'];
-        if (isset($data['soat_expiration_date']))   $updateData['soat_expiration_date']   = $data['soat_expiration_date'];
-        if (isset($data['soat_document_url'])) {
-            $updateData['soat_document_url'] = $data['soat_document_url'];
-            // Actualizar timestamp de subida sólo cuando cambia la URL del documento
-            if (!empty($data['soat_document_url'])) {
-                $updateData['soat_uploaded_at'] = date('Y-m-d H:i:s');
-            }
-        }
+        // Documentos colombianos
+        if (isset($data['soat_expiration_date']))
+            $updateData['soat_expiration_date'] = $data['soat_expiration_date'];
+        if (isset($data['tecnomecanica_expiration_date']))
+            $updateData['tecnomecanica_expiration_date'] = $data['tecnomecanica_expiration_date'];
 
-        // ---- Actualización de campos Tecnomecánica ----
-        if (isset($data['tecnomecanica_number']))           $updateData['tecnomecanica_number']            = $data['tecnomecanica_number'];
-        if (isset($data['tecnomecanica_expiration_date']))  $updateData['tecnomecanica_expiration_date']   = $data['tecnomecanica_expiration_date'];
-        if (isset($data['tecnomecanica_document_url'])) {
-            $updateData['tecnomecanica_document_url'] = $data['tecnomecanica_document_url'];
-            if (!empty($data['tecnomecanica_document_url'])) {
-                $updateData['tecnomecanica_uploaded_at'] = date('Y-m-d H:i:s');
-            }
-        }
-
-        // ---- Validación de estado: bloquear reactivación con documentos vencidos ----
-        if (isset($data['status'])) {
-            if ($data['status'] === 'active') {
-                // Usar las fechas que ya están en BD, salvo que se estén actualizando ahora mismo
-                $soatExpiry = $updateData['soat_expiration_date']
-                    ?? $vehicle['soat_expiration_date'];
-                $tecnoExpiry = $updateData['tecnomecanica_expiration_date']
-                    ?? $vehicle['tecnomecanica_expiration_date'];
-
-                $today = date('Y-m-d');
-
-                // Si el SOAT ya venció no se puede reactivar el vehículo
-                if (!empty($soatExpiry) && $soatExpiry < $today) {
-                    throw new \Exception(
-                        'No se puede activar el vehículo: el SOAT está vencido (' . $soatExpiry . '). ' .
-                        'Actualice el documento antes de reactivar.'
-                    );
-                }
-
-                // Si la tecnomecánica ya venció tampoco se puede reactivar
-                if (!empty($tecnoExpiry) && $tecnoExpiry < $today) {
-                    throw new \Exception(
-                        'No se puede activar el vehículo: la tecnomecánica está vencida (' . $tecnoExpiry . '). ' .
-                        'Actualice el documento antes de reactivar.'
-                    );
-                }
-            }
-            $updateData['status'] = $data['status'];
-        }
-
-        // ---- is_primary ----
+        // Flag de vehículo principal
         if (isset($data['is_primary']) && $data['is_primary']) {
-            // Desmarcar los demás vehículos del usuario antes de marcar este
-            Database::update(
-                'vehicles',
-                ['is_primary' => false],
-                'user_id = ? AND id != ?',
-                [$userId, $vehicleId]
-            );
+            Database::update('vehicles', ['is_primary' => false], 'user_id = ? AND id != ?', [$userId, $vehicleId]);
             $updateData['is_primary'] = true;
         }
 
-        // Nada que actualizar
         if (empty($updateData)) {
             return true;
         }
 
         $rowCount = Database::update('vehicles', $updateData, 'id = ?', [$vehicleId]);
+
         return $rowCount > 0;
     }
 
-    // =========================================================================
-    // delete()
-    // =========================================================================
-
     /**
-     * Soft-delete de un vehículo.
+     * Eliminar vehículo (soft delete)
      *
-     * No elimina la fila: marca deleted_at y cambia el status a 'inactive'.
-     * Si era el vehículo principal, intenta promover otro como principal.
-     *
-     * @param int $vehicleId
-     * @param int $userId
-     * @return bool
-     * @throws \Exception
+     * @param int $vehicleId ID del vehículo
+     * @param int $userId ID del propietario
+     * @return bool Éxito
+     * @throws \Exception Si el vehículo no existe o no pertenece al usuario
      */
     public function delete(int $vehicleId, int $userId): bool
     {
@@ -277,10 +198,11 @@ class VehicleService
         );
 
         if ($vehicle === null) {
-            throw new \Exception('Vehicle not found');
+            throw new DomainException('Vehículo no encontrado', 404);
         }
+
         if ((int)$vehicle['user_id'] !== $userId) {
-            throw new \Exception('You do not own this vehicle');
+            throw new DomainException('No eres propietario de este vehículo', 403);
         }
 
         $rowCount = Database::update('vehicles', [
@@ -288,33 +210,28 @@ class VehicleService
             'deleted_at' => date('Y-m-d H:i:s'),
         ], 'id = ?', [$vehicleId]);
 
-        // Si era el principal, promover el vehículo activo más antiguo
+        // Si era el principal, designar otro vehículo como principal
         if ($vehicle['is_primary']) {
-            $another = Database::fetchOne(
-                'SELECT id FROM vehicles
-                 WHERE user_id = ? AND deleted_at IS NULL AND id != ?
-                 ORDER BY created_at ASC LIMIT 1',
+            $anotherVehicle = Database::fetchOne(
+                'SELECT id FROM vehicles WHERE user_id = ? AND deleted_at IS NULL AND id != ? ORDER BY created_at ASC LIMIT 1',
                 [$userId, $vehicleId]
             );
-            if ($another !== null) {
-                Database::update('vehicles', ['is_primary' => true], 'id = ?', [$another['id']]);
+
+            if ($anotherVehicle !== null) {
+                Database::update('vehicles', ['is_primary' => true], 'id = ?', [$anotherVehicle['id']]);
             }
         }
 
         return $rowCount > 0;
     }
 
-    // =========================================================================
-    // setPrimary()
-    // =========================================================================
-
     /**
-     * Establece un vehículo como el principal del usuario.
+     * Establecer un vehículo como principal
      *
-     * @param int $vehicleId
-     * @param int $userId
-     * @return bool
-     * @throws \Exception
+     * @param int $vehicleId ID del vehículo
+     * @param int $userId ID del propietario
+     * @return bool Éxito
+     * @throws \Exception Si el vehículo no existe o no pertenece al usuario
      */
     public function setPrimary(int $vehicleId, int $userId): bool
     {
@@ -324,33 +241,26 @@ class VehicleService
         );
 
         if ($vehicle === null) {
-            throw new \Exception('Vehicle not found');
-        }
-        if ((int)$vehicle['user_id'] !== $userId) {
-            throw new \Exception('You do not own this vehicle');
+            throw new DomainException('Vehículo no encontrado', 404);
         }
 
-        // Desmarcar todos los vehículos del usuario
+        if ((int)$vehicle['user_id'] !== $userId) {
+            throw new DomainException('No eres propietario de este vehículo', 403);
+        }
+
         Database::update('vehicles', ['is_primary' => false], 'user_id = ?', [$userId]);
 
-        // Marcar solo este
         $rowCount = Database::update('vehicles', ['is_primary' => true], 'id = ?', [$vehicleId]);
+
         return $rowCount > 0;
     }
 
-    // =========================================================================
-    // getById()
-    // =========================================================================
-
     /**
-     * Recupera un vehículo por ID verificando la propiedad del usuario.
+     * Obtener vehículo por ID
      *
-     * Retorna todos los campos, incluyendo los de SOAT y tecnomecánica.
-     * El controlador puede agregarle el campo calculado 'documentStatus' si lo necesita.
-     *
-     * @param int $vehicleId
-     * @param int $userId
-     * @return array|null
+     * @param int $vehicleId ID del vehículo
+     * @param int $userId ID del propietario (para verificar ownership)
+     * @return array|null Datos del vehículo o null si no existe
      */
     public function getById(int $vehicleId, int $userId): ?array
     {
@@ -360,16 +270,12 @@ class VehicleService
         );
     }
 
-    // =========================================================================
-    // getUserVehicles()
-    // =========================================================================
-
     /**
-     * Lista todos los vehículos del usuario.
+     * Obtener todos los vehículos de un usuario
      *
-     * @param int  $userId
-     * @param bool $activeOnly Si true (por defecto) solo devuelve status='active'
-     * @return array
+     * @param int $userId ID del usuario
+     * @param bool $activeOnly Solo vehículos activos
+     * @return array Lista de vehículos
      */
     public function getUserVehicles(int $userId, bool $activeOnly = true): array
     {
@@ -377,31 +283,25 @@ class VehicleService
         $params = [$userId];
 
         if ($activeOnly) {
-            $sql    .= ' AND status = ?';
-            $params[] = 'active';
+            $sql      .= ' AND status = ?';
+            $params[]  = 'active';
         }
 
-        // Primero el vehículo principal, luego por fecha de creación más reciente
         $sql .= ' ORDER BY is_primary DESC, created_at DESC';
 
         return Database::fetchAll($sql, $params);
     }
 
-    // =========================================================================
-    // getPrimaryVehicle()
-    // =========================================================================
-
     /**
-     * Retorna el vehículo principal activo del usuario, o null si no tiene.
+     * Obtener el vehículo principal del usuario
      *
-     * @param int $userId
-     * @return array|null
+     * @param int $userId ID del usuario
+     * @return array|null Vehículo principal o null si no existe
      */
     public function getPrimaryVehicle(int $userId): ?array
     {
         return Database::fetchOne(
-            'SELECT * FROM vehicles
-             WHERE user_id = ? AND is_primary = TRUE AND deleted_at IS NULL AND status = ?',
+            'SELECT * FROM vehicles WHERE user_id = ? AND is_primary = TRUE AND deleted_at IS NULL AND status = ?',
             [$userId, 'active']
         );
     }

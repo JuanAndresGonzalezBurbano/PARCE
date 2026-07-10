@@ -7,6 +7,7 @@ interface VehicleContextType {
   selectedVehicle: Vehicle | null;
   isLoading: boolean;
   error: string | null;
+  fieldErrors: Record<string, string> | null;
   loadVehicles: () => Promise<void>;
   createVehicle: (data: CreateVehicleRequest) => Promise<boolean>;
   updateVehicle: (id: number, data: UpdateVehicleRequest) => Promise<boolean>;
@@ -27,6 +28,7 @@ export function VehicleProvider({ children }: VehicleProviderProps) {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string> | null>(null);
 
   async function loadVehicles() {
     setIsLoading(true);
@@ -50,6 +52,7 @@ export function VehicleProvider({ children }: VehicleProviderProps) {
   async function createVehicle(data: CreateVehicleRequest): Promise<boolean> {
     setIsLoading(true);
     setError(null);
+    setFieldErrors(null);
 
     try {
       const response = await vehicleService.createVehicle(data);
@@ -60,6 +63,7 @@ export function VehicleProvider({ children }: VehicleProviderProps) {
         return true;
       } else {
         setError(response.error);
+        setFieldErrors(response.fields ?? null);
         setIsLoading(false);
         return false;
       }
@@ -73,6 +77,7 @@ export function VehicleProvider({ children }: VehicleProviderProps) {
   async function updateVehicle(id: number, data: UpdateVehicleRequest): Promise<boolean> {
     setIsLoading(true);
     setError(null);
+    setFieldErrors(null);
 
     try {
       const response = await vehicleService.updateVehicle(id, data);
@@ -83,6 +88,7 @@ export function VehicleProvider({ children }: VehicleProviderProps) {
         return true;
       } else {
         setError(response.error);
+        setFieldErrors(response.fields ?? null);
         setIsLoading(false);
         return false;
       }
@@ -145,6 +151,7 @@ export function VehicleProvider({ children }: VehicleProviderProps) {
 
   function clearError() {
     setError(null);
+    setFieldErrors(null);
   }
 
   const value: VehicleContextType = {
@@ -152,6 +159,7 @@ export function VehicleProvider({ children }: VehicleProviderProps) {
     selectedVehicle,
     isLoading,
     error,
+    fieldErrors,
     loadVehicles,
     createVehicle,
     updateVehicle,

@@ -41,12 +41,10 @@ endpoints multipart) es un módulo nuevo con implicaciones de infraestructura
 (¿dónde se guardan los archivos?, ¿límites de tamaño?, ¿CDN?) — requiere decisión
 del usuario sobre la estrategia de almacenamiento antes de implementarse.
 
-### 4. Vista de evidencias para el cliente
-El backend ya expone `GET /api/service-requests/{id}/evidences` (mismo control de
-acceso que el mecánico), pero no existe ninguna pantalla en el frontend del cliente
-para verlas. Es una extensión pequeña y de bajo riesgo (reutilizaría el patrón de
-`EvidenceUpload`/lista existente) — se puede construir en cualquier momento sin
-necesidad de más decisiones, solo priorización.
+### 4. ~~Vista de evidencias para el cliente~~ — Resuelto 2026-07-10
+Implementado: `EvidenceUpload` ahora soporta `readOnly`, y `RequestsPage.tsx`
+(cliente) tiene un toggle "Ver evidencias" por solicitud. Ver commit
+`feat(requests): add read-only evidence view for customers`.
 
 ## Deuda técnica documentada (no bloquea, baja prioridad)
 

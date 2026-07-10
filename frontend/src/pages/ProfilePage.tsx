@@ -123,12 +123,15 @@ export default function ProfilePage() {
           </p>
         </div>
 
-        {/* Driver license section */}
-        <DriverLicenseSection
-          license={user.driverLicense}
-          onSave={updateProfile}
-          isLoading={isLoading}
-        />
+        {/* Driver license section — solo aplica a mecánicos (el sistema bloquea
+            la aceptación de solicitudes si su licencia está vencida) */}
+        {isMechanic && (
+          <DriverLicenseSection
+            license={user.driverLicense}
+            onSave={updateProfile}
+            isLoading={isLoading}
+          />
+        )}
       </div>
     </div>
   );

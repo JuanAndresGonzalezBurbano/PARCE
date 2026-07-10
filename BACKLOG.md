@@ -76,3 +76,5 @@ necesidad de más decisiones, solo priorización.
   ningún contexto del frontend lo consume — actualmente todo carga sin límite.
   No es urgente mientras los volúmenes de datos sean bajos (proyecto en
   desarrollo/demo), pero será necesario antes de un uso con datos reales.
+
+- **`node_modules` está trackeado en git** (`frontend/node_modules/` no está en `.gitignore`), generando ruido constante en `git status`/diffs. Bajo riesgo pero vale la pena limpiarlo: agregar a `.gitignore` y `git rm -r --cached frontend/node_modules` en un commit dedicado cuando no haya trabajo en curso que se pueda mezclar accidentalmente.

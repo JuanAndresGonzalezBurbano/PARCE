@@ -143,27 +143,9 @@ class AuthController extends Controller
                 // Commit transaction
                 Database::commit();
 
-                // Fetch created user
-                $user = Database::fetchOne(
-                    'SELECT id, email, first_name, last_name, account_status, created_at
-                     FROM users
-                     WHERE id = ?',
-                    [$userId]
-                );
-
-                // Get user roles
-                $roles = $this->roleValidator->getUserRoles($userId);
-
-                // Prepare response data
+                // Prepare response data — mismo perfil completo que devuelve GET /api/auth/me
                 $responseData = [
-                    'user' => [
-                        'id' => (int)$user['id'],
-                        'email' => $user['email'],
-                        'firstName' => $user['first_name'],
-                        'lastName' => $user['last_name'],
-                        'accountStatus' => $user['account_status'],
-                        'roles' => $roles
-                    ],
+                    'user' => $this->buildUserProfile($userId),
                     'session' => [
                         'id' => $sessionId,
                         'expiresAt' => time() + 7200 // 2 hours
@@ -272,33 +254,16 @@ class AuthController extends Controller
             // Requirement 6.5: Reset rate limit on successful login
             RateLimiter::reset('login', $ipAddress);
 
-            // Fetch user data
-            $user = Database::fetchOne(
-                'SELECT id, email, first_name, last_name, account_status, last_login_at
-                 FROM users
-                 WHERE id = ?',
-                [$authResult->userId]
-            );
-
-            // Get user roles
-            $roles = $this->roleValidator->getUserRoles($authResult->userId);
-
             // Calculate session expiration
-            $expiresAt = $remember 
+            $expiresAt = $remember
                 ? time() + (30 * 24 * 60 * 60) // 30 days
                 : time() + 7200; // 2 hours
 
-            // Prepare response data
+            // Prepare response data — mismo perfil completo que devuelve GET /api/auth/me
+            // (incluye phone, createdAt y driverLicense) para que el frontend no dependa
+            // de un refresh posterior para ver esos campos.
             $responseData = [
-                'user' => [
-                    'id' => (int)$user['id'],
-                    'email' => $user['email'],
-                    'firstName' => $user['first_name'],
-                    'lastName' => $user['last_name'],
-                    'accountStatus' => $user['account_status'],
-                    'lastLoginAt' => $user['last_login_at'],
-                    'roles' => $roles
-                ],
+                'user' => $this->buildUserProfile($authResult->userId),
                 'session' => [
                     'id' => $authResult->sessionId,
                     'expiresAt' => $expiresAt
@@ -384,58 +349,74 @@ class AuthController extends Controller
                 return ResponseFormatter::unauthorized('Autenticación requerida');
             }
 
-            $userId = (int)$user['id'];
+            $responseData = $this->buildUserProfile((int)$user['id']);
 
-            // Obtener datos completos del usuario incluyendo licencia y teléfono
-            $userData = Database::fetchOne(
-                'SELECT id, email, first_name, last_name, phone, account_status,
-                        last_login_at, created_at,
-                        driver_license_number, driver_license_expiration_date,
-                        driver_license_document_url, driver_license_status,
-                        driver_license_uploaded_at
-                 FROM users
-                 WHERE id = ? AND deleted_at IS NULL',
-                [$userId]
-            );
-
-            if ($userData === null) {
+            if ($responseData === null) {
                 return ResponseFormatter::unauthorized('Usuario no encontrado');
             }
-
-            // Obtener roles del usuario
-            $roles = $this->roleValidator->getUserRoles($userId);
-
-            // Construir objeto de licencia de conducción (null si no se ha registrado)
-            $driverLicense = null;
-            if ($userData['driver_license_status'] !== 'not_set' || $userData['driver_license_number'] !== null) {
-                $driverLicense = [
-                    'number'         => $userData['driver_license_number'],
-                    'expirationDate' => $userData['driver_license_expiration_date'],
-                    'documentUrl'    => $userData['driver_license_document_url'],
-                    'status'         => $userData['driver_license_status'] ?? 'not_set',
-                    'uploadedAt'     => $userData['driver_license_uploaded_at'],
-                ];
-            }
-
-            // Construir respuesta
-            $responseData = [
-                'id'            => $userId,
-                'email'         => $userData['email'],
-                'firstName'     => $userData['first_name'],
-                'lastName'      => $userData['last_name'],
-                'phone'         => $userData['phone'],
-                'accountStatus' => $userData['account_status'],
-                'createdAt'     => $userData['created_at'],
-                'lastLoginAt'   => $userData['last_login_at'],
-                'roles'         => $roles,
-                'driverLicense' => $driverLicense,
-            ];
 
             return ResponseFormatter::success($responseData, 'Usuario obtenido correctamente', 200);
 
         } catch (\Exception $e) {
             return ErrorHandler::handleException($e);
         }
+    }
+
+    /**
+     * Construye el perfil completo de un usuario (mismos campos que GET /api/auth/me).
+     *
+     * Usado por register(), login() y me() para que los tres endpoints devuelvan
+     * exactamente la misma forma de objeto `user` — antes cada uno armaba su propio
+     * arreglo a mano y quedaban desincronizados (login/register nunca incluían
+     * `phone`, `createdAt` ni `driverLicense`, rompiendo cualquier UI que dependiera
+     * de esos campos justo después de iniciar sesión, antes de un refresh manual).
+     *
+     * @param int $userId ID del usuario
+     * @return array|null Perfil completo, o null si el usuario no existe
+     */
+    private function buildUserProfile(int $userId): ?array
+    {
+        $userData = Database::fetchOne(
+            'SELECT id, email, first_name, last_name, phone, account_status,
+                    last_login_at, created_at,
+                    driver_license_number, driver_license_expiration_date,
+                    driver_license_document_url, driver_license_status,
+                    driver_license_uploaded_at
+             FROM users
+             WHERE id = ? AND deleted_at IS NULL',
+            [$userId]
+        );
+
+        if ($userData === null) {
+            return null;
+        }
+
+        $roles = $this->roleValidator->getUserRoles($userId);
+
+        // Construir objeto de licencia de conducción (null si no se ha registrado)
+        $driverLicense = null;
+        if ($userData['driver_license_status'] !== 'not_set' || $userData['driver_license_number'] !== null) {
+            $driverLicense = [
+                'number'         => $userData['driver_license_number'],
+                'expirationDate' => $userData['driver_license_expiration_date'],
+                'documentUrl'    => $userData['driver_license_document_url'],
+                'status'         => $userData['driver_license_status'] ?? 'not_set',
+                'uploadedAt'     => $userData['driver_license_uploaded_at'],
+            ];
+        }
+
+        return [
+            'id'            => $userId,
+            'email'         => $userData['email'],
+            'firstName'     => $userData['first_name'],
+            'lastName'      => $userData['last_name'],
+            'phone'         => $userData['phone'],
+            'accountStatus' => $userData['account_status'],
+            'createdAt'     => $userData['created_at'],
+            'lastLoginAt'   => $userData['last_login_at'],
+            'roles'         => $roles,
+            'driverLicense' => $driverLicense,
+        ];
     }
 
     /**

@@ -6,9 +6,8 @@ export default function MechanicDashboard() {
 
   if (!user) return null;
 
-  // Verificar estado de la licencia de conducción si el tipo de usuario lo tiene
-  const driverLicense = (user as any).driverLicense;
-  const licenseStatus = driverLicense?.status as string | undefined;
+  // Verificar estado de la licencia de conducción
+  const licenseStatus = user.driverLicense?.status;
 
   const licenseExpired = licenseStatus === 'expired';
   const licenseExpiringSoon = licenseStatus === 'expiring_soon';

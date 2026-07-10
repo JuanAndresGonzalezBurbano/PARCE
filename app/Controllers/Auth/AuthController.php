@@ -525,7 +525,7 @@ class AuthController extends Controller
             $updates['updated_at'] = $now;
 
             // Aplicar actualización
-            Database::update('users', $updates, ['id' => $userId]);
+            Database::update('users', $updates, 'id = ?', [$userId]);
 
             // Retornar perfil actualizado
             return $this->me($request);

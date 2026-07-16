@@ -57,11 +57,6 @@ class SurveyController extends Controller
             $customerId = $request->getAttribute('userId');
             $serviceRequestId = (int)$request->input('service_request_id');
 
-            $eligibility = $this->surveyService->checkEligibility($serviceRequestId, $customerId);
-            if (!$eligibility['eligible']) {
-                return ResponseFormatter::conflict($eligibility['reason']);
-            }
-
             $data = [
                 'service_request_id'   => $serviceRequestId,
                 'overall_satisfaction' => $request->input('overall_satisfaction'),

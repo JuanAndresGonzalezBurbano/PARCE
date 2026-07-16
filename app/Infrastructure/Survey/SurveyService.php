@@ -14,50 +14,12 @@ use App\Core\DomainException;
 class SurveyService
 {
     /**
-     * Verifica si el cliente puede encuestar una solicitud de servicio, sin lanzar excepciones.
-     *
-     * @param int $serviceRequestId ID de la solicitud de servicio
-     * @param int $customerId       ID del cliente autenticado
-     * @return array                ['eligible' => bool, 'reason' => string|null]
-     */
-    public function checkEligibility(int $serviceRequestId, int $customerId): array
-    {
-        $serviceRequest = Database::fetchOne(
-            'SELECT id, customer_id, status FROM service_requests WHERE id = ? AND deleted_at IS NULL',
-            [$serviceRequestId]
-        );
-
-        if ($serviceRequest === null) {
-            return ['eligible' => false, 'reason' => 'Solicitud de servicio no encontrada'];
-        }
-
-        if ((int)$serviceRequest['customer_id'] !== $customerId) {
-            return ['eligible' => false, 'reason' => 'No eres el propietario de esta solicitud de servicio'];
-        }
-
-        if ($serviceRequest['status'] !== 'completed') {
-            return ['eligible' => false, 'reason' => 'Solo se puede encuestar un servicio completado'];
-        }
-
-        $existing = Database::fetchOne(
-            'SELECT id FROM surveys WHERE service_request_id = ?',
-            [$serviceRequestId]
-        );
-
-        if ($existing !== null) {
-            return ['eligible' => false, 'reason' => 'Ya existe una encuesta para esta solicitud de servicio'];
-        }
-
-        return ['eligible' => true, 'reason' => null];
-    }
-
-    /**
      * Crea una encuesta para una solicitud de servicio completada del cliente.
      *
      * @param int   $customerId ID del cliente autenticado
      * @param array $data       Datos de la encuesta
      * @return int              ID de la encuesta creada
-     * @throws \Exception       Si la solicitud de servicio no existe, no pertenece al
+     * @throws DomainException  Si la solicitud de servicio no existe, no pertenece al
      *                          cliente, no está completada, o ya tiene una encuesta
      */
     public function create(int $customerId, array $data): int

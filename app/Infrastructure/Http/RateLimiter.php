@@ -33,32 +33,55 @@ class RateLimiter
     private const STORAGE_FILE = __DIR__ . '/../../../storage/rate_limit.json';
 
     /**
-     * Carga el almacenamiento desde el archivo
+     * Ejecuta $operation() dentro de una sección crítica exclusiva sobre el
+     * archivo de almacenamiento: adquiere un lock, carga self::$storage desde
+     * disco, ejecuta la operación (que lee/muta self::$storage libremente),
+     * persiste el resultado y libera el lock — todo antes de que cualquier
+     * otro proceso pueda leer o escribir el archivo.
      *
-     * @return void
-     */
-    private static function loadStorage(): void
-    {
-        if (empty(self::$storage) && file_exists(self::STORAGE_FILE)) {
-            $data = file_get_contents(self::STORAGE_FILE);
-            if ($data !== false) {
-                self::$storage = json_decode($data, true) ?: [];
-            }
-        }
-    }
-
-    /**
-     * Guarda el almacenamiento en el archivo
+     * Sin esto, dos peticiones concurrentes pueden leer el mismo estado,
+     * mutar cada una su copia en memoria, y la segunda escritura descarta el
+     * incremento de la primera — permitiendo sobrepasar el límite de
+     * intentos bajo carga concurrente, justo el escenario (fuerza bruta /
+     * credential stuffing) para el que este mecanismo existe.
      *
-     * @return void
+     * @param callable $operation Lógica que lee/muta self::$storage
+     * @return mixed El valor de retorno de $operation()
      */
-    private static function saveStorage(): void
+    private static function withLock(callable $operation): mixed
     {
         $dir = dirname(self::STORAGE_FILE);
         if (!is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
-        file_put_contents(self::STORAGE_FILE, json_encode(self::$storage));
+
+        $handle = fopen(self::STORAGE_FILE, 'c+');
+        if ($handle === false) {
+            // No se pudo abrir el archivo (permisos, disco, etc.) — degradar
+            // sin lock antes que romper el flujo de autenticación por completo.
+            return $operation();
+        }
+
+        try {
+            flock($handle, LOCK_EX);
+
+            $contents = stream_get_contents($handle);
+            self::$storage = ($contents !== false && $contents !== '')
+                ? (json_decode($contents, true) ?: [])
+                : [];
+
+            $result = $operation();
+
+            rewind($handle);
+            ftruncate($handle, 0);
+            fwrite($handle, json_encode(self::$storage));
+            fflush($handle);
+
+            return $result;
+        } finally {
+            flock($handle, LOCK_UN);
+            fclose($handle);
+        }
     }
 
     /**
@@ -86,62 +109,60 @@ class RateLimiter
      */
     public static function check(string $endpoint, string $ipAddress): array
     {
-        self::loadStorage();
+        return self::withLock(function () use ($endpoint, $ipAddress) {
+            $key = self::getKey($endpoint, $ipAddress);
+            $now = time();
 
-        $key = self::getKey($endpoint, $ipAddress);
-        $now = time();
+            // Requisito 6.4, 17.4: Limpiar entradas expiradas
+            self::cleanupExpired();
 
-        // Requisito 6.4, 17.4: Limpiar entradas expiradas
-        self::cleanupExpired();
+            // Obtener o inicializar los datos de seguimiento
+            if (!isset(self::$storage[$key])) {
+                self::$storage[$key] = [
+                    'attempts' => 0,
+                    'window_start' => $now,
+                    'locked_until' => null
+                ];
+            }
 
-        // Obtener o inicializar los datos de seguimiento
-        if (!isset(self::$storage[$key])) {
-            self::$storage[$key] = [
-                'attempts' => 0,
-                'window_start' => $now,
-                'locked_until' => null
-            ];
-        }
+            $data = &self::$storage[$key];
 
-        $data = &self::$storage[$key];
+            // Verificar si está bloqueado actualmente
+            if ($data['locked_until'] !== null && $now < $data['locked_until']) {
+                return [
+                    'allowed' => false,
+                    'remaining' => 0,
+                    'reset_at' => $data['locked_until']
+                ];
+            }
 
-        // Verificar si está bloqueado actualmente
-        if ($data['locked_until'] !== null && $now < $data['locked_until']) {
+            // Requisito 6.2, 17.2: Verificar si la ventana ha expirado (ventana deslizante)
+            if ($now - $data['window_start'] >= self::WINDOW_DURATION) {
+                // Reiniciar la ventana
+                $data['attempts'] = 0;
+                $data['window_start'] = $now;
+                $data['locked_until'] = null;
+            }
+
+            // Requisito 6.3, 17.3: Verificar si se alcanzó el máximo de intentos
+            if ($data['attempts'] >= self::MAX_ATTEMPTS) {
+                // Bloquear hasta que expire la ventana
+                $data['locked_until'] = $data['window_start'] + self::WINDOW_DURATION;
+
+                return [
+                    'allowed' => false,
+                    'remaining' => 0,
+                    'reset_at' => $data['locked_until']
+                ];
+            }
+
+            // Requisito 6.1, 17.1: Permitir la solicitud
             return [
-                'allowed' => false,
-                'remaining' => 0,
-                'reset_at' => $data['locked_until']
+                'allowed' => true,
+                'remaining' => self::MAX_ATTEMPTS - $data['attempts'],
+                'reset_at' => $data['window_start'] + self::WINDOW_DURATION
             ];
-        }
-
-        // Requisito 6.2, 17.2: Verificar si la ventana ha expirado (ventana deslizante)
-        if ($now - $data['window_start'] >= self::WINDOW_DURATION) {
-            // Reiniciar la ventana
-            $data['attempts'] = 0;
-            $data['window_start'] = $now;
-            $data['locked_until'] = null;
-        }
-
-        // Requisito 6.3, 17.3: Verificar si se alcanzó el máximo de intentos
-        if ($data['attempts'] >= self::MAX_ATTEMPTS) {
-            // Bloquear hasta que expire la ventana
-            $data['locked_until'] = $data['window_start'] + self::WINDOW_DURATION;
-
-            self::saveStorage();
-
-            return [
-                'allowed' => false,
-                'remaining' => 0,
-                'reset_at' => $data['locked_until']
-            ];
-        }
-
-        // Requisito 6.1, 17.1: Permitir la solicitud
-        return [
-            'allowed' => true,
-            'remaining' => self::MAX_ATTEMPTS - $data['attempts'],
-            'reset_at' => $data['window_start'] + self::WINDOW_DURATION
-        ];
+        });
     }
 
     /**
@@ -155,24 +176,22 @@ class RateLimiter
      */
     public static function recordAttempt(string $endpoint, string $ipAddress): void
     {
-        self::loadStorage();
+        self::withLock(function () use ($endpoint, $ipAddress) {
+            $key = self::getKey($endpoint, $ipAddress);
+            $now = time();
 
-        $key = self::getKey($endpoint, $ipAddress);
-        $now = time();
+            // Inicializar si no existe
+            if (!isset(self::$storage[$key])) {
+                self::$storage[$key] = [
+                    'attempts' => 0,
+                    'window_start' => $now,
+                    'locked_until' => null
+                ];
+            }
 
-        // Inicializar si no existe
-        if (!isset(self::$storage[$key])) {
-            self::$storage[$key] = [
-                'attempts' => 0,
-                'window_start' => $now,
-                'locked_until' => null
-            ];
-        }
-
-        // Requisito 6.1, 17.1: Incrementar el contador de intentos
-        self::$storage[$key]['attempts']++;
-
-        self::saveStorage();
+            // Requisito 6.1, 17.1: Incrementar el contador de intentos
+            self::$storage[$key]['attempts']++;
+        });
     }
 
     /**
@@ -186,14 +205,12 @@ class RateLimiter
      */
     public static function reset(string $endpoint, string $ipAddress): void
     {
-        self::loadStorage();
+        self::withLock(function () use ($endpoint, $ipAddress) {
+            $key = self::getKey($endpoint, $ipAddress);
 
-        $key = self::getKey($endpoint, $ipAddress);
-
-        // Requisito 6.5, 17.5: Limpiar los datos de seguimiento al tener éxito
-        unset(self::$storage[$key]);
-
-        self::saveStorage();
+            // Requisito 6.5, 17.5: Limpiar los datos de seguimiento al tener éxito
+            unset(self::$storage[$key]);
+        });
     }
 
     /**
@@ -262,8 +279,6 @@ class RateLimiter
                 unset(self::$storage[$key]);
             }
         }
-
-        self::saveStorage();
     }
 
     /**

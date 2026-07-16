@@ -34,3 +34,8 @@ Thumbs.db
 /frontend/dist/
 /frontend/.env
 /frontend/.env.local
+
+# Local scratch/test artifacts (curl cookie jars, SQL backups, ad-hoc test payloads)
+cookies*.txt
+backup_*.sql
+test_*.json

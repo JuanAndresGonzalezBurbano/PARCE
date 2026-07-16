@@ -1,8 +1,9 @@
 <?php
 /**
- * Temporary migration runner wrapper from project root.
+ * Migration runner wrapper from project root.
+ *
  * Runs migrations directly using the project's MigrationRunner.
- * Delete after use.
+ * Usage: php migrate_run.php migrate|status
  */
 
 define('BASE_PATH', __DIR__);

@@ -146,3 +146,36 @@ Implementado: `EvidenceUpload` ahora soporta `readOnly`, y `RequestsPage.tsx`
   desvincularon de git (`git rm --cached`, archivos intactos en disco) y se
   agregaron a `.gitignore`. Ver commit `chore(git): stop tracking
   generated/runtime files`.
+
+## Limpieza de higiene de repositorio en la raíz — 2026-07-16
+
+Se encontraron y eliminaron de git varios archivos de scratch/testing que llevaban
+tiempo trackeados en la raíz del repo:
+
+- **Eliminados de git y del disco** (ruido histórico o scripts ad-hoc sin valor
+  permanente, recuperables de `git log` si algún día se necesitan): `-w` (artefacto
+  de curl), `DOCUMENTATION_STRUCTURE_REPORT.md`, `FINAL_PUSH_REPORT.md`,
+  `MERGE_REPORT.md`, `PRE_COMMIT_VALIDATION.md`, `REPOSITORY_STRUCTURE_REPORT.md`
+  (los 5 son reportes de eventos puntuales de 2025-06-19/2026-06-19 — una
+  reorganización de documentación, un merge, un push, una validación pre-commit —
+  ya cubiertos por el historial real de git; no son documentación viva y no están
+  duplicados por nombre en `docs/`), `service_requests_validation.php` (script
+  manual de validación vía curl con credenciales demo hardcodeadas, mismo patrón
+  que los scripts `*_temp.php` ya usados y borrados durante esta sesión).
+- **Desvinculados de git pero dejados intactos en disco** (contienen datos
+  sensibles reales — tokens de sesión, hashes de contraseña Argon2id, PII — se
+  prefirió no borrarlos del disco sin que el usuario lo decida explícitamente):
+  `cookies.txt`, `cookies_mech.txt`, `cookies_mech_test.txt`,
+  `backup_pre_refactor.sql`, `backup_pre_refactor_20260611_204423.sql`,
+  `test_login.json`, `test_register.json`. **Si no los necesitas, bórralos
+  manualmente del disco** — ya no se pueden volver a trackear por accidente
+  gracias a los nuevos patrones en `.gitignore` (`cookies*.txt`, `backup_*.sql`,
+  `test_*.json`).
+- **`migrate_run.php`**: se corrigió su docblock, que decía incorrectamente
+  "Temporary... Delete after use" — en realidad es la herramienta real y
+  necesaria para correr migraciones (confirmada en uso durante toda la sesión,
+  sin alternativa mejor disponible). Ya no se recomienda borrarlo.
+- **`AI_CONTEXT_PARCE.md`** (91KB, fechado 2026-01-11, desactualizado) — se dejó
+  intacto sin tocar. Es ambiguo si todavía aporta valor como contexto para
+  agentes de IA o si es puro ruido histórico; queda a tu criterio decidir si
+  actualizarlo, archivarlo en `docs/`, o eliminarlo.

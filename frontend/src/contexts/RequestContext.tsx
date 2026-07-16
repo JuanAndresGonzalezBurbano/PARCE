@@ -18,6 +18,8 @@ interface RequestContextType {
   cancelRequest: (id: number, reason: string) => Promise<boolean>;
   rateRequest: (id: number, customerRating: number, punctualityRating: number, serviceQualityRating: number, feedback?: string) => Promise<boolean>;
   loadAvailableRequests: (latitude: number, longitude: number) => Promise<void>;
+  /** Igual que loadAvailableRequests pero sin activar isLoading — para refrescos periódicos en segundo plano. */
+  refreshAvailableRequestsSilently: (latitude: number, longitude: number) => Promise<ServiceRequest[] | null>;
   acceptRequest: (id: number) => Promise<boolean>;
   startRequest: (id: number) => Promise<boolean>;
   completeRequest: (id: number, finalCost: number) => Promise<boolean>;
@@ -187,6 +189,22 @@ export function RequestProvider({ children }: RequestProviderProps) {
     }
   }
 
+  async function refreshAvailableRequestsSilently(
+    latitude: number,
+    longitude: number
+  ): Promise<ServiceRequest[] | null> {
+    try {
+      const response = await serviceRequestService.getAvailableRequests(latitude, longitude);
+      if (response.success) {
+        setRequests(response.data.serviceRequests);
+        return response.data.serviceRequests;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   async function acceptRequest(id: number): Promise<boolean> {
     setIsLoading(true);
     setError(null);
@@ -272,6 +290,7 @@ export function RequestProvider({ children }: RequestProviderProps) {
     cancelRequest,
     rateRequest,
     loadAvailableRequests,
+    refreshAvailableRequestsSilently,
     acceptRequest,
     startRequest,
     completeRequest,

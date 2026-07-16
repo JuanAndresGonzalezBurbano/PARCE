@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useRequests } from '@/hooks/useRequests';
+
+const POLL_INTERVAL_MS = 20000;
 
 const EMERGENCY_LABELS: Record<string, string> = {
   tire: 'Llanta pinchada', battery: 'Batería descargada', fuel: 'Sin combustible',
@@ -8,29 +10,69 @@ const EMERGENCY_LABELS: Record<string, string> = {
 };
 
 const PRIORITY_CONFIG: Record<string, { label: string; cls: string }> = {
-  urgent: { label: 'Urgente', cls: 'bg-red-900/50 border-red-700 text-red-200' },
-  normal: { label: 'Normal',  cls: 'bg-blue-900/50 border-blue-700 text-blue-200' },
-  low:    { label: 'Baja',    cls: 'bg-gray-700 border-gray-600 text-gray-300' },
+  critical: { label: 'Crítica', cls: 'bg-red-950 border-red-600 text-red-100 font-bold animate-pulse' },
+  urgent:   { label: 'Urgente', cls: 'bg-red-900/50 border-red-700 text-red-200' },
+  normal:   { label: 'Normal',  cls: 'bg-blue-900/50 border-blue-700 text-blue-200' },
 };
 
 export default function AvailableRequestsPage() {
   const navigate = useNavigate();
-  const { requests, isLoading, error, loadAvailableRequests, acceptRequest } = useRequests();
+  const { requests, isLoading, error, loadAvailableRequests, refreshAvailableRequestsSilently, acceptRequest } = useRequests();
   const [acceptingId, setAcceptingId] = useState<number | null>(null);
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
+  const [newRequestBanner, setNewRequestBanner] = useState<string | null>(null);
+
+  const coordsRef = useRef<{ lat: number; lng: number } | null>(null);
+  const knownIdsRef = useRef<Set<number> | null>(null);
 
   useEffect(() => {
     // Usar geolocalización del navegador; fallback a Bogotá
+    function startWatching(lat: number, lng: number) {
+      coordsRef.current = { lat, lng };
+      loadAvailableRequests(lat, lng);
+    }
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => loadAvailableRequests(pos.coords.latitude, pos.coords.longitude),
-        () => loadAvailableRequests(4.7110, -74.0721),
+        (pos) => startWatching(pos.coords.latitude, pos.coords.longitude),
+        () => startWatching(4.7110, -74.0721),
         { timeout: 5000 }
       );
     } else {
-      loadAvailableRequests(4.7110, -74.0721);
+      startWatching(4.7110, -74.0721);
     }
   }, []);
+
+  // Sondeo periódico en segundo plano: detecta nuevas solicitudes cercanas sin recargar la página
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (!coordsRef.current) return;
+      const { lat, lng } = coordsRef.current;
+      const updated = await refreshAvailableRequestsSilently(lat, lng);
+      if (updated === null) return;
+
+      if (knownIdsRef.current !== null) {
+        const newOnes = updated.filter((r) => !knownIdsRef.current!.has(r.id));
+        if (newOnes.length > 0) {
+          setNewRequestBanner(
+            newOnes.length === 1
+              ? 'Nueva solicitud disponible cerca de ti'
+              : `${newOnes.length} nuevas solicitudes disponibles cerca de ti`
+          );
+          setTimeout(() => setNewRequestBanner(null), 6000);
+        }
+      }
+      knownIdsRef.current = new Set(updated.map((r) => r.id));
+    }, POLL_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Mantener el set de IDs conocidos sincronizado con la carga inicial
+  useEffect(() => {
+    if (knownIdsRef.current === null && requests.length >= 0 && !isLoading) {
+      knownIdsRef.current = new Set(requests.map((r) => r.id));
+    }
+  }, [requests, isLoading]);
 
   async function handleAccept(id: number) {
     setAcceptingId(id);
@@ -44,6 +86,13 @@ export default function AvailableRequestsPage() {
 
   return (
     <div className="min-h-screen bg-gray-900 p-6">
+      {/* Notificación de nueva solicitud (toast en pantalla, no bloqueante) */}
+      {newRequestBanner && (
+        <div className="fixed top-4 right-4 z-50 px-4 py-3 bg-blue-600 border border-blue-500 rounded-lg shadow-lg text-white text-sm font-medium flex items-center gap-2 animate-pulse">
+          🔔 {newRequestBanner}
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold text-white">Solicitudes Disponibles</h1>

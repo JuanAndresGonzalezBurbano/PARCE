@@ -30,6 +30,9 @@ export default function ProtectedRoute({ children, requireRole }: ProtectedRoute
 
     if (!hasRequiredRole) {
       // User doesn't have required role - redirect to appropriate dashboard
+      if (user.roles.includes('administrator') || user.roles.includes('super_admin')) {
+        return <Navigate to="/admin/dashboard" replace />;
+      }
       if (user.roles.includes('mechanic')) {
         return <Navigate to="/mechanic/dashboard" replace />;
       }

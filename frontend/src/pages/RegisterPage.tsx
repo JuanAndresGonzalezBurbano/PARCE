@@ -19,7 +19,9 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      if (user.roles.includes('mechanic')) {
+      if (user.roles.includes('administrator') || user.roles.includes('super_admin')) {
+        navigate('/admin/dashboard', { replace: true });
+      } else if (user.roles.includes('mechanic')) {
         navigate('/mechanic/dashboard', { replace: true });
       } else {
         navigate('/dashboard', { replace: true });

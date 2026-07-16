@@ -14,6 +14,7 @@ export default function Navbar() {
 
   const isMechanic = user.roles.includes('mechanic');
   const isCustomer = user.roles.includes('customer');
+  const isAdmin = user.roles.includes('administrator') || user.roles.includes('super_admin');
 
   return (
     <nav className="bg-gray-900 border-b border-gray-700">
@@ -26,11 +27,34 @@ export default function Navbar() {
             {/* Navigation Links */}
             <div className="flex items-center gap-4">
               <Link
-                to={isMechanic ? '/mechanic/dashboard' : '/dashboard'}
+                to={isAdmin ? '/admin/dashboard' : isMechanic ? '/mechanic/dashboard' : '/dashboard'}
                 className="text-sm text-gray-300 hover:text-white transition-colors"
               >
                 Dashboard
               </Link>
+
+              {isAdmin && (
+                <>
+                  <Link
+                    to="/admin/pqr"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
+                  >
+                    PQR
+                  </Link>
+                  <Link
+                    to="/admin/surveys"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
+                  >
+                    Encuestas
+                  </Link>
+                  <Link
+                    to="/admin/ratings"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
+                  >
+                    Calificaciones
+                  </Link>
+                </>
+              )}
 
               {isMechanic && (
                 <>

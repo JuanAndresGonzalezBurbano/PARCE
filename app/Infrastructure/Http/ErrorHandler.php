@@ -129,11 +129,46 @@ class ErrorHandler
             $e->getMessage(),
             $e->getFile(),
             $e->getLine(),
-            $e->getTraceAsString()
+            self::formatTraceWithoutArguments($e)
         );
 
         // Escribir en el archivo de log
         @file_put_contents($logFile, $message, FILE_APPEND);
+    }
+
+    /**
+     * Formatea la traza de la excepción sin los valores de los argumentos.
+     *
+     * `Exception::getTraceAsString()` incluye los valores de los argumentos de
+     * cada llamada en la pila — si la excepción ocurre mientras una contraseña,
+     * token de sesión u otro dato sensible está en el alcance de alguna llamada
+     * de la pila (ej. dentro de PasswordHasher::hash($password) o
+     * AuthService::authenticate($email, $password, ...)), ese valor en texto
+     * plano quedaría escrito permanentemente en el archivo de log. Se construye
+     * la traza manualmente usando solo clase/función/archivo/línea, sin argumentos.
+     *
+     * @param \Throwable $e Excepción
+     * @return string Traza de la pila sin argumentos
+     */
+    private static function formatTraceWithoutArguments(\Throwable $e): string
+    {
+        $lines = [];
+
+        foreach ($e->getTrace() as $index => $frame) {
+            $function = $frame['function'] ?? '';
+            $class    = $frame['class'] ?? '';
+            $type     = $frame['type'] ?? '';
+            $file     = $frame['file'] ?? '[internal function]';
+            $line     = $frame['line'] ?? '';
+
+            $location = $file !== '[internal function]' ? "{$file}({$line})" : $file;
+
+            $lines[] = "#{$index} {$location}: {$class}{$type}{$function}()";
+        }
+
+        $lines[] = '#' . count($lines) . ' {main}';
+
+        return implode("\n", $lines);
     }
 
     /**

@@ -232,10 +232,45 @@ class App
             $e->getMessage(),
             $e->getFile(),
             $e->getLine(),
-            $e->getTraceAsString()
+            $this->formatTraceWithoutArguments($e)
         );
 
         file_put_contents($logFile, $message, FILE_APPEND);
+    }
+
+    /**
+     * Formatea la traza de la excepción sin los valores de los argumentos.
+     *
+     * `Throwable::getTraceAsString()` incluye los valores de los argumentos de
+     * cada llamada en la pila — si el error ocurre mientras una contraseña,
+     * token de sesión u otro dato sensible está en el alcance de alguna llamada
+     * de la pila, ese valor en texto plano quedaría escrito permanentemente en
+     * el archivo de log, sin importar el modo debug (este log se escribe
+     * siempre). Se construye la traza manualmente usando solo
+     * clase/función/archivo/línea, sin argumentos.
+     *
+     * @param \Throwable $e Excepción o error
+     * @return string Traza de la pila sin argumentos
+     */
+    private function formatTraceWithoutArguments(\Throwable $e): string
+    {
+        $lines = [];
+
+        foreach ($e->getTrace() as $index => $frame) {
+            $function = $frame['function'] ?? '';
+            $class    = $frame['class'] ?? '';
+            $type     = $frame['type'] ?? '';
+            $file     = $frame['file'] ?? '[internal function]';
+            $line     = $frame['line'] ?? '';
+
+            $location = $file !== '[internal function]' ? "{$file}({$line})" : $file;
+
+            $lines[] = "#{$index} {$location}: {$class}{$type}{$function}()";
+        }
+
+        $lines[] = '#' . count($lines) . ' {main}';
+
+        return implode("\n", $lines);
     }
 
     /**

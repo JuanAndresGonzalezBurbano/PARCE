@@ -65,6 +65,12 @@ export default function RequestsPage() {
   const [evidencesByRequest, setEvidencesByRequest] = useState<Record<number, ServiceRequestEvidence[]>>({});
   const [evidenceLoading, setEvidenceLoading] = useState(false);
 
+  // Filtro de estado (client-side; la lista completa ya está cargada en memoria)
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const filteredRequests = statusFilter === 'all'
+    ? requests
+    : requests.filter((r) => r.status === statusFilter);
+
   useEffect(() => { loadRequests(); loadVehicles(); }, []);
 
   async function handleToggleEvidences(id: number) {
@@ -167,14 +173,37 @@ export default function RequestsPage() {
 
         {!isLoading && requests.length > 0 && (
           <div className="space-y-4">
-            <div className="flex justify-between items-center mb-2">
-              <p className="text-gray-400 text-sm">{requests.length} solicitud(es)</p>
+            <div className="flex justify-between items-center mb-2 flex-wrap gap-3">
+              <p className="text-gray-400 text-sm">{filteredRequests.length} solicitud(es)</p>
               <button onClick={() => { clearError(); setShowCreateForm(true); }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors">
                 + Nueva Solicitud
               </button>
             </div>
 
-            {requests.map((request) => {
+            {/* Filtro de estado */}
+            <div className="flex flex-wrap gap-2 mb-2">
+              {(['all', 'pending', 'assigned', 'in_progress', 'completed', 'cancelled'] as const).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(status)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                    statusFilter === status
+                      ? 'bg-blue-600 border-blue-600 text-white'
+                      : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600'
+                  }`}
+                >
+                  {status === 'all' ? 'Todos' : STATUS_CONFIG[status].label}
+                </button>
+              ))}
+            </div>
+
+            {filteredRequests.length === 0 && (
+              <div className="bg-gray-800 border border-gray-700 rounded-lg p-8 text-center">
+                <p className="text-gray-400">No hay solicitudes con este estado.</p>
+              </div>
+            )}
+
+            {filteredRequests.map((request) => {
               const statusCfg = STATUS_CONFIG[request.status] ?? STATUS_CONFIG['pending'];
               return (
                 <div key={request.id} className="bg-gray-800 border border-gray-700 rounded-lg p-6">

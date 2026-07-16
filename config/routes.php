@@ -16,6 +16,7 @@ $router = $app->getRouter();
 // CORS must run first to handle preflight requests
 $router->middleware([
     \App\Middleware\CORSMiddleware::class,
+    \App\Middleware\SecurityHeadersMiddleware::class,
     \App\Middleware\RequestLoggerMiddleware::class
 ]);
 
@@ -50,43 +51,6 @@ $router->get('/api/health/database', [\App\Controllers\HealthController::class, 
 // System Health Check
 $router->get('/api/health/system', [\App\Controllers\HealthController::class, 'system'])->name('api.health.system');
 
-// ============================================================================
-// Example Routes (for testing)
-// ============================================================================
-
-// Example: Route with parameters
-$router->get('/user/{id}', function($request, $id) {
-    return \App\Core\Response::success([
-        'user_id' => $id,
-        'message' => 'User route working with parameter'
-    ]);
-})->name('user.show');
-
-// Example: POST route
-$router->post('/api/test', function($request) {
-    $data = $request->all();
-    return \App\Core\Response::success($data, 'Data received successfully');
-})->name('api.test');
-
-// ============================================================================
-// Route Groups (for future middleware)
-// ============================================================================
-
-// API Routes Group
-$router->group(['prefix' => 'api/v1'], function($router) {
-    
-    $router->get('/status', function($request) {
-        return \App\Core\Response::success([
-            'api_version' => 'v1',
-            'status' => 'operational'
-        ]);
-    });
-    
-});
-
-// ============================================================================
-// Future Routes (to be implemented)
-// ============================================================================
 
 // ============================================================================
 // Authentication API Routes

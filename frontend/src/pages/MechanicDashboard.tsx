@@ -1,8 +1,20 @@
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Link } from 'react-router-dom';
+import { serviceRequestService } from '@/services/serviceRequestService';
+import type { MechanicStats } from '@/types/serviceRequest';
 
 export default function MechanicDashboard() {
   const { user } = useAuth();
+  const [stats, setStats] = useState<MechanicStats | null>(null);
+
+  useEffect(() => {
+    serviceRequestService.getMechanicStats().then((response) => {
+      if (response.success) {
+        setStats(response.data.stats);
+      }
+    });
+  }, []);
 
   if (!user) return null;
 
@@ -76,6 +88,35 @@ export default function MechanicDashboard() {
             </div>
           </div>
         </div>
+
+        {/* Estadísticas del mecánico */}
+        {stats && stats.totalCompleted > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold text-white">{stats.totalCompleted}</p>
+              <p className="text-xs text-gray-400 mt-1">Servicios completados</p>
+            </div>
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold text-yellow-400">
+                {stats.averageRating !== null ? stats.averageRating.toFixed(1) : '—'}
+                {stats.averageRating !== null && <span className="text-sm ml-0.5">★</span>}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">Calificación promedio</p>
+            </div>
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold text-white">
+                {stats.averagePunctuality !== null ? stats.averagePunctuality.toFixed(1) : '—'}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">Puntualidad promedio</p>
+            </div>
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 text-center">
+              <p className="text-2xl font-bold text-green-400">
+                COP ${stats.totalEarnings.toLocaleString('es-CO')}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">Ingresos totales</p>
+            </div>
+          </div>
+        )}
 
         {/* Cards de navegación */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">

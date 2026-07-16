@@ -224,6 +224,13 @@ $router->get('/api/mechanic/requests/{id}/evidences', [\App\Controllers\ServiceR
     ])
     ->name('api.mechanic.requests.evidences');
 
+$router->get('/api/mechanic/stats', [\App\Controllers\ServiceRequestController::class, 'mechanicStats'])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['mechanic']]
+    ])
+    ->name('api.mechanic.stats');
+
 // ============================================================================
 // PQR API Routes (Protected) - PARCE-DEMO sustentación module
 // ============================================================================

@@ -139,3 +139,17 @@ export interface EvidenceListResponse {
 export interface EvidenceResponse {
   evidence: ServiceRequestEvidence;
 }
+
+// Estadísticas agregadas del mecánico autenticado
+export interface MechanicStats {
+  totalCompleted: number;
+  totalEarnings: number;
+  totalRated: number;
+  averageRating: number | null;
+  averagePunctuality: number | null;
+  averageServiceQuality: number | null;
+}
+
+export interface MechanicStatsResponse {
+  stats: MechanicStats;
+}

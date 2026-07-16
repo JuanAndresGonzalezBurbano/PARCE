@@ -557,6 +557,43 @@ class ServiceRequestService
     }
 
     /**
+     * Obtiene estadísticas agregadas del mecánico: trabajos completados, calificación
+     * promedio (general, puntualidad, calidad) e ingresos totales.
+     *
+     * @param int $mechanicId ID del mecánico
+     * @return array Estadísticas agregadas
+     */
+    public function getMechanicStats(int $mechanicId): array
+    {
+        $completed = Database::fetchOne(
+            "SELECT COUNT(*) AS total, COALESCE(SUM(final_cost), 0) AS total_earnings
+             FROM service_requests
+             WHERE mechanic_id = ? AND status = 'completed' AND deleted_at IS NULL",
+            [$mechanicId]
+        );
+
+        $ratings = Database::fetchOne(
+            "SELECT AVG(customer_rating) AS avg_rating,
+                    AVG(punctuality_rating) AS avg_punctuality,
+                    AVG(service_quality_rating) AS avg_service_quality,
+                    COUNT(customer_rating) AS total_rated
+             FROM service_requests
+             WHERE mechanic_id = ? AND status = 'completed'
+               AND customer_rating IS NOT NULL AND deleted_at IS NULL",
+            [$mechanicId]
+        );
+
+        return [
+            'total_completed'      => (int)($completed['total'] ?? 0),
+            'total_earnings'       => (float)($completed['total_earnings'] ?? 0),
+            'total_rated'          => (int)($ratings['total_rated'] ?? 0),
+            'average_rating'       => $ratings['avg_rating'] !== null ? round((float)$ratings['avg_rating'], 2) : null,
+            'average_punctuality'  => $ratings['avg_punctuality'] !== null ? round((float)$ratings['avg_punctuality'], 2) : null,
+            'average_service_quality' => $ratings['avg_service_quality'] !== null ? round((float)$ratings['avg_service_quality'], 2) : null,
+        ];
+    }
+
+    /**
      * Obtiene solicitudes pendientes cercanas para mecánicos (solo ubicación aproximada).
      *
      * @param float $latitude   Latitud actual del mecánico

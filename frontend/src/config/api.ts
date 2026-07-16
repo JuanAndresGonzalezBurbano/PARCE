@@ -44,5 +44,6 @@ export const API_ENDPOINTS = {
     // Evidencias fotográficas (antes/durante/después)
     ADD_EVIDENCE: (id: number) => `/mechanic/requests/${id}/evidence`,
     GET_EVIDENCES: (id: number) => `/mechanic/requests/${id}/evidences`,
+    STATS: '/mechanic/stats',
   },
 } as const;

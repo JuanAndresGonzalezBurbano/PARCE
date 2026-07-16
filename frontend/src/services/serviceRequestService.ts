@@ -12,6 +12,7 @@ import type {
   ServiceRequestResponse,
   EvidenceListResponse,
   EvidenceResponse,
+  MechanicStatsResponse,
 } from '@/types/serviceRequest';
 
 export const serviceRequestService = {
@@ -118,5 +119,10 @@ export const serviceRequestService = {
   /** Lista todas las evidencias de una solicitud en orden cronológico. */
   async getEvidences(id: number): Promise<ApiResponse<EvidenceListResponse>> {
     return apiClient.get<EvidenceListResponse>(API_ENDPOINTS.MECHANIC.GET_EVIDENCES(id));
+  },
+
+  /** Estadísticas agregadas del mecánico autenticado (trabajos, calificación, ingresos). */
+  async getMechanicStats(): Promise<ApiResponse<MechanicStatsResponse>> {
+    return apiClient.get<MechanicStatsResponse>(API_ENDPOINTS.MECHANIC.STATS);
   },
 };

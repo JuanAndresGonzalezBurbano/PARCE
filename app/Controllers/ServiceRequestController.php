@@ -595,6 +595,31 @@ class ServiceRequestController extends Controller
     }
 
     /**
+     * Obtener estadísticas agregadas del mecánico autenticado
+     *
+     * GET /api/mechanic/stats
+     *
+     * @param Request $request Solicitud HTTP
+     * @return Response Respuesta HTTP
+     */
+    public function mechanicStats(Request $request): Response
+    {
+        try {
+            $mechanicId = $request->getAttribute('userId');
+            $stats = $this->serviceRequestService->getMechanicStats($mechanicId);
+
+            return ResponseFormatter::success(
+                ['stats' => $stats],
+                'Estadísticas obtenidas exitosamente',
+                200
+            );
+
+        } catch (\Exception $e) {
+            return ErrorHandler::handleException($e);
+        }
+    }
+
+    /**
      * Agregar evidencia fotográfica a una solicitud de servicio
      *
      * POST /api/mechanic/requests/{id}/evidence

@@ -202,15 +202,24 @@ class ServiceRequestService
             throw new DomainException('Solo se pueden cancelar solicitudes en estado pendiente o asignado', 400);
         }
 
-        // Actualizar al estado cancelado
+        // Actualizar al estado cancelado — el WHERE repite la condición de estado para que
+        // la operación sea atómica frente a una transición concurrente (ej. el mecánico
+        // asignado inicia el trabajo justo cuando el cliente cancela).
         $rowCount = Database::update('service_requests', [
             'status'              => 'cancelled',
             'cancellation_reason' => $reason,
             'cancelled_by'        => $userId,
             'cancelled_at'        => date('Y-m-d H:i:s')
-        ], 'id = ?', [$requestId]);
+        ], 'id = ? AND status IN (?, ?)', [$requestId, 'pending', 'assigned']);
 
-        return $rowCount > 0;
+        if ($rowCount === 0) {
+            throw new DomainException(
+                'El estado de la solicitud cambió antes de poder cancelarla. Actualiza la página e inténtalo de nuevo.',
+                409
+            );
+        }
+
+        return true;
     }
 
     /**
@@ -320,13 +329,21 @@ class ServiceRequestService
             throw new DomainException($validation['error'], 400);
         }
 
-        // Actualizar al estado en progreso
+        // Actualizar al estado en progreso (WHERE atómico frente a transiciones concurrentes,
+        // ej. el cliente cancela justo cuando el mecánico inicia el trabajo)
         $rowCount = Database::update('service_requests', [
             'status'     => 'in_progress',
             'started_at' => date('Y-m-d H:i:s')
-        ], 'id = ?', [$requestId]);
+        ], 'id = ? AND status = ?', [$requestId, 'assigned']);
 
-        return $rowCount > 0;
+        if ($rowCount === 0) {
+            throw new DomainException(
+                'El estado de la solicitud cambió antes de poder iniciarla. Actualiza la página e inténtalo de nuevo.',
+                409
+            );
+        }
+
+        return true;
     }
 
     /**
@@ -369,15 +386,22 @@ class ServiceRequestService
             throw new DomainException('El costo final debe ser un número positivo', 400);
         }
 
-        // Actualizar al estado completado
+        // Actualizar al estado completado (WHERE atómico frente a transiciones concurrentes)
         $rowCount = Database::update('service_requests', [
             'status'       => 'completed',
             'final_cost'   => $finalCost,
             'resolved_by'  => $mechanicId,
             'completed_at' => date('Y-m-d H:i:s')
-        ], 'id = ?', [$requestId]);
+        ], 'id = ? AND status = ?', [$requestId, 'in_progress']);
 
-        return $rowCount > 0;
+        if ($rowCount === 0) {
+            throw new DomainException(
+                'El estado de la solicitud cambió antes de poder completarla. Actualiza la página e inténtalo de nuevo.',
+                409
+            );
+        }
+
+        return true;
     }
 
     /**

@@ -122,6 +122,7 @@ export default function VehicleForm({ vehicle, onSubmit, onCancel, isLoading, er
                 <option value="suv">SUV</option>
                 <option value="truck">Camioneta</option>
                 <option value="motorcycle">Moto</option>
+                <option value="van">Furgoneta</option>
                 <option value="other">Otro</option>
               </select>
               <FieldError name="vehicle_type" />

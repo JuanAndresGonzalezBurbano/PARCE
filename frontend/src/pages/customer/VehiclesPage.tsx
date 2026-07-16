@@ -24,7 +24,7 @@ const DOC_STATUS = {
 };
 
 const VEHICLE_TYPE_LABELS: Record<string, string> = {
-  sedan: 'Sedán', suv: 'SUV', truck: 'Camioneta', motorcycle: 'Moto', other: 'Otro',
+  sedan: 'Sedán', suv: 'SUV', truck: 'Camioneta', motorcycle: 'Moto', van: 'Furgoneta', other: 'Otro',
 };
 
 const FUEL_TYPE_LABELS: Record<string, string> = {

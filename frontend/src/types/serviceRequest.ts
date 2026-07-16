@@ -8,7 +8,7 @@ export interface ServiceRequest {
   resolvedBy: number | null;
   emergencyType: 'tire' | 'battery' | 'fuel' | 'engine' | 'lockout' | 'tow' | 'other';
   description: string;
-  priority: 'low' | 'normal' | 'urgent';
+  priority: 'normal' | 'urgent' | 'critical';
   latitude: number;
   longitude: number;
   status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
@@ -68,7 +68,7 @@ export interface CreateServiceRequestRequest {
   description: string;
   latitude: number;
   longitude: number;
-  priority?: 'low' | 'normal' | 'urgent';
+  priority?: 'normal' | 'urgent' | 'critical';
 }
 
 // Actualizar solicitud de servicio
@@ -76,7 +76,7 @@ export interface UpdateServiceRequestRequest {
   description?: string;
   latitude?: number;
   longitude?: number;
-  priority?: 'low' | 'normal' | 'urgent';
+  priority?: 'normal' | 'urgent' | 'critical';
 }
 
 // Cancelar solicitud de servicio

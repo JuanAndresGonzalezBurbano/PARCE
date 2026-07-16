@@ -131,9 +131,9 @@ export default function RequestDetailsPage() {
 
   function getPriorityLabel(priority: string) {
     const labels: Record<string, string> = {
-      low: 'Baja',
       normal: 'Normal',
       urgent: 'Urgente',
+      critical: 'Crítica',
     };
     return labels[priority] ?? priority;
   }

@@ -11,7 +11,7 @@ const EMERGENCY_LABELS: Record<string, string> = {
   engine: 'Falla de motor', lockout: 'Puertas bloqueadas', tow: 'Necesito grúa', other: 'Otro',
 };
 
-const PRIORITY_LABELS: Record<string, string> = { low: 'Baja', normal: 'Normal', urgent: 'Urgente' };
+const PRIORITY_LABELS: Record<string, string> = { normal: 'Normal', urgent: 'Urgente', critical: 'Crítica' };
 
 const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
   pending:     { label: 'Pendiente',   cls: 'bg-yellow-900/50 border-yellow-700 text-yellow-200' },
@@ -422,9 +422,9 @@ export default function RequestsPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">Prioridad</label>
                   <select value={priority} onChange={(e) => setPriority(e.target.value)} className={fieldErrorFor('priority') ? inputErrorCls : inputCls}>
-                    <option value="low">Baja</option>
                     <option value="normal">Normal</option>
                     <option value="urgent">Urgente</option>
+                    <option value="critical">Crítica</option>
                   </select>
                   <FieldError name="priority" />
                 </div>

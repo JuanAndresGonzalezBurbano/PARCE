@@ -628,7 +628,15 @@ class ServiceRequestService
                 WHERE sr.status = 'pending'
                   AND sr.deleted_at IS NULL
                 HAVING distance_km <= ?
-                ORDER BY sr.priority DESC, distance_km ASC, sr.requested_at ASC
+                ORDER BY
+                    CASE sr.priority
+                        WHEN 'critical' THEN 3
+                        WHEN 'urgent'   THEN 2
+                        WHEN 'normal'   THEN 1
+                        ELSE 0
+                    END DESC,
+                    distance_km ASC,
+                    sr.requested_at ASC
                 LIMIT 50";
 
         return Database::fetchAll($sql, [$latitude, $longitude, $latitude, $radiusKm]);

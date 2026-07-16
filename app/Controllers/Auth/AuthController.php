@@ -6,6 +6,7 @@ use App\Core\Controller;
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\Database;
+use App\Core\DomainException;
 use App\Infrastructure\Auth\Services\AuthService;
 use App\Infrastructure\Auth\Services\SessionManager;
 use App\Infrastructure\Auth\Services\PasswordHasher;
@@ -532,12 +533,102 @@ class AuthController extends Controller
     }
 
     /**
+     * Cambiar la contraseña del usuario autenticado
+     *
+     * PUT /api/auth/password
+     *
+     * Requiere la contraseña actual. Al cambiarla exitosamente, se cierran todas
+     * las sesiones existentes (incluida la actual) y se emite una nueva sesión
+     * para el dispositivo que hizo la solicitud, forzando el cierre de sesión en
+     * cualquier otro dispositivo — comportamiento estándar tras un cambio de contraseña.
+     *
+     * @param Request $request Solicitud HTTP
+     * @return Response Respuesta HTTP
+     */
+    public function changePassword(Request $request): Response
+    {
+        try {
+            $user = $request->getAttribute('user');
+            if ($user === null) {
+                return ResponseFormatter::unauthorized('Autenticación requerida');
+            }
+            $userId = (int)$user['id'];
+
+            $ipAddress = IPValidator::getClientIP($request);
+
+            // Limitar tasa por IP para evitar fuerza bruta sobre la contraseña actual
+            $rateLimitCheck = RateLimiter::check('change-password', $ipAddress);
+            if (!$rateLimitCheck['allowed']) {
+                $retryAfter = $rateLimitCheck['reset_at'] - time();
+                return ResponseFormatter::rateLimitExceeded($retryAfter);
+            }
+
+            $jsonValidation = RequestValidator::parseJsonBody($request);
+            if (!$jsonValidation['valid']) {
+                return ResponseFormatter::error(
+                    $jsonValidation['error'],
+                    null,
+                    $jsonValidation['statusCode']
+                );
+            }
+
+            $validation = RequestValidator::validateChangePasswordRequest($request);
+            if (!$validation['valid']) {
+                return ResponseFormatter::validationError($validation['errors']);
+            }
+
+            $currentPassword = $request->input('current_password');
+            $newPassword     = $request->input('new_password');
+
+            $userRecord = Database::fetchOne(
+                'SELECT password_hash FROM users WHERE id = ? AND deleted_at IS NULL',
+                [$userId]
+            );
+
+            if ($userRecord === null || !$this->passwordHasher->verify($currentPassword, $userRecord['password_hash'])) {
+                RateLimiter::recordAttempt('change-password', $ipAddress);
+                throw new DomainException('La contraseña actual es incorrecta', 400);
+            }
+
+            RateLimiter::reset('change-password', $ipAddress);
+
+            $newHash = $this->passwordHasher->hash($newPassword);
+
+            Database::update('users', [
+                'password_hash' => $newHash,
+                'updated_at'    => date('Y-m-d H:i:s'),
+            ], 'id = ?', [$userId]);
+
+            // Cerrar todas las sesiones existentes y emitir una nueva para este dispositivo
+            $this->sessionManager->destroyAllUserSessions($userId);
+            $sessionId = $this->sessionManager->create($userId, [
+                'ip_address' => $ipAddress,
+                'user_agent' => $request->userAgent(),
+                'remember'   => false
+            ]);
+
+            $response = ResponseFormatter::success(
+                null,
+                'Contraseña actualizada correctamente. Se cerró la sesión en tus otros dispositivos.',
+                200
+            );
+
+            ResponseFormatter::setSessionCookie($response, $sessionId, false);
+
+            return $response;
+
+        } catch (\Exception $e) {
+            return ErrorHandler::handleException($e);
+        }
+    }
+
+    /**
      * Health check endpoint
-     * 
+     *
      * GET /api/auth/health
-     * 
+     *
      * Requirements: 14.1-14.7
-     * 
+     *
      * @param Request $request HTTP request
      * @return Response HTTP response
      */

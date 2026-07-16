@@ -333,4 +333,50 @@ class RequestValidator
 
         return ['valid' => true];
     }
+
+    /**
+     * Valida una solicitud de cambio de contraseña
+     *
+     * @param Request $request Solicitud HTTP
+     * @return array ['valid' => bool, 'errors' => array]
+     */
+    public static function validateChangePasswordRequest(Request $request): array
+    {
+        $errors = [];
+
+        $missing = self::validateRequiredFields($request, [
+            'current_password',
+            'new_password',
+            'new_password_confirmation'
+        ]);
+
+        if (!empty($missing)) {
+            return [
+                'valid' => false,
+                'errors' => [
+                    'error' => 'Missing required fields',
+                    'fields' => $missing
+                ]
+            ];
+        }
+
+        $newPassword = $request->input('new_password');
+        if (!self::isValidPassword($newPassword)) {
+            $errors['new_password'] = ['Password must be between 8 and 128 characters'];
+        }
+
+        $newPasswordConfirmation = $request->input('new_password_confirmation');
+        if ($newPassword !== $newPasswordConfirmation) {
+            $errors['new_password_confirmation'] = ['Password confirmation does not match'];
+        }
+
+        if (!empty($errors)) {
+            return [
+                'valid' => false,
+                'errors' => $errors
+            ];
+        }
+
+        return ['valid' => true];
+    }
 }

@@ -7,6 +7,7 @@ import type {
   User,
   ApiResponse,
   UpdateProfileRequest,
+  ChangePasswordRequest,
 } from '@/types/auth';
 
 export const authService = {
@@ -38,5 +39,9 @@ export const authService = {
 
   async updateProfile(data: UpdateProfileRequest): Promise<ApiResponse<User>> {
     return apiClient.put<User>(API_ENDPOINTS.AUTH.PROFILE, data);
+  },
+
+  async changePassword(data: ChangePasswordRequest): Promise<ApiResponse<null>> {
+    return apiClient.put<null>(API_ENDPOINTS.AUTH.PASSWORD, data);
   },
 };

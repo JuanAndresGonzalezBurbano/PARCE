@@ -31,6 +31,13 @@ export interface UpdateProfileRequest {
   driver_license_document_url?: string;
 }
 
+// Petición de cambio de contraseña
+export interface ChangePasswordRequest {
+  current_password: string;
+  new_password: string;
+  new_password_confirmation: string;
+}
+
 // Credenciales de inicio de sesión
 export interface LoginRequest {
   email: string;

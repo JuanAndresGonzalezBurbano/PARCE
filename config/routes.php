@@ -115,6 +115,10 @@ $router->put('/api/auth/profile', [\App\Controllers\Auth\AuthController::class, 
     ->middleware([\App\Middleware\AuthMiddleware::class])
     ->name('api.auth.profile');
 
+$router->put('/api/auth/password', [\App\Controllers\Auth\AuthController::class, 'changePassword'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.auth.password');
+
 // ============================================================================
 // Vehicle API Routes (Protected)
 // ============================================================================

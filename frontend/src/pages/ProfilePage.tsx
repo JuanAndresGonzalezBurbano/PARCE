@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import DriverLicenseSection from '@/components/auth/DriverLicenseSection';
+import PasswordSection from '@/components/auth/PasswordSection';
 
 const ROLE_LABELS: Record<string, string> = {
   customer: 'Cliente',
@@ -132,6 +133,10 @@ export default function ProfilePage() {
             isLoading={isLoading}
           />
         )}
+
+        <div className="mt-6">
+          <PasswordSection />
+        </div>
       </div>
     </div>
   );

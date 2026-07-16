@@ -14,6 +14,7 @@ export const API_ENDPOINTS = {
     HEALTH: '/auth/health',
     // Actualización de perfil (teléfono + licencia de conducción)
     PROFILE: '/auth/profile',
+    PASSWORD: '/auth/password',
   },
   VEHICLES: {
     LIST: '/vehicles',

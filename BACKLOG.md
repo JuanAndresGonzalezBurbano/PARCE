@@ -133,6 +133,21 @@ Implementado: `EvidenceUpload` ahora soporta `readOnly`, y `RequestsPage.tsx`
 - **Notificaciones en tiempo real**: mecánicos ven solicitudes nuevas solo al
   recargar/hacer polling manual. Un WebSocket o polling automático es una mejora
   de UX significativa pero es una pieza de infraestructura nueva (alcance propio).
+- **15 scripts en `scripts/{debugging,maintenance,testing,validation}/` están
+  rotos por la misma causa que tenía `scripts/maintenance/migrate.php` (ya
+  corregido, ver commit `fix(scripts): correct BASE_PATH...`)**: usan
+  `require_once __DIR__ . '/vendor/autoload.php'` con `__DIR__` apuntando a su
+  propia carpeta anidada en vez de la raíz del proyecto — fallan de inmediato
+  al ejecutarse. Afecta a todo `scripts/debugging/*.php`, la mayoría de
+  `scripts/maintenance/*.php` (excepto `migrate.php`, ya arreglado) y
+  `scripts/validation/*.php`. No se corrigieron individualmente porque son
+  ayudas de depuración/validación puntuales de sesiones anteriores, no parte
+  del flujo de instalación/despliegue documentado en `README.md` — pero si
+  alguno resulta útil, el fix es el mismo de una línea (`define('BASE_PATH',
+  dirname(__DIR__, 2));` en vez de `__DIR__` directo en el `require_once`).
+  `scripts/testing/test_auth_integration.php` y `scripts/testing/test_cors.php`
+  no tienen este problema (no dependen del autoloader, hablan por HTTP/curl
+  contra un servidor ya corriendo).
 - **Paginación**: corrección 2026-07-16 — verificado que el backend en realidad
   **no** implementa paginación en ningún endpoint (sin `meta`, sin LIMIT/OFFSET
   en las queries de listado); la nota anterior de este archivo era incorrecta.

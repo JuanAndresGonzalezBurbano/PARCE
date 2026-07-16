@@ -7,6 +7,7 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Core\Database;
 use App\Infrastructure\Http\ResponseFormatter;
+use App\Infrastructure\Http\ErrorHandler;
 
 /**
  * Controlador de Verificación de Salud del Sistema
@@ -42,33 +43,37 @@ class HealthController extends Controller
         try {
             $health = Database::healthCheck();
 
-            // Si la base de datos está saludable, retornar respuesta exitosa con 200
+            // Este endpoint no requiere autenticación (lo consumen balanceadores de
+            // carga y monitoreo externo), así que nunca debe exponer detalles internos
+            // (host, driver, versión del servidor, mensajes crudos del driver PDO) —
+            // esa información es reconocimiento útil para un atacante. Solo se expone
+            // el estado y el tiempo de respuesta; el detalle completo queda en el log.
             if ($health['status'] === 'healthy') {
                 return ResponseFormatter::success([
-                    'status'    => $health['status'],
-                    'message'   => $health['message'],
-                    'details'   => $health['details'],
-                    'timestamp' => date('Y-m-d H:i:s'),
+                    'status'         => $health['status'],
+                    'message'        => $health['message'],
+                    'responseTimeMs' => $health['details']['response_time_ms'] ?? null,
+                    'timestamp'      => date('Y-m-d H:i:s'),
                 ], null, 200);
             }
 
-            // Si la base de datos NO está saludable, retornar error con 503
+            error_log('Health check: database unhealthy — ' . $health['message']);
+
             return ResponseFormatter::error(
                 'La base de datos no está disponible',
                 [
                     'status'    => $health['status'],
-                    'message'   => $health['message'],
-                    'details'   => $health['details'],
                     'timestamp' => date('Y-m-d H:i:s'),
                 ],
                 503
             );
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            ErrorHandler::logException($e);
+
             return ResponseFormatter::error(
                 'La verificación de salud de la base de datos falló',
                 [
-                    'error'     => $e->getMessage(),
                     'timestamp' => date('Y-m-d H:i:s'),
                 ],
                 503
@@ -92,18 +97,23 @@ class HealthController extends Controller
             'message' => 'Aplicación en ejecución',
         ];
 
-        // Verificar base de datos
+        // Verificar base de datos — no exponer detalles internos del driver/host
+        // en este endpoint público (mismo criterio que database(), arriba).
         try {
-            $dbHealth             = Database::healthCheck();
-            $checks['database']   = $dbHealth;
+            $dbHealth           = Database::healthCheck();
+            $checks['database'] = [
+                'status'         => $dbHealth['status'],
+                'responseTimeMs' => $dbHealth['details']['response_time_ms'] ?? null,
+            ];
 
             if ($dbHealth['status'] !== 'healthy') {
+                error_log('Health check: database unhealthy — ' . $dbHealth['message']);
                 $overallStatus = 'degraded';
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            ErrorHandler::logException($e);
             $checks['database'] = [
-                'status'  => 'unhealthy',
-                'message' => 'Verificación de base de datos falló: ' . $e->getMessage(),
+                'status' => 'unhealthy',
             ];
             $overallStatus = 'unhealthy';
         }
@@ -115,7 +125,6 @@ class HealthController extends Controller
             'message' => is_writable($storagePath)
                 ? 'El almacenamiento tiene permisos de escritura'
                 : 'El almacenamiento no tiene permisos de escritura',
-            'path'    => $storagePath,
         ];
 
         if ($checks['storage']['status'] !== 'healthy') {

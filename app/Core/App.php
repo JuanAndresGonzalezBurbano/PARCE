@@ -77,7 +77,10 @@ class App
             'app' => [
                 'name' => $this->env('APP_NAME', 'P.A.R.C.E'),
                 'env' => $this->env('APP_ENV', 'local'),
-                'debug' => $this->env('APP_DEBUG', 'true') === 'true',
+                // Fail-safe: si APP_DEBUG no está definida, se asume producción
+                // (debug=false) — un .env de producción que omita esta clave por
+                // error nunca debe filtrar trazas/mensajes internos a usuarios reales.
+                'debug' => $this->env('APP_DEBUG', 'false') === 'true',
                 'url' => $this->env('APP_URL', 'http://localhost'),
             ],
             'database' => [

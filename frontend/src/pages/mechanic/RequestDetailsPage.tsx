@@ -290,6 +290,32 @@ export default function RequestDetailsPage() {
             </div>
           )}
 
+          {/* Calificación del cliente */}
+          {currentRequest.customerRating && (
+            <div className="mb-6 p-4 bg-gray-700/40 border border-gray-600 rounded-lg">
+              <h3 className="text-lg font-semibold text-white mb-2">Calificación del cliente</h3>
+              <p className="text-yellow-400 text-sm">
+                {'★'.repeat(currentRequest.customerRating)}{'☆'.repeat(5 - currentRequest.customerRating)}
+                <span className="text-gray-400 ml-2">Calidad general</span>
+              </p>
+              {currentRequest.punctualityRating && (
+                <p className="text-yellow-400 text-sm mt-1">
+                  {'★'.repeat(currentRequest.punctualityRating)}{'☆'.repeat(5 - currentRequest.punctualityRating)}
+                  <span className="text-gray-400 ml-2">Puntualidad</span>
+                </p>
+              )}
+              {currentRequest.serviceQualityRating && (
+                <p className="text-yellow-400 text-sm mt-1">
+                  {'★'.repeat(currentRequest.serviceQualityRating)}{'☆'.repeat(5 - currentRequest.serviceQualityRating)}
+                  <span className="text-gray-400 ml-2">Calidad del servicio</span>
+                </p>
+              )}
+              {currentRequest.customerFeedback && (
+                <p className="text-gray-300 text-sm mt-2 italic">"{currentRequest.customerFeedback}"</p>
+              )}
+            </div>
+          )}
+
           {/* Acciones */}
           <div className="pt-4 border-t border-gray-700">
             {/* Confirmar inicio */}

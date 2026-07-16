@@ -23,19 +23,29 @@ class PQRService
      */
     public function create(int $userId, array $data): int
     {
-        $ticketId = Database::insert('pqr', [
-            'user_id'     => $userId,
-            'ticket_code' => 'PENDING',
-            'type'        => $data['type'],
-            'subject'     => $data['subject'],
-            'description' => $data['description'],
-            'status'      => 'pending',
-        ]);
+        // El código de ticket depende del ID recién insertado, así que requiere
+        // una segunda escritura — ambas deben ser atómicas: si la segunda falla,
+        // el ticket quedaría con ticket_code='PENDING' permanentemente.
+        Database::beginTransaction();
+        try {
+            $ticketId = Database::insert('pqr', [
+                'user_id'     => $userId,
+                'ticket_code' => 'PENDING',
+                'type'        => $data['type'],
+                'subject'     => $data['subject'],
+                'description' => $data['description'],
+                'status'      => 'pending',
+            ]);
 
-        $ticketCode = PQRValidator::generateTicketCode($ticketId);
-        Database::update('pqr', ['ticket_code' => $ticketCode], 'id = ?', [$ticketId]);
+            $ticketCode = PQRValidator::generateTicketCode($ticketId);
+            Database::update('pqr', ['ticket_code' => $ticketCode], 'id = ?', [$ticketId]);
 
-        return $ticketId;
+            Database::commit();
+            return $ticketId;
+        } catch (\Exception $e) {
+            Database::rollback();
+            throw $e;
+        }
     }
 
     /**

@@ -4,6 +4,47 @@
 un módulo nuevo, o un cambio de arquitectura que debe decidir el usuario antes de
 construirse. No bloquean el trabajo en curso.
 
+## 🔴 ACCIÓN URGENTE — Secreto expuesto en GitHub (2026-07-16)
+
+**Una API key real está actualmente activa (no solo en historial) en `origin/main`**,
+la rama por defecto del repositorio en GitHub (`github.com/JuanAndresGonzalezBurbano/PARCE`):
+
+```
+VITE_GROQ_API_KEY=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
+```
+
+Introducida en el commit `16b2a07` ("Add .env with API key", autor juanalba,
+2026-06-02), que además removió `.env` de `.gitignore` momentáneamente.
+
+**Dónde está confirmado presente ahora mismo** (archivo `.env` trackeado, no solo
+en un commit viejo):
+- `main` (local)
+- `origin/main` — **la rama por defecto que ve cualquiera que visite el repo**
+- `origin/Soto`
+
+**Dónde NO está** (confirmado limpio): `Angel` (esta rama), `origin/Angel`,
+`refactor/modular-architecture`, `origin/Duvan`, `origin/Juan`, `origin/sebastian`.
+
+No se encontró ninguna referencia a `VITE_GROQ_API_KEY` en el código actual —
+parece una integración abandonada, no algo que la app use hoy.
+
+**Acciones recomendadas, en orden:**
+1. **Revoca/rota la clave en tu cuenta de Groq ahora mismo** — es la única acción
+   que realmente neutraliza el riesgo, sin importar qué se haga después con git.
+   Ningún cambio en el historial deshace una exposición que ya ocurrió si el repo
+   fue clonado, forkeado, o indexado por algún bot de escaneo de secretos de GitHub.
+2. Elimina `.env` de `main` con un commit normal (`git rm .env`, luego push).
+3. Decide si necesitas reescribir el historial de `main`/`origin/Soto` para
+   purgar el secreto de commits viejos también — esto requiere `force-push` a
+   `origin/main`, lo cual **romperá los clones locales de Duvan/Juan/Soto/sebastian**
+   si tienen `main` descargado. Coordina con ellos antes de hacerlo.
+4. Verifica que `.env` esté en `.gitignore` en todas las ramas (ya lo está en
+   `Angel`).
+
+No se tocó `main` ni ninguna rama de otro colaborador ni se hizo ningún push —
+se dejó esta decisión completamente en tus manos por el impacto que tiene sobre
+el trabajo del resto del equipo.
+
 ## Decisiones pendientes del usuario
 
 ### 1. `vehicle_documents` / `vehicle_maintenance_records` — ¿migrar o descartar?

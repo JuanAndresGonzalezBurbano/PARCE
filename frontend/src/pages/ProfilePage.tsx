@@ -25,7 +25,8 @@ export default function ProfilePage() {
   if (!user) return null;
 
   const isMechanic = user.roles.includes('mechanic');
-  const dashboardPath = isMechanic ? '/mechanic/dashboard' : '/dashboard';
+  const isAdmin = user.roles.includes('administrator') || user.roles.includes('super_admin');
+  const dashboardPath = isAdmin ? '/admin/dashboard' : isMechanic ? '/mechanic/dashboard' : '/dashboard';
 
   return (
     <div className="min-h-screen bg-gray-900 p-6">

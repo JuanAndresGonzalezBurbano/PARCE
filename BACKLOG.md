@@ -92,9 +92,16 @@ Implementado: `EvidenceUpload` ahora soporta `readOnly`, y `RequestsPage.tsx`
 - **Notificaciones en tiempo real**: mecánicos ven solicitudes nuevas solo al
   recargar/hacer polling manual. Un WebSocket o polling automático es una mejora
   de UX significativa pero es una pieza de infraestructura nueva (alcance propio).
-- **Paginación**: el backend soporta `meta.pagination` en varios listados pero
-  ningún contexto del frontend lo consume — actualmente todo carga sin límite.
-  No es urgente mientras los volúmenes de datos sean bajos (proyecto en
-  desarrollo/demo), pero será necesario antes de un uso con datos reales.
+- **Paginación**: corrección 2026-07-16 — verificado que el backend en realidad
+  **no** implementa paginación en ningún endpoint (sin `meta`, sin LIMIT/OFFSET
+  en las queries de listado); la nota anterior de este archivo era incorrecta.
+  No urgente mientras los volúmenes de datos sean bajos (proyecto en
+  desarrollo/demo), pero construirla (backend + frontend) será necesario antes
+  de un uso con datos reales.
 
-- **`node_modules` está trackeado en git** (`frontend/node_modules/` no está en `.gitignore`), generando ruido constante en `git status`/diffs. Bajo riesgo pero vale la pena limpiarlo: agregar a `.gitignore` y `git rm -r --cached frontend/node_modules` en un commit dedicado cuando no haya trabajo en curso que se pueda mezclar accidentalmente.
+- ~~`node_modules` está trackeado en git~~ — Resuelto 2026-07-16. También se
+  encontró y corrigió el mismo problema en `frontend/dist/` (build output) y
+  `storage/rate_limit.json` (estado runtime del rate limiter). Los tres se
+  desvincularon de git (`git rm --cached`, archivos intactos en disco) y se
+  agregaron a `.gitignore`. Ver commit `chore(git): stop tracking
+  generated/runtime files`.

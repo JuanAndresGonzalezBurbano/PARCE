@@ -99,16 +99,24 @@ class ServiceRequestService
             'requested_at'   => date('Y-m-d H:i:s')
         ];
 
-        // Insertar la solicitud de servicio
-        $requestId = Database::insert('service_requests', $insertData);
+        // El código de servicio depende del ID recién insertado, así que requiere
+        // una segunda escritura — ambas deben ser atómicas: si la segunda falla,
+        // la solicitud quedaría permanentemente sin service_code.
+        Database::beginTransaction();
+        try {
+            $requestId = Database::insert('service_requests', $insertData);
 
-        // Generar y actualizar el código de servicio
-        $serviceCode = ServiceRequestValidator::generateServiceCode($requestId);
-        Database::update('service_requests', [
-            'service_code' => $serviceCode
-        ], 'id = ?', [$requestId]);
+            $serviceCode = ServiceRequestValidator::generateServiceCode($requestId);
+            Database::update('service_requests', [
+                'service_code' => $serviceCode
+            ], 'id = ?', [$requestId]);
 
-        return $requestId;
+            Database::commit();
+            return $requestId;
+        } catch (\Exception $e) {
+            Database::rollback();
+            throw $e;
+        }
     }
 
     /**

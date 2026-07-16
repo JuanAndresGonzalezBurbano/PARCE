@@ -25,3 +25,12 @@ Thumbs.db
 # Sessions
 /storage/sessions/*
 !/storage/sessions/.gitkeep
+
+# Rate limiter runtime state
+/storage/rate_limit.json
+
+# Frontend (Node/Vite)
+/frontend/node_modules/
+/frontend/dist/
+/frontend/.env
+/frontend/.env.local

@@ -267,14 +267,23 @@ class ServiceRequestService
             throw new DomainException($validation['error'], 400);
         }
 
-        // Actualizar al estado asignado
+        // Actualizar al estado asignado — la condición status = 'pending' en el WHERE
+        // hace la operación atómica: si dos mecánicos intentan aceptar la misma
+        // solicitud casi simultáneamente, solo la primera UPDATE afecta una fila.
         $rowCount = Database::update('service_requests', [
             'status'      => 'assigned',
             'mechanic_id' => $mechanicId,
             'assigned_at' => date('Y-m-d H:i:s')
-        ], 'id = ?', [$requestId]);
+        ], 'id = ? AND status = ?', [$requestId, 'pending']);
 
-        return $rowCount > 0;
+        if ($rowCount === 0) {
+            throw new DomainException(
+                'Esta solicitud ya fue aceptada por otro mecánico',
+                409
+            );
+        }
+
+        return true;
     }
 
     /**

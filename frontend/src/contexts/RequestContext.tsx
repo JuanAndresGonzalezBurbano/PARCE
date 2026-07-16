@@ -12,6 +12,7 @@ interface RequestContextType {
   error: string | null;
   fieldErrors: Record<string, string> | null;
   loadRequests: (status?: string) => Promise<void>;
+  refreshRequestsSilently: () => Promise<ServiceRequest[] | null>;
   loadMechanicRequests: (status?: string) => Promise<void>;
   loadMechanicRequestDetails: (id: number) => Promise<void>;
   createRequest: (data: CreateServiceRequestRequest) => Promise<boolean>;
@@ -54,6 +55,20 @@ export function RequestProvider({ children }: RequestProviderProps) {
       setError('Error al cargar las solicitudes');
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  /** Igual que loadRequests pero sin activar isLoading — para refrescos periódicos en segundo plano. */
+  async function refreshRequestsSilently(): Promise<ServiceRequest[] | null> {
+    try {
+      const response = await serviceRequestService.getMyRequests();
+      if (response.success) {
+        setRequests(response.data.serviceRequests);
+        return response.data.serviceRequests;
+      }
+      return null;
+    } catch {
+      return null;
     }
   }
 
@@ -284,6 +299,7 @@ export function RequestProvider({ children }: RequestProviderProps) {
     error,
     fieldErrors,
     loadRequests,
+    refreshRequestsSilently,
     loadMechanicRequests,
     loadMechanicRequestDetails,
     createRequest,

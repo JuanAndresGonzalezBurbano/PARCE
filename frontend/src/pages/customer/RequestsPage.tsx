@@ -1,10 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useRequests } from '@/hooks/useRequests';
 import { useVehicles } from '@/hooks/useVehicles';
 import { serviceRequestService } from '@/services/serviceRequestService';
 import EvidenceUpload from '@/components/vehicles/EvidenceUpload';
 import type { ServiceRequestEvidence } from '@/types/serviceRequest';
+
+const POLL_INTERVAL_MS = 20000;
+
+const STATUS_CHANGE_MESSAGES: Record<string, string> = {
+  assigned: 'Un mecánico aceptó tu solicitud',
+  in_progress: 'El mecánico inició el servicio',
+  completed: 'Tu servicio fue completado',
+  cancelled: 'Tu solicitud fue cancelada',
+};
 
 const EMERGENCY_LABELS: Record<string, string> = {
   tire: 'Llanta pinchada', battery: 'Batería descargada', fuel: 'Sin combustible',
@@ -30,7 +39,7 @@ function toCamelCase(snakeKey: string): string {
 }
 
 export default function RequestsPage() {
-  const { requests, isLoading, error, fieldErrors, loadRequests, createRequest, cancelRequest, rateRequest, clearError } = useRequests();
+  const { requests, isLoading, error, fieldErrors, loadRequests, refreshRequestsSilently, createRequest, cancelRequest, rateRequest, clearError } = useRequests();
   const { vehicles, loadVehicles } = useVehicles();
 
   function fieldErrorFor(snakeKey: string): string | undefined {
@@ -75,7 +84,42 @@ export default function RequestsPage() {
     ? requests
     : requests.filter((r) => r.status === statusFilter);
 
+  const [statusChangeBanner, setStatusChangeBanner] = useState<string | null>(null);
+  const knownStatusesRef = useRef<Map<number, string> | null>(null);
+
   useEffect(() => { loadRequests(); loadVehicles(); }, []);
+
+  // Sondeo periódico en segundo plano: detecta cambios de estado (ej. mecánico asignado)
+  // sin que el cliente tenga que recargar manualmente la página.
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const updated = await refreshRequestsSilently();
+      if (updated === null) return;
+
+      if (knownStatusesRef.current !== null) {
+        for (const r of updated) {
+          const previousStatus = knownStatusesRef.current.get(r.id);
+          if (previousStatus && previousStatus !== r.status) {
+            const message = STATUS_CHANGE_MESSAGES[r.status];
+            if (message) {
+              setStatusChangeBanner(`${r.serviceCode}: ${message}`);
+              setTimeout(() => setStatusChangeBanner(null), 8000);
+            }
+          }
+        }
+      }
+      knownStatusesRef.current = new Map(updated.map((r) => [r.id, r.status]));
+    }, POLL_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Mantener el mapa de estados conocidos sincronizado con la carga inicial
+  useEffect(() => {
+    if (knownStatusesRef.current === null && !isLoading && requests.length >= 0) {
+      knownStatusesRef.current = new Map(requests.map((r) => [r.id, r.status]));
+    }
+  }, [requests, isLoading]);
 
   async function handleToggleEvidences(id: number) {
     if (showEvidencesFor === id) {
@@ -169,6 +213,13 @@ export default function RequestsPage() {
 
   return (
     <div className="min-h-screen bg-gray-900 p-6">
+      {/* Notificación de cambio de estado (toast en pantalla, no bloqueante) */}
+      {statusChangeBanner && (
+        <div className="fixed top-4 right-4 z-50 px-4 py-3 bg-blue-600 border border-blue-500 rounded-lg shadow-lg text-white text-sm font-medium flex items-center gap-2 animate-pulse">
+          🔔 {statusChangeBanner}
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold text-white">Mis Solicitudes</h1>

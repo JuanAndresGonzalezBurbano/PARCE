@@ -35,36 +35,13 @@ class App
     {
         $envFile = __DIR__ . '/../../.env';
 
-        if (!file_exists($envFile)) {
+        if (!EnvLoader::load($envFile)) {
             // Verificar si estamos en producción — el .env es obligatorio
             if (getenv('APP_ENV') === 'production') {
                 throw new \RuntimeException('.env file not found. This is required in production.');
             }
             // En desarrollo, se advierte pero se continúa con los valores por defecto
             error_log('ADVERTENCIA: Archivo .env no encontrado. Se usará la configuración por defecto.');
-            return;
-        }
-
-        $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-
-        foreach ($lines as $line) {
-            // Omitir líneas de comentario
-            if (strpos(trim($line), '#') === 0) {
-                continue;
-            }
-
-            // Parsear pares CLAVE=VALOR
-            if (strpos($line, '=') !== false) {
-                [$key, $value] = explode('=', $line, 2);
-                $key = trim($key);
-                $value = trim($value);
-
-                // Eliminar comillas del valor
-                $value = trim($value, '"\'');
-
-                $_ENV[$key] = $value;
-                putenv("{$key}={$value}");
-            }
         }
     }
 

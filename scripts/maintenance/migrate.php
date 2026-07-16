@@ -20,6 +20,7 @@ define('BASE_PATH', dirname(__DIR__, 2));
 require_once BASE_PATH . '/vendor/autoload.php';
 
 use App\Core\Database;
+use App\Core\EnvLoader;
 use App\Core\MigrationRunner;
 use App\Core\ConfigValidator;
 
@@ -36,29 +37,11 @@ define('COLOR_RESET', "\033[0m");
 function loadEnvironment(): void
 {
     $envFile = BASE_PATH . '/.env';
-    
-    if (!file_exists($envFile)) {
+
+    if (!EnvLoader::load($envFile)) {
         echo COLOR_RED . "ERROR: .env file not found.\n" . COLOR_RESET;
         echo "Please copy .env.example to .env and configure your database settings.\n";
         exit(1);
-    }
-
-    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    
-    foreach ($lines as $line) {
-        if (strpos(trim($line), '#') === 0) {
-            continue;
-        }
-
-        if (strpos($line, '=') !== false) {
-            [$key, $value] = explode('=', $line, 2);
-            $key = trim($key);
-            $value = trim($value);
-            $value = trim($value, '"\'');
-            
-            $_ENV[$key] = $value;
-            putenv("{$key}={$value}");
-        }
     }
 }
 

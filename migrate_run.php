@@ -11,22 +11,12 @@ define('BASE_PATH', __DIR__);
 require_once BASE_PATH . '/vendor/autoload.php';
 
 use App\Core\Database;
+use App\Core\EnvLoader;
 use App\Core\MigrationRunner;
 use App\Core\ConfigValidator;
 
 // Load .env
-$envFile = BASE_PATH . '/.env';
-$lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-foreach ($lines as $line) {
-    if (strpos(trim($line), '#') === 0) continue;
-    if (strpos($line, '=') !== false) {
-        [$key, $value] = explode('=', $line, 2);
-        $key = trim($key);
-        $value = trim(trim($value), '"\'');
-        $_ENV[$key] = $value;
-        putenv("{$key}={$value}");
-    }
-}
+EnvLoader::load(BASE_PATH . '/.env');
 
 // Configure DB
 Database::setConfig([

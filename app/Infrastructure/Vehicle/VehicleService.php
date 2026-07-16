@@ -32,9 +32,10 @@ class VehicleService
             $data['vin'] = VehicleValidator::normalizeVIN($data['vin']);
         }
 
-        // Verificar que la placa no exista
+        // Verificar que la placa no exista (entre vehículos activos; una placa liberada
+        // por un vehículo eliminado debe poder reutilizarse)
         $existing = Database::fetchOne(
-            'SELECT id FROM vehicles WHERE license_plate = ?',
+            'SELECT id FROM vehicles WHERE license_plate = ? AND deleted_at IS NULL',
             [$data['license_plate']]
         );
 
@@ -45,7 +46,7 @@ class VehicleService
         // Verificar que el VIN no exista (si se proporcionó)
         if (!empty($data['vin'])) {
             $existingVin = Database::fetchOne(
-                'SELECT id FROM vehicles WHERE vin = ?',
+                'SELECT id FROM vehicles WHERE vin = ? AND deleted_at IS NULL',
                 [$data['vin']]
             );
 
@@ -120,7 +121,7 @@ class VehicleService
 
             if ($normalizedPlate !== $vehicle['license_plate']) {
                 $existing = Database::fetchOne(
-                    'SELECT id FROM vehicles WHERE license_plate = ? AND id != ?',
+                    'SELECT id FROM vehicles WHERE license_plate = ? AND id != ? AND deleted_at IS NULL',
                     [$normalizedPlate, $vehicleId]
                 );
 
@@ -138,7 +139,7 @@ class VehicleService
 
             if ($normalizedVin !== null && $normalizedVin !== $vehicle['vin']) {
                 $existingVin = Database::fetchOne(
-                    'SELECT id FROM vehicles WHERE vin = ? AND id != ?',
+                    'SELECT id FROM vehicles WHERE vin = ? AND id != ? AND deleted_at IS NULL',
                     [$normalizedVin, $vehicleId]
                 );
 

@@ -19,8 +19,9 @@ export default function MechanicDashboard() {
   if (!user) return null;
 
   // Verificar estado de la licencia de conducción
-  const licenseStatus = user.driverLicense?.status;
+  const licenseStatus = user.driverLicense?.status ?? 'not_set';
 
+  const licenseNotSet = licenseStatus === 'not_set';
   const licenseExpired = licenseStatus === 'expired';
   const licenseExpiringSoon = licenseStatus === 'expiring_soon';
   const showLicenseWarning = licenseExpired || licenseExpiringSoon;
@@ -28,6 +29,24 @@ export default function MechanicDashboard() {
   return (
     <div className="min-h-screen bg-gray-900 p-6">
       <div className="max-w-7xl mx-auto">
+        {/* Guía de bienvenida: registrar licencia (obligatoria para aceptar solicitudes) */}
+        {licenseNotSet && (
+          <div className="mb-6 p-4 rounded-lg border flex items-start gap-3 bg-blue-900/40 border-blue-700 text-blue-200">
+            <svg className="w-5 h-5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <p className="font-semibold">¡Bienvenido a PARCE!</p>
+              <p className="text-sm mt-0.5">
+                Para poder aceptar solicitudes de servicio, primero debes registrar tu licencia de conducción.
+              </p>
+              <Link to="/profile" className="inline-block mt-2 text-sm underline hover:no-underline">
+                Registrar mi licencia
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Aviso de licencia vencida o por vencer */}
         {showLicenseWarning && (
           <div

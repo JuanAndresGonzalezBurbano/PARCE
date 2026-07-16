@@ -237,11 +237,20 @@ class ServiceRequestService
             throw new DomainException('Solo se pueden aceptar solicitudes en estado pendiente', 400);
         }
 
-        // Verificar vencimiento de la licencia de conducción del mecánico (Requisito 3.5, 3.6, 3.7)
+        // Verificar que el mecánico tenga una licencia de conducción registrada y vigente
+        // (Requisito 3.5, 3.6, 3.7) — una licencia es obligatoria para aceptar solicitudes,
+        // no solo para quienes ya registraron una y la dejaron vencer.
         $mechanic = Database::fetchOne(
             'SELECT driver_license_expiration_date FROM users WHERE id = ?',
             [$mechanicId]
         );
+
+        if ($mechanic !== null && empty($mechanic['driver_license_expiration_date'])) {
+            throw new DomainException(
+                'Debes registrar tu licencia de conducción antes de aceptar solicitudes.',
+                403
+            );
+        }
 
         if ($mechanic !== null
             && !empty($mechanic['driver_license_expiration_date'])

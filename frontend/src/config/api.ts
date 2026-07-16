@@ -46,4 +46,12 @@ export const API_ENDPOINTS = {
     GET_EVIDENCES: (id: number) => `/mechanic/requests/${id}/evidences`,
     STATS: '/mechanic/stats',
   },
+  ADMIN: {
+    DASHBOARD: '/admin/dashboard',
+    RATINGS: '/admin/ratings',
+    PQR_LIST: '/admin/pqr',
+    PQR_UPDATE_STATUS: (id: number) => `/admin/pqr/${id}/status`,
+    PQR_RESPOND: (id: number) => `/admin/pqr/${id}/respond`,
+    SURVEYS: '/admin/surveys',
+  },
 } as const;

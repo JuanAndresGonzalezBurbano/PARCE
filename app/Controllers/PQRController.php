@@ -110,10 +110,6 @@ class PQRController extends Controller
             $userId = $request->getAttribute('userId');
             $ticket = $this->pqrService->getByIdForUser($id, $userId);
 
-            if ($ticket === null) {
-                return ResponseFormatter::notFound('Ticket PQR no encontrado');
-            }
-
             return ResponseFormatter::success(
                 ['pqr' => $ticket],
                 'Ticket PQR obtenido correctamente',
@@ -178,10 +174,7 @@ class PQRController extends Controller
                 return ResponseFormatter::validationError($validation['errors']);
             }
 
-            $ticket = $this->pqrService->getByIdForAdmin($id);
-            if ($ticket === null) {
-                return ResponseFormatter::notFound('Ticket PQR no encontrado');
-            }
+            $this->pqrService->getByIdForAdmin($id);
 
             $this->pqrService->updateStatus($id, $request->input('status'));
             $updated = $this->pqrService->getByIdForAdmin($id);
@@ -224,10 +217,7 @@ class PQRController extends Controller
                 return ResponseFormatter::validationError($validation['errors']);
             }
 
-            $ticket = $this->pqrService->getByIdForAdmin($id);
-            if ($ticket === null) {
-                return ResponseFormatter::notFound('Ticket PQR no encontrado');
-            }
+            $this->pqrService->getByIdForAdmin($id);
 
             $adminUserId = $request->getAttribute('userId');
             $responseText = RequestValidator::sanitizeString($request->input('admin_response'));

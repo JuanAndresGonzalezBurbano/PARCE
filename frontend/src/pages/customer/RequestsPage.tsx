@@ -235,6 +235,23 @@ export default function RequestsPage() {
                           Tu calificación: {'★'.repeat(request.customerRating)}{'☆'.repeat(5 - request.customerRating)}
                         </p>
                       )}
+
+                      {['assigned', 'in_progress', 'completed'].includes(request.status) && request.mechanicFirstName && (
+                        <div className="mt-3 p-3 bg-blue-900/20 border border-blue-800/50 rounded-lg">
+                          <p className="text-xs text-blue-300 uppercase tracking-wide mb-1">Mecánico asignado</p>
+                          <p className="text-white font-medium">
+                            {request.mechanicFirstName} {request.mechanicLastName}
+                          </p>
+                          {request.mechanicPhone && (
+                            <a
+                              href={`tel:${request.mechanicPhone}`}
+                              className="inline-flex items-center gap-1.5 text-blue-400 hover:text-blue-300 text-sm mt-1"
+                            >
+                              📞 {request.mechanicPhone}
+                            </a>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex gap-2 ml-4 flex-shrink-0">

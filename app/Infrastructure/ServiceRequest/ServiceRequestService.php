@@ -502,7 +502,8 @@ class ServiceRequestService
                        v.model as vehicle_model,
                        v.license_plate as vehicle_license_plate,
                        m.first_name as mechanic_first_name,
-                       m.last_name as mechanic_last_name
+                       m.last_name as mechanic_last_name,
+                       m.phone as mechanic_phone
                 FROM service_requests sr
                 LEFT JOIN vehicles v ON sr.vehicle_id = v.id
                 LEFT JOIN users m ON sr.mechanic_id = m.id

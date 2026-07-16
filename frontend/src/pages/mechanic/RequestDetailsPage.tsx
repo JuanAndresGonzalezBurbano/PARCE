@@ -246,9 +246,17 @@ export default function RequestDetailsPage() {
           {/* Ubicación */}
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-white mb-2">Ubicación</h3>
-            <p className="text-gray-300">
-              Lat: {currentRequest.latitude}, Lng: {currentRequest.longitude}
+            <p className="text-gray-300 text-sm mb-2">
+              {Number(currentRequest.latitude).toFixed(5)}, {Number(currentRequest.longitude).toFixed(5)}
             </p>
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${currentRequest.latitude},${currentRequest.longitude}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
+            >
+              🧭 Cómo llegar
+            </a>
           </div>
 
           {/* Línea de tiempo */}

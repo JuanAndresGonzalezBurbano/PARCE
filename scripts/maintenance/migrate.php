@@ -12,8 +12,9 @@
  *   php migrate.php reset             - Rollback all and re-run
  */
 
-// Define base path
-define('BASE_PATH', __DIR__);
+// Define base path (this script lives two levels below the project root, in
+// scripts/maintenance/)
+define('BASE_PATH', dirname(__DIR__, 2));
 
 // Load Composer autoloader
 require_once BASE_PATH . '/vendor/autoload.php';

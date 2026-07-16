@@ -33,8 +33,11 @@ class RequestLoggerMiddleware
      */
     public function handle(Request $request, callable $next): Response
     {
-        // Requisito 13.1: Generar un ID único de solicitud
-        $requestId = $this->generateRequestId();
+        // Requisito 13.1: reutilizar el ID de solicitud ya generado por
+        // App::run() (compartido con el log de errores y el header
+        // X-Request-Id de la respuesta) en vez de generar uno propio aquí
+        // — antes cada uno tenía un ID distinto, imposible de correlacionar.
+        $requestId = $request->getAttribute('requestId') ?? $this->generateRequestId();
 
         // Requisito 13.2: Registrar el tiempo de inicio para calcular la duración
         $startTime = microtime(true);

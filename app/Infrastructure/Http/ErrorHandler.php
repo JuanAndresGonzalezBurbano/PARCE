@@ -4,6 +4,7 @@ namespace App\Infrastructure\Http;
 
 use App\Core\Response;
 use App\Core\DomainException;
+use App\Core\RequestContext;
 use App\Infrastructure\Auth\Exceptions\AuthenticationException;
 
 /**
@@ -122,9 +123,11 @@ class ErrorHandler
         $logFile = $logDir . '/error-' . date('Y-m-d') . '.log';
 
         // Formatear los detalles de la excepción
+        $requestId = RequestContext::getRequestId();
         $message = sprintf(
-            "[%s] %s: %s in %s:%d\nStack trace:\n%s\n\n",
+            "[%s]%s %s: %s in %s:%d\nStack trace:\n%s\n\n",
             date('Y-m-d H:i:s'),
+            $requestId !== null ? " [{$requestId}]" : '',
             get_class($e),
             $e->getMessage(),
             $e->getFile(),

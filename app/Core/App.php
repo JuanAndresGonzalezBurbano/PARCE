@@ -152,6 +152,11 @@ class App
         // Establecer código de respuesta HTTP 500
         http_response_code(500);
 
+        $requestId = RequestContext::getRequestId();
+        if ($requestId !== null) {
+            header('X-Request-Id: ' . $requestId);
+        }
+
         // Determinar si la petición es de tipo API
         $contentType = $_SERVER['HTTP_ACCEPT'] ?? '';
         $requestContentType = $_SERVER['CONTENT_TYPE'] ?? '';
@@ -212,9 +217,11 @@ class App
         }
 
         $logFile = $logDir . '/error-' . date('Y-m-d') . '.log';
+        $requestId = RequestContext::getRequestId();
         $message = sprintf(
-            "[%s] %s: %s in %s:%d\nStack trace:\n%s\n\n",
+            "[%s]%s %s: %s in %s:%d\nStack trace:\n%s\n\n",
             date('Y-m-d H:i:s'),
+            $requestId !== null ? " [{$requestId}]" : '',
             get_class($e),
             $e->getMessage(),
             $e->getFile(),
@@ -315,8 +322,17 @@ class App
      */
     public function run(): void
     {
+        // ID único de esta petición — se propaga al log de errores y a la
+        // respuesta (header X-Request-Id) para poder correlacionar un
+        // reporte de un usuario con la línea exacta del log que lo originó.
+        $requestId = uniqid('req_', true);
+        RequestContext::setRequestId($requestId);
+
         $request = new Request();
+        $request->setAttribute('requestId', $requestId);
+
         $response = $this->router->dispatch($request);
+        $response->setHeader('X-Request-Id', $requestId);
         $response->send();
     }
 }

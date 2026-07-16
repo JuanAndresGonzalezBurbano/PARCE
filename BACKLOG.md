@@ -41,7 +41,29 @@ endpoints multipart) es un módulo nuevo con implicaciones de infraestructura
 (¿dónde se guardan los archivos?, ¿límites de tamaño?, ¿CDN?) — requiere decisión
 del usuario sobre la estrategia de almacenamiento antes de implementarse.
 
-### 4. ~~Vista de evidencias para el cliente~~ — Resuelto 2026-07-10
+### 4. Recuperación de contraseña ("olvidé mi contraseña")
+No existe ningún flujo de reseteo de contraseña — ni endpoint backend, ni
+página frontend. Es una funcionalidad estándar esperada en cualquier sistema
+de autenticación de producción, pero implementarla de forma real (generar
+token, invalidar tras uso/expiración, enviar el enlace) requiere enviar un
+correo — y el proyecto **no tiene ninguna infraestructura de email**
+(sin PHPMailer/Symfony Mailer, sin configuración SMTP, sin proveedor
+transaccional tipo SES/SendGrid/Mailgun en `.env.example`). Requiere decisión
+del usuario sobre el proveedor/estrategia de envío de correo antes de
+construirse — mismo tipo de dependencia de infraestructura que el ítem 3.
+
+### 6. Expiración automática de solicitudes pendientes
+La columna `expired_at` existe en `service_requests` (visible en cada respuesta
+de la API) pero **ningún código la establece jamás** — ninguna solicitud
+pasa nunca a estado expirado, sin importar cuánto tiempo quede "pending" sin
+que un mecánico la acepte. El esquema anticipa un mecanismo de expiración que
+nunca se construyó. Implementarlo requiere una decisión de negocio que no está
+definida en ningún lugar del código: ¿cuánto tiempo antes de expirar (15 min,
+1 hora)?, ¿se reintenta notificar a otros mecánicos primero?, ¿quién procesa
+la expiración (cron job, chequeo perezoso al leer)? No construir sin definir
+esto con el usuario primero.
+
+### 5. ~~Vista de evidencias para el cliente~~ — Resuelto 2026-07-10
 Implementado: `EvidenceUpload` ahora soporta `readOnly`, y `RequestsPage.tsx`
 (cliente) tiene un toggle "Ver evidencias" por solicitud. Ver commit
 `feat(requests): add read-only evidence view for customers`.

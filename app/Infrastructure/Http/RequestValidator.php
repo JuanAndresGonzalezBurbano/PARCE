@@ -324,6 +324,13 @@ class RequestValidator
             $errors['password_confirmation'] = ['Password confirmation does not match'];
         }
 
+        // Validar el rol solicitado (opcional, por defecto 'customer')
+        // Solo se permite auto-registro como customer o mechanic — nunca administrator/super_admin
+        $role = $request->input('role');
+        if ($role !== null && !in_array($role, ['customer', 'mechanic'], true)) {
+            $errors['role'] = ['Rol inválido. Roles válidos: customer, mechanic'];
+        }
+
         if (!empty($errors)) {
             return [
                 'valid' => false,

@@ -9,10 +9,13 @@ export default function RegisterPage() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    password_confirmation: '',
     first_name: '',
     last_name: '',
     phone: '',
+    role: 'customer' as 'customer' | 'mechanic',
   });
+  const [confirmMismatch, setConfirmMismatch] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -31,6 +34,11 @@ export default function RegisterPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     clearError();
+    setConfirmMismatch(false);
+    if (formData.password !== formData.password_confirmation) {
+      setConfirmMismatch(true);
+      return;
+    }
     await register(formData);
   }
 
@@ -52,6 +60,38 @@ export default function RegisterPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Quiero registrarme como *
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, role: 'customer' }))}
+                  disabled={isLoading}
+                  className={`py-2.5 px-4 rounded-lg border text-sm font-medium transition-colors ${
+                    formData.role === 'customer'
+                      ? 'bg-blue-600 border-blue-500 text-white'
+                      : 'bg-gray-700 border-gray-600 text-gray-300 hover:border-gray-500'
+                  }`}
+                >
+                  🚗 Cliente
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, role: 'mechanic' }))}
+                  disabled={isLoading}
+                  className={`py-2.5 px-4 rounded-lg border text-sm font-medium transition-colors ${
+                    formData.role === 'mechanic'
+                      ? 'bg-blue-600 border-blue-500 text-white'
+                      : 'bg-gray-700 border-gray-600 text-gray-300 hover:border-gray-500'
+                  }`}
+                >
+                  🔧 Mecánico
+                </button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor="first_name" className="block text-sm font-medium text-gray-300 mb-1">
@@ -137,6 +177,27 @@ export default function RegisterPage() {
                 disabled={isLoading}
               />
               <p className="mt-1 text-xs text-gray-500">Mínimo 8 caracteres</p>
+            </div>
+
+            <div>
+              <label htmlFor="password_confirmation" className="block text-sm font-medium text-gray-300 mb-1">
+                Confirmar contraseña *
+              </label>
+              <input
+                id="password_confirmation"
+                name="password_confirmation"
+                type="password"
+                required
+                minLength={8}
+                value={formData.password_confirmation}
+                onChange={handleChange}
+                className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                placeholder="••••••••"
+                disabled={isLoading}
+              />
+              {confirmMismatch && (
+                <p className="mt-1 text-xs text-red-400">Las contraseñas no coinciden</p>
+              )}
             </div>
 
             <button

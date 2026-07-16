@@ -98,6 +98,10 @@ class AuthController extends Controller
             $lastName = RequestValidator::sanitizeString($request->input('last_name'));
             $phone = $request->input('phone') ? RequestValidator::sanitizeString($request->input('phone')) : null;
 
+            // Rol solicitado para el auto-registro (validado por RequestValidator: solo
+            // 'customer' o 'mechanic' — nunca administrator/super_admin vía este endpoint)
+            $requestedRole = $request->input('role') ?? 'customer';
+
             // Check if email already exists
             $existingUser = Database::fetchOne(
                 'SELECT id FROM users WHERE email = ? AND deleted_at IS NULL',
@@ -128,20 +132,20 @@ class AuthController extends Controller
                     'updated_at' => date('Y-m-d H:i:s')
                 ]);
 
-                // Get default 'customer' role ID
-                $customerRole = Database::fetchOne(
+                // Obtener el ID del rol solicitado ('customer' o 'mechanic')
+                $role = Database::fetchOne(
                     'SELECT id FROM roles WHERE slug = ? AND is_active = TRUE',
-                    ['customer']
+                    [$requestedRole]
                 );
 
-                if ($customerRole === null) {
-                    throw new \Exception('Default customer role not found');
+                if ($role === null) {
+                    throw new \Exception("Role '{$requestedRole}' not found");
                 }
 
-                // Assign default 'customer' role
+                // Asignar el rol solicitado
                 Database::insert('user_roles', [
                     'user_id' => $userId,
-                    'role_id' => $customerRole['id'],
+                    'role_id' => $role['id'],
                     'assigned_at' => date('Y-m-d H:i:s'),
                     'is_active' => true
                 ]);

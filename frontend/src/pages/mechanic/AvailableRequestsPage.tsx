@@ -86,6 +86,11 @@ export default function AvailableRequestsPage() {
                         <span className={`px-2 py-0.5 border rounded-full text-xs font-medium ${priorityCfg.cls}`}>
                           {priorityCfg.label}
                         </span>
+                        {request.distanceKm != null && (
+                          <span className="px-2 py-0.5 border rounded-full text-xs font-medium bg-blue-900/50 border-blue-700 text-blue-200">
+                            📍 {request.distanceKm.toFixed(1)} km
+                          </span>
+                        )}
                       </div>
 
                       <p className="text-gray-500 text-xs mb-1">{request.serviceCode}</p>
@@ -100,9 +105,6 @@ export default function AvailableRequestsPage() {
 
                       <div className="text-gray-500 text-xs space-y-0.5">
                         <p>Solicitado: {new Date(request.requestedAt).toLocaleString('es-CO')}</p>
-                        {request.latitudeApproximate != null && request.longitudeApproximate != null && (
-                          <p>Ubicación aproximada: {request.latitudeApproximate}, {request.longitudeApproximate}</p>
-                        )}
                       </div>
                     </div>
 

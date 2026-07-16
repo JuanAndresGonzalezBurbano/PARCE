@@ -129,6 +129,33 @@ export default function MyRequestsPage() {
                           Costo final: COP ${request.finalCost.toLocaleString('es-CO')}
                         </p>
                       )}
+
+                      {request.customerRating && (
+                        <div className="mt-3 p-3 bg-gray-700/40 border border-gray-600 rounded-lg">
+                          <p className="text-xs text-gray-400 uppercase tracking-wide mb-1.5">
+                            Calificación del cliente
+                          </p>
+                          <p className="text-yellow-400 text-sm">
+                            {'★'.repeat(request.customerRating)}{'☆'.repeat(5 - request.customerRating)}
+                            <span className="text-gray-400 ml-2">Calidad general</span>
+                          </p>
+                          {request.punctualityRating && (
+                            <p className="text-yellow-400 text-sm mt-1">
+                              {'★'.repeat(request.punctualityRating)}{'☆'.repeat(5 - request.punctualityRating)}
+                              <span className="text-gray-400 ml-2">Puntualidad</span>
+                            </p>
+                          )}
+                          {request.serviceQualityRating && (
+                            <p className="text-yellow-400 text-sm mt-1">
+                              {'★'.repeat(request.serviceQualityRating)}{'☆'.repeat(5 - request.serviceQualityRating)}
+                              <span className="text-gray-400 ml-2">Calidad del servicio</span>
+                            </p>
+                          )}
+                          {request.customerFeedback && (
+                            <p className="text-gray-300 text-sm mt-2 italic">"{request.customerFeedback}"</p>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex flex-col gap-2 flex-shrink-0">

@@ -331,7 +331,7 @@ export default function RequestsPage() {
                     </div>
 
                     <div className="flex gap-2 ml-4 flex-shrink-0">
-                      {request.status === 'pending' && (
+                      {['pending', 'assigned'].includes(request.status) && (
                         <button
                           onClick={() => { clearError(); setCancellingId(request.id); setCancelReason(''); }}
                           className="px-3 py-1.5 bg-red-900/40 hover:bg-red-900/70 border border-red-800 text-red-300 text-sm rounded-lg transition-colors"

@@ -380,6 +380,19 @@ export default function RequestsPage() {
               {error && (
                 <div className="mb-4 p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm">{error}</div>
               )}
+              {vehicles.length === 0 ? (
+                <div className="p-4 bg-yellow-900/30 border border-yellow-700 rounded-lg text-center">
+                  <p className="text-yellow-200 text-sm mb-3">
+                    Necesitas registrar al menos un vehículo antes de crear una solicitud.
+                  </p>
+                  <Link
+                    to="/vehicles"
+                    className="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
+                  >
+                    Agregar un vehículo
+                  </Link>
+                </div>
+              ) : (
               <form onSubmit={handleCreate} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">Vehículo *</label>
@@ -426,6 +439,7 @@ export default function RequestsPage() {
                   </button>
                 </div>
               </form>
+              )}
             </div>
           </div>
         )}

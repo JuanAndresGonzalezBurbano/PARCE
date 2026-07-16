@@ -53,6 +53,17 @@ class AuthController extends Controller
     public function register(Request $request): Response
     {
         try {
+            // Requirement 20.1, 20.2: obtener IP del cliente para limitar tasa
+            $ipAddress = IPValidator::getClientIP($request);
+
+            // Limitar tasa de registros por IP para evitar creación masiva de cuentas
+            $rateLimitCheck = RateLimiter::check('register', $ipAddress);
+
+            if (!$rateLimitCheck['allowed']) {
+                $retryAfter = $rateLimitCheck['reset_at'] - time();
+                return ResponseFormatter::rateLimitExceeded($retryAfter);
+            }
+
             // Validate Content-Type
             $contentTypeValidation = RequestValidator::validateContentType($request, 'POST');
             if (!$contentTypeValidation['valid']) {
@@ -93,6 +104,7 @@ class AuthController extends Controller
             );
 
             if ($existingUser !== null) {
+                RateLimiter::recordAttempt('register', $ipAddress);
                 return ResponseFormatter::conflict('Email already exists');
             }
 
@@ -142,6 +154,9 @@ class AuthController extends Controller
 
                 // Commit transaction
                 Database::commit();
+
+                // Contar el registro exitoso para el límite de tasa (evita creación masiva)
+                RateLimiter::recordAttempt('register', $ipAddress);
 
                 // Prepare response data — mismo perfil completo que devuelve GET /api/auth/me
                 $responseData = [

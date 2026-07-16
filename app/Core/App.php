@@ -16,9 +16,14 @@ class App
     public function __construct()
     {
         $this->router = new Router();
+        // El manejo de errores se configura antes que todo lo demás: si
+        // loadEnvironment()/loadConfiguration() fallan (ej. falta el .env en
+        // producción), deben quedar cubiertos por el exception handler
+        // controlado de la app en vez de dejar pasar un error fatal crudo de
+        // PHP con ruta de archivo y traza completa.
+        $this->setupErrorHandling();
         $this->loadEnvironment();
         $this->loadConfiguration();
-        $this->setupErrorHandling();
         $this->setupDatabase();
         $this->startSession();
     }
@@ -95,7 +100,7 @@ class App
         if (!$validator->validate($this->config)) {
             $errorMessage = $validator->getErrorMessage();
 
-            if ($this->config['app']['debug']) {
+            if ($this->config['app']['debug'] ?? false) {
                 throw new \RuntimeException($errorMessage);
             } else {
                 // Registrar errores y continuar con advertencias en producción
@@ -120,7 +125,9 @@ class App
     {
         error_reporting(E_ALL);
 
-        if ($this->config['app']['debug']) {
+        // $this->config puede estar vacío en este punto (se ejecuta antes de
+        // loadConfiguration()) — por defecto se asume debug=false, la opción segura.
+        if ($this->config['app']['debug'] ?? false) {
             ini_set('display_errors', '1');
         } else {
             ini_set('display_errors', '0');
@@ -183,7 +190,7 @@ class App
                 'error'   => 'Error interno del servidor',
             ];
 
-            if ($this->config['app']['debug']) {
+            if ($this->config['app']['debug'] ?? false) {
                 // Incluir información de depuración solo en modo debug
                 $respuesta['debug'] = [
                     'mensaje'      => $e->getMessage(),
@@ -196,7 +203,7 @@ class App
             echo json_encode($respuesta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         } else {
             // Responder con HTML para peticiones web
-            if ($this->config['app']['debug']) {
+            if ($this->config['app']['debug'] ?? false) {
                 // Mostrar error detallado en modo debug
                 echo "<h1>Error</h1>";
                 echo "<p><strong>Mensaje:</strong> " . htmlspecialchars($e->getMessage()) . "</p>";

@@ -11,15 +11,18 @@
  * - Unique constraints
  */
 
-require_once __DIR__ . '/vendor/autoload.php';
-require_once __DIR__ . '/app/Core/Database.php';
+// Este script vive dos niveles bajo la raíz del proyecto (scripts/validation/)
+define('BASE_PATH', dirname(__DIR__, 2));
+
+require_once BASE_PATH . '/vendor/autoload.php';
+require_once BASE_PATH . '/app/Core/Database.php';
 
 use App\Core\Database;
 
 // Load .env file
 $env = [];
-if (file_exists(__DIR__ . '/.env')) {
-    $lines = file(__DIR__ . '/.env', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+if (file_exists(BASE_PATH . '/.env')) {
+    $lines = file(BASE_PATH . '/.env', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     foreach ($lines as $line) {
         if (strpos(trim($line), '#') === 0) continue;
         list($key, $value) = explode('=', $line, 2);

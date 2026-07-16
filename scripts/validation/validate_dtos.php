@@ -1,6 +1,7 @@
 <?php
 
-require_once __DIR__ . '/vendor/autoload.php';
+// Este script vive dos niveles bajo la raíz del proyecto (scripts/validation/)
+require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 use App\Infrastructure\Auth\DTO\AuthResult;
 use App\Infrastructure\Auth\DTO\CookieConfig;

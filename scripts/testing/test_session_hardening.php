@@ -7,8 +7,11 @@
  * and secure cookie behavior across different environments.
  */
 
+// Este script vive dos niveles bajo la raíz del proyecto (scripts/testing/)
+define('BASE_PATH', dirname(__DIR__, 2));
+
 // Load environment variables manually
-$envFile = __DIR__ . '/.env';
+$envFile = BASE_PATH . '/.env';
 if (file_exists($envFile)) {
     $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     foreach ($lines as $line) {
@@ -18,7 +21,7 @@ if (file_exists($envFile)) {
     }
 }
 
-require_once __DIR__ . '/vendor/autoload.php';
+require_once BASE_PATH . '/vendor/autoload.php';
 
 use App\Infrastructure\Auth\DTO\CookieConfig;
 use App\Infrastructure\Auth\Services\SessionManager;

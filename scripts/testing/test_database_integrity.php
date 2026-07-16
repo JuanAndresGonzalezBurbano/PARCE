@@ -10,13 +10,16 @@
  * - RBAC relationships
  */
 
-require_once __DIR__ . '/vendor/autoload.php';
+// Este script vive dos niveles bajo la raíz del proyecto (scripts/testing/)
+define('BASE_PATH', dirname(__DIR__, 2));
+
+require_once BASE_PATH . '/vendor/autoload.php';
 
 use App\Core\Database;
 use App\Core\ConfigValidator;
 
 // Load environment
-$envFile = __DIR__ . '/.env';
+$envFile = BASE_PATH . '/.env';
 $env = parse_ini_file($envFile);
 
 // Configure database

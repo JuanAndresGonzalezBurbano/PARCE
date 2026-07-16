@@ -249,11 +249,18 @@ class VehicleService
             throw new DomainException('No eres propietario de este vehículo', 403);
         }
 
-        Database::update('vehicles', ['is_primary' => false], 'user_id = ?', [$userId]);
-
-        $rowCount = Database::update('vehicles', ['is_primary' => true], 'id = ?', [$vehicleId]);
-
-        return $rowCount > 0;
+        // Ambas escrituras deben ser atómicas: si la segunda falla tras la
+        // primera, el usuario quedaría sin ningún vehículo principal.
+        Database::beginTransaction();
+        try {
+            Database::update('vehicles', ['is_primary' => false], 'user_id = ?', [$userId]);
+            $rowCount = Database::update('vehicles', ['is_primary' => true], 'id = ?', [$vehicleId]);
+            Database::commit();
+            return $rowCount > 0;
+        } catch (\Exception $e) {
+            Database::rollback();
+            throw $e;
+        }
     }
 
     /**

@@ -248,11 +248,6 @@ class ServiceRequestController extends Controller
      *
      * POST /api/service-requests/{id}/cancel
      *
-     * CORRECCIÓN: Se eliminó la variable $userRole declarada pero nunca usada
-     * (la variable se necesita solo para getById(), que se llama con $userRole
-     * también obtenido aquí — se mantiene su uso real, solo se quita la variable
-     * cuando no se usa en métodos donde era código muerto).
-     *
      * @param Request $request Solicitud HTTP
      * @param int     $id      ID de la solicitud de servicio
      * @return Response Respuesta HTTP
@@ -287,14 +282,15 @@ class ServiceRequestController extends Controller
             }
 
             // Obtener el usuario autenticado
-            $userId = $request->getAttribute('userId');
+            $userId   = $request->getAttribute('userId');
+            $userRole = $request->getAttribute('userRole');
 
             // Cancelar la solicitud de servicio
             $reason = RequestValidator::sanitizeString($request->input('cancellation_reason'));
             $this->serviceRequestService->cancel($id, $userId, $reason);
 
             // Obtener la solicitud actualizada
-            $serviceRequest = $this->serviceRequestService->getById($id, $userId, null);
+            $serviceRequest = $this->serviceRequestService->getById($id, $userId, $userRole);
 
             return ResponseFormatter::success(
                 ['service_request' => $serviceRequest],
@@ -311,8 +307,6 @@ class ServiceRequestController extends Controller
      * Calificar una solicitud de servicio completada
      *
      * POST /api/service-requests/{id}/rate
-     *
-     * CORRECCIÓN: Se eliminó la variable $userRole declarada pero nunca usada.
      *
      * @param Request $request Solicitud HTTP
      * @param int     $id      ID de la solicitud de servicio
@@ -348,7 +342,8 @@ class ServiceRequestController extends Controller
             }
 
             // Obtener el usuario autenticado
-            $userId = $request->getAttribute('userId');
+            $userId   = $request->getAttribute('userId');
+            $userRole = $request->getAttribute('userRole');
 
             // Calificar la solicitud de servicio
             $rating   = (int)$request->input('customer_rating');
@@ -373,7 +368,7 @@ class ServiceRequestController extends Controller
             );
 
             // Obtener la solicitud actualizada
-            $serviceRequest = $this->serviceRequestService->getById($id, $userId, null);
+            $serviceRequest = $this->serviceRequestService->getById($id, $userId, $userRole);
 
             return ResponseFormatter::success(
                 ['service_request' => $serviceRequest],

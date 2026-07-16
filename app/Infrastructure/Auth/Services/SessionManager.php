@@ -210,20 +210,30 @@ class SessionManager
         // Requisito 7.4: Actualizar last_activity con la marca de tiempo actual
         $lastActivity = time();
 
-        // Requisito 7.2: Eliminar la sesión antigua
-        Database::delete('sessions', 'id = ?', [$sessionId]);
+        // Ambas escrituras deben ser atómicas: si el insert falla tras el delete,
+        // el usuario quedaría deslogueado en medio de una regeneración rutinaria
+        // (anti-fijación de sesión), no ante un error real de su parte.
+        Database::beginTransaction();
+        try {
+            // Requisito 7.2: Eliminar la sesión antigua
+            Database::delete('sessions', 'id = ?', [$sessionId]);
 
-        // Requisito 7.3: Crear una nueva sesión con el mismo user_id y metadatos
-        Database::insert('sessions', [
-            'id' => $newSessionId,
-            'user_id' => $session['user_id'],
-            'ip_address' => $session['ip_address'],
-            'user_agent' => $session['user_agent'],
-            'payload' => $session['payload'],
-            'last_activity' => $lastActivity
-        ]);
+            // Requisito 7.3: Crear una nueva sesión con el mismo user_id y metadatos
+            Database::insert('sessions', [
+                'id' => $newSessionId,
+                'user_id' => $session['user_id'],
+                'ip_address' => $session['ip_address'],
+                'user_agent' => $session['user_agent'],
+                'payload' => $session['payload'],
+                'last_activity' => $lastActivity
+            ]);
 
-        return $newSessionId;
+            Database::commit();
+            return $newSessionId;
+        } catch (\Exception $e) {
+            Database::rollback();
+            throw $e;
+        }
     }
 
     /**

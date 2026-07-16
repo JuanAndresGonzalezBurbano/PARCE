@@ -53,6 +53,10 @@ export default function RequestsPage() {
   const [emergencyType, setEmergencyType] = useState('tire');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('normal');
+  const [requestLat, setRequestLat] = useState(4.7110);
+  const [requestLng, setRequestLng] = useState(-74.0721);
+  const [locatingUser, setLocatingUser] = useState(false);
+  const [usedRealLocation, setUsedRealLocation] = useState(false);
 
   // Form calificar (3 ratings)
   const [customerRating, setCustomerRating] = useState(5);
@@ -93,14 +97,35 @@ export default function RequestsPage() {
     }
   }
 
+  function handleOpenCreateForm() {
+    clearError();
+    setUsedRealLocation(false);
+    setRequestLat(4.7110);
+    setRequestLng(-74.0721);
+    if (navigator.geolocation) {
+      setLocatingUser(true);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setRequestLat(pos.coords.latitude);
+          setRequestLng(pos.coords.longitude);
+          setUsedRealLocation(true);
+          setLocatingUser(false);
+        },
+        () => { setLocatingUser(false); },
+        { timeout: 5000 }
+      );
+    }
+    setShowCreateForm(true);
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     const success = await createRequest({
       vehicle_id: vehicleId,
       emergency_type: emergencyType as any,
       description,
-      latitude: 4.7110,
-      longitude: -74.0721,
+      latitude: requestLat,
+      longitude: requestLng,
       priority: priority as any,
     });
     if (success) {
@@ -165,7 +190,7 @@ export default function RequestsPage() {
         {!isLoading && requests.length === 0 && (
           <div className="bg-gray-800 border border-gray-700 rounded-lg p-8 text-center">
             <p className="text-gray-400 mb-4">Aún no tienes solicitudes de servicio.</p>
-            <button onClick={() => { clearError(); setShowCreateForm(true); }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+            <button onClick={handleOpenCreateForm} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
               Crear tu primera solicitud
             </button>
           </div>
@@ -175,7 +200,7 @@ export default function RequestsPage() {
           <div className="space-y-4">
             <div className="flex justify-between items-center mb-2 flex-wrap gap-3">
               <p className="text-gray-400 text-sm">{filteredRequests.length} solicitud(es)</p>
-              <button onClick={() => { clearError(); setShowCreateForm(true); }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors">
+              <button onClick={handleOpenCreateForm} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors">
                 + Nueva Solicitud
               </button>
             </div>
@@ -344,7 +369,14 @@ export default function RequestsPage() {
         {showCreateForm && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
             <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-lg w-full shadow-2xl">
-              <h2 className="text-xl font-bold text-white mb-4">Nueva Solicitud de Servicio</h2>
+              <h2 className="text-xl font-bold text-white mb-2">Nueva Solicitud de Servicio</h2>
+              <p className="text-xs text-gray-400 mb-4">
+                {locatingUser
+                  ? '📍 Detectando tu ubicación...'
+                  : usedRealLocation
+                    ? '📍 Se usará tu ubicación actual para conectarte con mecánicos cercanos.'
+                    : '📍 No se pudo detectar tu ubicación exacta; se usará una ubicación aproximada.'}
+              </p>
               {error && (
                 <div className="mb-4 p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm">{error}</div>
               )}
@@ -384,9 +416,9 @@ export default function RequestsPage() {
                   <FieldError name="priority" />
                 </div>
                 <div className="flex gap-3 pt-1">
-                  <button type="submit" disabled={isLoading || vehicleId === 0}
+                  <button type="submit" disabled={isLoading || locatingUser || vehicleId === 0}
                     className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-medium rounded-lg transition-colors">
-                    {isLoading ? 'Creando...' : 'Crear Solicitud'}
+                    {locatingUser ? 'Detectando ubicación...' : isLoading ? 'Creando...' : 'Crear Solicitud'}
                   </button>
                   <button type="button" onClick={() => { clearError(); setShowCreateForm(false); }}
                     className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors">

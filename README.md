@@ -81,6 +81,9 @@ php scripts/maintenance/migrate.php reset
 # Limpieza de logs antiguos (retención por defecto: 30 días)
 php scripts/maintenance/cleanup_logs.php [dias]
 
+# Tests del backend (PHPUnit)
+composer test
+
 # Lint del frontend
 cd frontend && npm run lint
 

@@ -39,3 +39,6 @@ Thumbs.db
 cookies*.txt
 backup_*.sql
 test_*.json
+
+# PHPUnit
+/.phpunit.cache/

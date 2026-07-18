@@ -5,7 +5,6 @@ namespace App\Controllers\Auth;
 use App\Core\Controller;
 use App\Core\Request;
 use App\Core\Response;
-use App\Core\Database;
 use App\Core\DomainException;
 use App\Infrastructure\Auth\Services\AuthService;
 use App\Infrastructure\Auth\Services\SessionManager;
@@ -103,12 +102,7 @@ class AuthController extends Controller
             $requestedRole = $request->input('role') ?? 'customer';
 
             // Check if email already exists
-            $existingUser = Database::fetchOne(
-                'SELECT id FROM users WHERE email = ? AND deleted_at IS NULL',
-                [$email]
-            );
-
-            if ($existingUser !== null) {
+            if ($this->authService->emailExists($email)) {
                 RateLimiter::recordAttempt('register', $ipAddress);
                 return ResponseFormatter::conflict('Email already exists');
             }
@@ -116,78 +110,40 @@ class AuthController extends Controller
             // Hash password
             $passwordHash = $this->passwordHasher->hash($password);
 
-            // Start database transaction
-            Database::beginTransaction();
+            // Crear usuario, asignar rol y crear sesión (transacción única en AuthService)
+            $authResult = $this->authService->register(
+                $email,
+                $passwordHash,
+                $firstName,
+                $lastName,
+                $phone,
+                $requestedRole,
+                IPValidator::getClientIP($request),
+                $request->userAgent()
+            );
 
-            try {
-                // Insert user
-                $userId = Database::insert('users', [
-                    'email' => $email,
-                    'password_hash' => $passwordHash,
-                    'first_name' => $firstName,
-                    'last_name' => $lastName,
-                    'phone' => $phone,
-                    'account_status' => 'active',
-                    'created_at' => date('Y-m-d H:i:s'),
-                    'updated_at' => date('Y-m-d H:i:s')
-                ]);
+            // Contar el registro exitoso para el límite de tasa (evita creación masiva)
+            RateLimiter::recordAttempt('register', $ipAddress);
 
-                // Obtener el ID del rol solicitado ('customer' o 'mechanic')
-                $role = Database::fetchOne(
-                    'SELECT id FROM roles WHERE slug = ? AND is_active = TRUE',
-                    [$requestedRole]
-                );
+            // Prepare response data — mismo perfil completo que devuelve GET /api/auth/me
+            $responseData = [
+                'user' => $this->buildUserProfile($authResult->userId),
+                'session' => [
+                    'id' => $authResult->sessionId,
+                    'expiresAt' => time() + 7200 // 2 hours
+                ]
+            ];
 
-                if ($role === null) {
-                    throw new \Exception("Role '{$requestedRole}' not found");
-                }
+            // Set session cookie
+            $response = ResponseFormatter::success(
+                $responseData,
+                'Registration successful',
+                201
+            );
 
-                // Asignar el rol solicitado
-                Database::insert('user_roles', [
-                    'user_id' => $userId,
-                    'role_id' => $role['id'],
-                    'assigned_at' => date('Y-m-d H:i:s'),
-                    'is_active' => true
-                ]);
+            ResponseFormatter::setSessionCookie($response, $authResult->sessionId, false);
 
-                // Create session
-                $sessionId = $this->sessionManager->create($userId, [
-                    'ip_address' => IPValidator::getClientIP($request),
-                    'user_agent' => $request->userAgent(),
-                    'remember' => false
-                ]);
-
-                // Commit transaction
-                Database::commit();
-
-                // Contar el registro exitoso para el límite de tasa (evita creación masiva)
-                RateLimiter::recordAttempt('register', $ipAddress);
-
-                // Prepare response data — mismo perfil completo que devuelve GET /api/auth/me
-                $responseData = [
-                    'user' => $this->buildUserProfile($userId),
-                    'session' => [
-                        'id' => $sessionId,
-                        'expiresAt' => time() + 7200 // 2 hours
-                    ]
-                ];
-
-                // Set session cookie
-                $response = ResponseFormatter::success(
-                    $responseData,
-                    'Registration successful',
-                    201
-                );
-
-                ResponseFormatter::setSessionCookie($response, $sessionId, false);
-
-                return $response;
-
-            } catch (\Exception $e) {
-                // Rollback transaction on error
-                Database::rollback();
-                throw $e;
-            }
+            return $response;
 
         } catch (AuthenticationException $e) {
             return ErrorHandler::handleException($e);
@@ -396,16 +352,7 @@ class AuthController extends Controller
      */
     private function buildUserProfile(int $userId): ?array
     {
-        $userData = Database::fetchOne(
-            'SELECT id, email, first_name, last_name, phone, account_status,
-                    last_login_at, created_at,
-                    driver_license_number, driver_license_expiration_date,
-                    driver_license_document_url, driver_license_status,
-                    driver_license_uploaded_at
-             FROM users
-             WHERE id = ? AND deleted_at IS NULL',
-            [$userId]
-        );
+        $userData = $this->authService->getUserProfileData($userId);
 
         if ($userData === null) {
             return null;
@@ -526,7 +473,7 @@ class AuthController extends Controller
             $updates['updated_at'] = $now;
 
             // Aplicar actualización
-            Database::update('users', $updates, 'id = ?', [$userId]);
+            $this->authService->updateProfile($userId, $updates);
 
             // Retornar perfil actualizado
             return $this->me($request);
@@ -584,12 +531,7 @@ class AuthController extends Controller
             $currentPassword = $request->input('current_password');
             $newPassword     = $request->input('new_password');
 
-            $userRecord = Database::fetchOne(
-                'SELECT password_hash FROM users WHERE id = ? AND deleted_at IS NULL',
-                [$userId]
-            );
-
-            if ($userRecord === null || !$this->passwordHasher->verify($currentPassword, $userRecord['password_hash'])) {
+            if (!$this->authService->verifyCurrentPassword($userId, $currentPassword)) {
                 RateLimiter::recordAttempt('change-password', $ipAddress);
                 throw new DomainException('La contraseña actual es incorrecta', 400);
             }
@@ -597,11 +539,7 @@ class AuthController extends Controller
             RateLimiter::reset('change-password', $ipAddress);
 
             $newHash = $this->passwordHasher->hash($newPassword);
-
-            Database::update('users', [
-                'password_hash' => $newHash,
-                'updated_at'    => date('Y-m-d H:i:s'),
-            ], 'id = ?', [$userId]);
+            $this->authService->updatePassword($userId, $newHash);
 
             // Cerrar todas las sesiones existentes y emitir una nueva para este dispositivo
             $this->sessionManager->destroyAllUserSessions($userId);
@@ -642,9 +580,7 @@ class AuthController extends Controller
 
         try {
             // Test database connectivity
-            $result = Database::fetchOne('SELECT 1 as test');
-
-            if ($result === null || $result['test'] !== 1) {
+            if (!$this->authService->checkDatabaseHealth()) {
                 throw new \Exception('Database health check failed');
             }
 

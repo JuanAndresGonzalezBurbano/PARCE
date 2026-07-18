@@ -249,4 +249,175 @@ class AuthService
         // Requisito 20.3: Retornar verdadero si la sesión fue refrescada
         return $sessionData !== null;
     }
+
+    /**
+     * Verifica si ya existe un usuario activo con el correo indicado.
+     *
+     * @param string $email Correo electrónico a verificar
+     * @return bool Verdadero si ya existe un usuario no eliminado con ese correo
+     */
+    public function emailExists(string $email): bool
+    {
+        $existing = Database::fetchOne(
+            'SELECT id FROM users WHERE email = ? AND deleted_at IS NULL',
+            [$email]
+        );
+
+        return $existing !== null;
+    }
+
+    /**
+     * Registra un nuevo usuario: crea la fila en `users`, le asigna el rol
+     * solicitado, y crea su primera sesión — todo en una única transacción.
+     *
+     * @param string      $email         Correo electrónico (ya validado/único)
+     * @param string      $passwordHash  Hash de la contraseña (ya calculado)
+     * @param string      $firstName     Nombre
+     * @param string|null $lastName      Apellido
+     * @param string|null $phone         Teléfono
+     * @param string      $requestedRole Slug del rol solicitado ('customer' o 'mechanic')
+     * @param string      $ipAddress     IP del cliente, para la sesión creada
+     * @param string      $userAgent     User-Agent del cliente, para la sesión creada
+     * @return AuthResult Resultado con userId y sessionId del usuario recién creado
+     * @throws \Exception Si el rol solicitado no existe (revierte la transacción)
+     */
+    public function register(
+        string $email,
+        string $passwordHash,
+        string $firstName,
+        ?string $lastName,
+        ?string $phone,
+        string $requestedRole,
+        string $ipAddress,
+        string $userAgent
+    ): AuthResult {
+        Database::beginTransaction();
+
+        try {
+            $userId = Database::insert('users', [
+                'email' => $email,
+                'password_hash' => $passwordHash,
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'phone' => $phone,
+                'account_status' => 'active',
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s')
+            ]);
+
+            // Obtener el ID del rol solicitado ('customer' o 'mechanic')
+            $role = Database::fetchOne(
+                'SELECT id FROM roles WHERE slug = ? AND is_active = TRUE',
+                [$requestedRole]
+            );
+
+            if ($role === null) {
+                throw new \Exception("Role '{$requestedRole}' not found");
+            }
+
+            // Asignar el rol solicitado
+            Database::insert('user_roles', [
+                'user_id' => $userId,
+                'role_id' => $role['id'],
+                'assigned_at' => date('Y-m-d H:i:s'),
+                'is_active' => true
+            ]);
+
+            $sessionId = $this->sessionManager->create($userId, [
+                'ip_address' => $ipAddress,
+                'user_agent' => $userAgent,
+                'remember' => false
+            ]);
+
+            Database::commit();
+
+            return AuthResult::success($userId, $sessionId);
+
+        } catch (\Exception $e) {
+            Database::rollback();
+            throw $e;
+        }
+    }
+
+    /**
+     * Obtiene los datos crudos de perfil de un usuario (fila de `users`,
+     * incluidos los campos de licencia de conducción).
+     *
+     * @param int $userId ID del usuario
+     * @return array|null Fila de la tabla `users`, o null si no existe
+     */
+    public function getUserProfileData(int $userId): ?array
+    {
+        return Database::fetchOne(
+            'SELECT id, email, first_name, last_name, phone, account_status,
+                    last_login_at, created_at,
+                    driver_license_number, driver_license_expiration_date,
+                    driver_license_document_url, driver_license_status,
+                    driver_license_uploaded_at
+             FROM users
+             WHERE id = ? AND deleted_at IS NULL',
+            [$userId]
+        );
+    }
+
+    /**
+     * Aplica actualizaciones al perfil de un usuario (usado para los campos
+     * de licencia de conducción).
+     *
+     * @param int   $userId  ID del usuario
+     * @param array $updates Columnas a actualizar
+     * @return void
+     */
+    public function updateProfile(int $userId, array $updates): void
+    {
+        Database::update('users', $updates, 'id = ?', [$userId]);
+    }
+
+    /**
+     * Verifica la contraseña actual de un usuario.
+     *
+     * @param int    $userId       ID del usuario
+     * @param string $plainPassword Contraseña en texto plano a verificar
+     * @return bool Verdadero si el usuario existe y la contraseña coincide
+     */
+    public function verifyCurrentPassword(int $userId, string $plainPassword): bool
+    {
+        $userRecord = Database::fetchOne(
+            'SELECT password_hash FROM users WHERE id = ? AND deleted_at IS NULL',
+            [$userId]
+        );
+
+        if ($userRecord === null) {
+            return false;
+        }
+
+        return $this->passwordHasher->verify($plainPassword, $userRecord['password_hash']);
+    }
+
+    /**
+     * Actualiza el hash de contraseña de un usuario.
+     *
+     * @param int    $userId          ID del usuario
+     * @param string $newPasswordHash Nuevo hash de contraseña (ya calculado)
+     * @return void
+     */
+    public function updatePassword(int $userId, string $newPasswordHash): void
+    {
+        Database::update('users', [
+            'password_hash' => $newPasswordHash,
+            'updated_at'    => date('Y-m-d H:i:s'),
+        ], 'id = ?', [$userId]);
+    }
+
+    /**
+     * Verifica conectividad básica con la base de datos.
+     *
+     * @return bool Verdadero si la base de datos respondió correctamente
+     */
+    public function checkDatabaseHealth(): bool
+    {
+        $result = Database::fetchOne('SELECT 1 as test');
+
+        return $result !== null && $result['test'] === 1;
+    }
 }

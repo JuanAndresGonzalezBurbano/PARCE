@@ -15,6 +15,8 @@ export const API_ENDPOINTS = {
     // Actualización de perfil (teléfono + licencia de conducción)
     PROFILE: '/auth/profile',
     PASSWORD: '/auth/password',
+    FORGOT_PASSWORD: '/auth/forgot-password',
+    RESET_PASSWORD: '/auth/reset-password',
   },
   VEHICLES: {
     LIST: '/vehicles',

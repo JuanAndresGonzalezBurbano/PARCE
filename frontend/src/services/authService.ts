@@ -44,4 +44,20 @@ export const authService = {
   async changePassword(data: ChangePasswordRequest): Promise<ApiResponse<null>> {
     return apiClient.put<null>(API_ENDPOINTS.AUTH.PASSWORD, data);
   },
+
+  async forgotPassword(email: string): Promise<ApiResponse<null>> {
+    return apiClient.post<null>(API_ENDPOINTS.AUTH.FORGOT_PASSWORD, { email });
+  },
+
+  async resetPassword(
+    token: string,
+    newPassword: string,
+    newPasswordConfirmation: string
+  ): Promise<ApiResponse<null>> {
+    return apiClient.post<null>(API_ENDPOINTS.AUTH.RESET_PASSWORD, {
+      token,
+      new_password: newPassword,
+      new_password_confirmation: newPasswordConfirmation,
+    });
+  },
 };

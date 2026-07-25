@@ -93,16 +93,15 @@ transaccional tipo SES/SendGrid/Mailgun en `.env.example`). Requiere decisión
 del usuario sobre el proveedor/estrategia de envío de correo antes de
 construirse — mismo tipo de dependencia de infraestructura que el ítem 3.
 
-### 6. Expiración automática de solicitudes pendientes
-La columna `expired_at` existe en `service_requests` (visible en cada respuesta
-de la API) pero **ningún código la establece jamás** — ninguna solicitud
-pasa nunca a estado expirado, sin importar cuánto tiempo quede "pending" sin
-que un mecánico la acepte. El esquema anticipa un mecanismo de expiración que
-nunca se construyó. Implementarlo requiere una decisión de negocio que no está
-definida en ningún lugar del código: ¿cuánto tiempo antes de expirar (15 min,
-1 hora)?, ¿se reintenta notificar a otros mecánicos primero?, ¿quién procesa
-la expiración (cron job, chequeo perezoso al leer)? No construir sin definir
-esto con el usuario primero.
+### 6. ~~Expiración automática de solicitudes pendientes~~ — Resuelto 2026-07-25
+Decisión de negocio ya tomada: 30 minutos, procesada por cron job dedicado
+(no chequeo perezoso). Implementado en
+`scripts/maintenance/expire_pending_requests.php` — marca como `expired`
+toda solicitud `pending` con `requested_at` de más de N minutos, vía UPDATE
+condicional atómico (mismo patrón de `accept()`/`cancel()`/etc.). Documentado
+en `DEPLOYMENT.md` y `README.md`. No incluye reintento de notificación a
+otros mecánicos — si eso se necesita en el futuro, es una funcionalidad
+nueva, no parte de este alcance.
 
 ### 5. ~~Vista de evidencias para el cliente~~ — Resuelto 2026-07-10
 Implementado: `EvidenceUpload` ahora soporta `readOnly`, y `RequestsPage.tsx`

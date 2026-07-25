@@ -87,6 +87,17 @@ una tarea periódica:
 0 3 * * * php /ruta/a/parce/scripts/maintenance/cleanup_logs.php 30 >> /ruta/a/parce/storage/logs/cleanup.log 2>&1
 ```
 
+## 5.1. Expiración automática de solicitudes pendientes
+
+Una solicitud `pending` que nadie acepta nunca cambia de estado por sí sola —
+`service_requests.expired_at` existe en el esquema pero nada lo establece salvo
+que se programe esta tarea:
+
+```bash
+# Cada 5 minutos — marca como 'expired' las solicitudes pending con más de 30 min
+0,5,10,15,20,25,30,35,40,45,50,55 * * * * php /ruta/a/parce/scripts/maintenance/expire_pending_requests.php 30 >> /ruta/a/parce/storage/logs/expire_requests.log 2>&1
+```
+
 ## 6. Verificación post-despliegue
 
 ```bash

@@ -28,6 +28,7 @@ const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
   in_progress: { label: 'En progreso', cls: 'bg-purple-900/50 border-purple-700 text-purple-200' },
   completed:   { label: 'Completado',  cls: 'bg-green-900/50 border-green-700 text-green-200' },
   cancelled:   { label: 'Cancelado',   cls: 'bg-red-900/50 border-red-700 text-red-200' },
+  expired:     { label: 'Expirada',    cls: 'bg-gray-700/60 border-gray-600 text-gray-300' },
 };
 
 const inputCls = 'w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500';
@@ -277,7 +278,7 @@ export default function RequestsPage() {
 
             {/* Filtro de estado */}
             <div className="flex flex-wrap gap-2 mb-2">
-              {(['all', 'pending', 'assigned', 'in_progress', 'completed', 'cancelled'] as const).map((status) => (
+              {(['all', 'pending', 'assigned', 'in_progress', 'completed', 'cancelled', 'expired'] as const).map((status) => (
                 <button
                   key={status}
                   onClick={() => setStatusFilter(status)}

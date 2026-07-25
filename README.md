@@ -81,6 +81,9 @@ php scripts/maintenance/migrate.php reset
 # Limpieza de logs antiguos (retención por defecto: 30 días)
 php scripts/maintenance/cleanup_logs.php [dias]
 
+# Expirar solicitudes pending sin atender (por defecto: 30 minutos)
+php scripts/maintenance/expire_pending_requests.php [minutos]
+
 # Tests del backend (PHPUnit)
 composer test
 

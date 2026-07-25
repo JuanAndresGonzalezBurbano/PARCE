@@ -10,6 +10,8 @@ use App\Infrastructure\Auth\Services\AuthService;
 use App\Infrastructure\Auth\Services\SessionManager;
 use App\Infrastructure\Auth\Services\PasswordHasher;
 use App\Infrastructure\Auth\Services\RoleValidator;
+use App\Infrastructure\Auth\Services\PasswordResetService;
+use App\Infrastructure\Mail\MailerService;
 use App\Infrastructure\Http\RequestValidator;
 use App\Infrastructure\Http\ResponseFormatter;
 use App\Infrastructure\Http\RateLimiter;
@@ -31,6 +33,7 @@ class AuthController extends Controller
     private SessionManager $sessionManager;
     private PasswordHasher $passwordHasher;
     private RoleValidator $roleValidator;
+    private PasswordResetService $passwordResetService;
 
     public function __construct()
     {
@@ -38,6 +41,12 @@ class AuthController extends Controller
         $this->sessionManager = new SessionManager();
         $this->authService = new AuthService($this->passwordHasher, $this->sessionManager);
         $this->roleValidator = new RoleValidator();
+        $this->passwordResetService = new PasswordResetService(
+            $this->passwordHasher,
+            $this->authService,
+            $this->sessionManager,
+            new MailerService()
+        );
     }
 
     /**
@@ -558,6 +567,113 @@ class AuthController extends Controller
             ResponseFormatter::setSessionCookie($response, $sessionId, false);
 
             return $response;
+
+        } catch (\Exception $e) {
+            return ErrorHandler::handleException($e);
+        }
+    }
+
+    /**
+     * Solicita un enlace de recuperación de contraseña por correo
+     *
+     * POST /api/auth/forgot-password
+     *
+     * Siempre responde con el mismo mensaje genérico exista o no la cuenta
+     * (mismo criterio anti-enumeración que login) — solo el correo real,
+     * si la cuenta existe, contiene información que la distingue.
+     *
+     * @param Request $request HTTP request
+     * @return Response HTTP response
+     */
+    public function forgotPassword(Request $request): Response
+    {
+        try {
+            $ipAddress = IPValidator::getClientIP($request);
+
+            $rateLimitCheck = RateLimiter::check('forgot-password', $ipAddress);
+            if (!$rateLimitCheck['allowed']) {
+                $retryAfter = $rateLimitCheck['reset_at'] - time();
+                return ResponseFormatter::rateLimitExceeded($retryAfter);
+            }
+            RateLimiter::recordAttempt('forgot-password', $ipAddress);
+
+            $jsonValidation = RequestValidator::parseJsonBody($request);
+            if (!$jsonValidation['valid']) {
+                return ResponseFormatter::error(
+                    $jsonValidation['error'],
+                    null,
+                    $jsonValidation['statusCode']
+                );
+            }
+
+            $validation = RequestValidator::validateForgotPasswordRequest($request);
+            if (!$validation['valid']) {
+                return ResponseFormatter::validationError($validation['errors']);
+            }
+
+            $this->passwordResetService->requestReset($request->input('email'), $ipAddress);
+
+            return ResponseFormatter::success(
+                null,
+                'Si el correo corresponde a una cuenta registrada, recibirás un enlace de recuperación en unos minutos.',
+                200
+            );
+
+        } catch (\Exception $e) {
+            return ErrorHandler::handleException($e);
+        }
+    }
+
+    /**
+     * Restablece la contraseña usando un token de recuperación válido
+     *
+     * POST /api/auth/reset-password
+     *
+     * @param Request $request HTTP request
+     * @return Response HTTP response
+     */
+    public function resetPassword(Request $request): Response
+    {
+        try {
+            $ipAddress = IPValidator::getClientIP($request);
+
+            $rateLimitCheck = RateLimiter::check('reset-password', $ipAddress);
+            if (!$rateLimitCheck['allowed']) {
+                $retryAfter = $rateLimitCheck['reset_at'] - time();
+                return ResponseFormatter::rateLimitExceeded($retryAfter);
+            }
+
+            $jsonValidation = RequestValidator::parseJsonBody($request);
+            if (!$jsonValidation['valid']) {
+                return ResponseFormatter::error(
+                    $jsonValidation['error'],
+                    null,
+                    $jsonValidation['statusCode']
+                );
+            }
+
+            $validation = RequestValidator::validateResetPasswordRequest($request);
+            if (!$validation['valid']) {
+                return ResponseFormatter::validationError($validation['errors']);
+            }
+
+            try {
+                $this->passwordResetService->resetPassword(
+                    $request->input('token'),
+                    $request->input('new_password')
+                );
+            } catch (DomainException $e) {
+                RateLimiter::recordAttempt('reset-password', $ipAddress);
+                throw $e;
+            }
+
+            RateLimiter::reset('reset-password', $ipAddress);
+
+            return ResponseFormatter::success(
+                null,
+                'Tu contraseña fue restablecida correctamente. Ya puedes iniciar sesión con tu nueva contraseña.',
+                200
+            );
 
         } catch (\Exception $e) {
             return ErrorHandler::handleException($e);

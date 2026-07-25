@@ -386,4 +386,70 @@ class RequestValidator
 
         return ['valid' => true];
     }
+
+    /**
+     * Valida la solicitud de "olvidé mi contraseña" (solo requiere un email
+     * con formato válido — no se revela si la cuenta existe o no).
+     *
+     * @param Request $request
+     * @return array
+     */
+    public static function validateForgotPasswordRequest(Request $request): array
+    {
+        $email = $request->input('email');
+
+        if (empty($email) || !self::isValidEmail($email)) {
+            return [
+                'valid' => false,
+                'errors' => ['email' => ['A valid email is required']]
+            ];
+        }
+
+        return ['valid' => true];
+    }
+
+    /**
+     * Valida la solicitud de restablecimiento de contraseña con token.
+     *
+     * @param Request $request
+     * @return array
+     */
+    public static function validateResetPasswordRequest(Request $request): array
+    {
+        $errors = [];
+
+        $missing = self::validateRequiredFields($request, [
+            'token',
+            'new_password',
+            'new_password_confirmation'
+        ]);
+
+        if (!empty($missing)) {
+            return [
+                'valid' => false,
+                'errors' => [
+                    'error' => 'Missing required fields',
+                    'fields' => $missing
+                ]
+            ];
+        }
+
+        $newPassword = $request->input('new_password');
+        if (!self::isValidPassword($newPassword)) {
+            $errors['new_password'] = ['Password must be between 8 and 128 characters'];
+        }
+
+        if ($newPassword !== $request->input('new_password_confirmation')) {
+            $errors['new_password_confirmation'] = ['Password confirmation does not match'];
+        }
+
+        if (!empty($errors)) {
+            return [
+                'valid' => false,
+                'errors' => $errors
+            ];
+        }
+
+        return ['valid' => true];
+    }
 }

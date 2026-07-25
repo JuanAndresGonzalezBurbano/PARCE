@@ -66,6 +66,12 @@ $router->post('/api/auth/register', [\App\Controllers\Auth\AuthController::class
 $router->post('/api/auth/login', [\App\Controllers\Auth\AuthController::class, 'login'])
     ->name('api.auth.login');
 
+$router->post('/api/auth/forgot-password', [\App\Controllers\Auth\AuthController::class, 'forgotPassword'])
+    ->name('api.auth.forgotPassword');
+
+$router->post('/api/auth/reset-password', [\App\Controllers\Auth\AuthController::class, 'resetPassword'])
+    ->name('api.auth.resetPassword');
+
 // Protected authentication routes (require AuthMiddleware)
 $router->post('/api/auth/logout', [\App\Controllers\Auth\AuthController::class, 'logout'])
     ->middleware([\App\Middleware\AuthMiddleware::class])

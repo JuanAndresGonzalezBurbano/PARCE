@@ -87,6 +87,12 @@ export default function Navbar() {
                   >
                     Solicitudes
                   </Link>
+                  <Link
+                    to="/pqr"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
+                  >
+                    Mis PQR
+                  </Link>
                 </>
               )}
 

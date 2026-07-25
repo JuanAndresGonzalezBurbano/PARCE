@@ -1,5 +1,6 @@
 import { createContext, useState, ReactNode } from 'react';
 import { serviceRequestService } from '@/services/serviceRequestService';
+import { surveyService } from '@/services/surveyService';
 import type {
   ServiceRequest,
   CreateServiceRequestRequest,
@@ -26,6 +27,10 @@ interface RequestContextType {
   completeRequest: (id: number, finalCost: number) => Promise<boolean>;
   selectRequest: (request: ServiceRequest | null) => void;
   clearError: () => void;
+  /** IDs de service_request que ya tienen una encuesta enviada por el cliente actual. */
+  surveyedRequestIds: Set<number>;
+  loadMySurveys: () => Promise<void>;
+  submitSurvey: (serviceRequestId: number, overallSatisfaction: number, wouldRecommend: boolean, comments?: string) => Promise<boolean>;
 }
 
 export const RequestContext = createContext<RequestContextType | undefined>(undefined);
@@ -40,6 +45,7 @@ export function RequestProvider({ children }: RequestProviderProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string> | null>(null);
+  const [surveyedRequestIds, setSurveyedRequestIds] = useState<Set<number>>(new Set());
 
   async function loadRequests(status?: string) {
     setIsLoading(true);
@@ -283,6 +289,50 @@ export function RequestProvider({ children }: RequestProviderProps) {
     }
   }
 
+  async function loadMySurveys() {
+    try {
+      const response = await surveyService.listMine();
+      if (response.success) {
+        setSurveyedRequestIds(new Set(response.data.surveys.map((s) => s.serviceRequestId)));
+      }
+    } catch {
+      // Silencioso: si falla, simplemente se seguirá ofreciendo la encuesta (no bloquea el flujo)
+    }
+  }
+
+  async function submitSurvey(
+    serviceRequestId: number,
+    overallSatisfaction: number,
+    wouldRecommend: boolean,
+    comments?: string
+  ): Promise<boolean> {
+    setIsLoading(true);
+    setError(null);
+    setFieldErrors(null);
+    try {
+      const response = await surveyService.create({
+        service_request_id: serviceRequestId,
+        overall_satisfaction: overallSatisfaction,
+        would_recommend: wouldRecommend,
+        comments,
+      });
+      if (response.success) {
+        setSurveyedRequestIds((prev) => new Set(prev).add(serviceRequestId));
+        setIsLoading(false);
+        return true;
+      } else {
+        setError(response.error);
+        setFieldErrors(response.fields ?? null);
+        setIsLoading(false);
+        return false;
+      }
+    } catch {
+      setError('Error al enviar la encuesta');
+      setIsLoading(false);
+      return false;
+    }
+  }
+
   function selectRequest(request: ServiceRequest | null) {
     setCurrentRequest(request);
   }
@@ -312,6 +362,9 @@ export function RequestProvider({ children }: RequestProviderProps) {
     completeRequest,
     selectRequest,
     clearError,
+    surveyedRequestIds,
+    loadMySurveys,
+    submitSurvey,
   };
 
   return <RequestContext.Provider value={value}>{children}</RequestContext.Provider>;

@@ -54,4 +54,13 @@ export const API_ENDPOINTS = {
     PQR_RESPOND: (id: number) => `/admin/pqr/${id}/respond`,
     SURVEYS: '/admin/surveys',
   },
+  PQR: {
+    LIST: '/pqr',
+    CREATE: '/pqr',
+    GET: (id: number) => `/pqr/${id}`,
+  },
+  SURVEYS: {
+    LIST: '/surveys',
+    CREATE: '/surveys',
+  },
 } as const;

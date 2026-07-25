@@ -39,7 +39,11 @@ function toCamelCase(snakeKey: string): string {
 }
 
 export default function RequestsPage() {
-  const { requests, isLoading, error, fieldErrors, loadRequests, refreshRequestsSilently, createRequest, cancelRequest, rateRequest, clearError } = useRequests();
+  const {
+    requests, isLoading, error, fieldErrors, loadRequests, refreshRequestsSilently,
+    createRequest, cancelRequest, rateRequest, clearError,
+    surveyedRequestIds, loadMySurveys, submitSurvey,
+  } = useRequests();
   const { vehicles, loadVehicles } = useVehicles();
 
   function fieldErrorFor(snakeKey: string): string | undefined {
@@ -56,6 +60,7 @@ export default function RequestsPage() {
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [showRateForm, setShowRateForm] = useState<number | null>(null);
+  const [showSurveyForm, setShowSurveyForm] = useState<number | null>(null);
 
   // Form crear
   const [vehicleId, setVehicleId] = useState<number>(0);
@@ -73,6 +78,11 @@ export default function RequestsPage() {
   const [serviceQualityRating, setServiceQualityRating] = useState(5);
   const [feedback, setFeedback] = useState('');
 
+  // Form encuesta de satisfacción
+  const [overallSatisfaction, setOverallSatisfaction] = useState(5);
+  const [wouldRecommend, setWouldRecommend] = useState(true);
+  const [surveyComments, setSurveyComments] = useState('');
+
   // Evidencias fotográficas (solo lectura para el cliente)
   const [showEvidencesFor, setShowEvidencesFor] = useState<number | null>(null);
   const [evidencesByRequest, setEvidencesByRequest] = useState<Record<number, ServiceRequestEvidence[]>>({});
@@ -87,7 +97,7 @@ export default function RequestsPage() {
   const [statusChangeBanner, setStatusChangeBanner] = useState<string | null>(null);
   const knownStatusesRef = useRef<Map<number, string> | null>(null);
 
-  useEffect(() => { loadRequests(); loadVehicles(); }, []);
+  useEffect(() => { loadRequests(); loadVehicles(); loadMySurveys(); }, []);
 
   // Sondeo periódico en segundo plano: detecta cambios de estado (ej. mecánico asignado)
   // sin que el cliente tenga que recargar manualmente la página.
@@ -194,6 +204,15 @@ export default function RequestsPage() {
     if (success) {
       setShowRateForm(null);
       setCustomerRating(5); setPunctualityRating(5); setServiceQualityRating(5); setFeedback('');
+    }
+  }
+
+  async function handleSubmitSurvey(e: React.FormEvent, id: number) {
+    e.preventDefault();
+    const success = await submitSurvey(id, overallSatisfaction, wouldRecommend, surveyComments || undefined);
+    if (success) {
+      setShowSurveyForm(null);
+      setOverallSatisfaction(5); setWouldRecommend(true); setSurveyComments('');
     }
   }
 
@@ -311,6 +330,9 @@ export default function RequestsPage() {
                           Tu calificación: {'★'.repeat(request.customerRating)}{'☆'.repeat(5 - request.customerRating)}
                         </p>
                       )}
+                      {surveyedRequestIds.has(request.id) && (
+                        <p className="text-teal-400 text-xs mt-1">✓ Encuesta de satisfacción enviada</p>
+                      )}
 
                       {['assigned', 'in_progress', 'completed'].includes(request.status) && request.mechanicFirstName && (
                         <div className="mt-3 p-3 bg-blue-900/20 border border-blue-800/50 rounded-lg">
@@ -345,6 +367,14 @@ export default function RequestsPage() {
                           className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white text-sm rounded-lg transition-colors"
                         >
                           Calificar
+                        </button>
+                      )}
+                      {request.status === 'completed' && !surveyedRequestIds.has(request.id) && (
+                        <button
+                          onClick={() => { clearError(); setShowSurveyForm(request.id); }}
+                          className="px-3 py-1.5 bg-teal-700 hover:bg-teal-600 text-white text-sm rounded-lg transition-colors"
+                        >
+                          Encuesta
                         </button>
                       )}
                       {['assigned', 'in_progress', 'completed'].includes(request.status) && (
@@ -405,6 +435,59 @@ export default function RequestsPage() {
                           {isLoading ? 'Enviando...' : 'Enviar calificación'}
                         </button>
                         <button type="button" onClick={() => { clearError(); setShowRateForm(null); }} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg transition-colors">
+                          Cancelar
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* Formulario de encuesta de satisfacción */}
+                  {showSurveyForm === request.id && (
+                    <form onSubmit={(e) => handleSubmitSurvey(e, request.id)} className="mt-4 p-4 bg-gray-700/60 border border-gray-600 rounded-lg">
+                      <h4 className="text-white font-semibold mb-4">Encuesta de satisfacción</h4>
+                      {error && (
+                        <div className="mb-3 p-2.5 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-xs">{error}</div>
+                      )}
+                      <div className="space-y-3 mb-4">
+                        <RatingInput label="Satisfacción general (1-5)" value={overallSatisfaction} onChange={setOverallSatisfaction} />
+                        <FieldError name="overall_satisfaction" />
+                        <div>
+                          <label className="block text-xs font-medium text-gray-400 mb-1">¿Recomendarías P.A.R.C.E a otra persona?</label>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setWouldRecommend(true)}
+                              className={`flex-1 py-1.5 rounded-lg text-sm border transition-colors ${wouldRecommend ? 'bg-teal-700 border-teal-600 text-white' : 'bg-gray-800 border-gray-600 text-gray-400'}`}
+                            >
+                              Sí
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setWouldRecommend(false)}
+                              className={`flex-1 py-1.5 rounded-lg text-sm border transition-colors ${!wouldRecommend ? 'bg-red-900/60 border-red-700 text-white' : 'bg-gray-800 border-gray-600 text-gray-400'}`}
+                            >
+                              No
+                            </button>
+                          </div>
+                          <FieldError name="would_recommend" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-400 mb-1">Comentarios (opcional)</label>
+                          <textarea
+                            value={surveyComments}
+                            onChange={(e) => setSurveyComments(e.target.value)}
+                            className={(fieldErrorFor('comments') ? inputErrorCls : inputCls) + ' resize-none'}
+                            rows={2}
+                            placeholder="Cuéntanos más sobre tu experiencia..."
+                          />
+                          <FieldError name="comments" />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button type="submit" disabled={isLoading} className="flex-1 py-2 bg-teal-700 hover:bg-teal-600 disabled:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors">
+                          {isLoading ? 'Enviando...' : 'Enviar encuesta'}
+                        </button>
+                        <button type="button" onClick={() => { clearError(); setShowSurveyForm(null); }} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg transition-colors">
                           Cancelar
                         </button>
                       </div>

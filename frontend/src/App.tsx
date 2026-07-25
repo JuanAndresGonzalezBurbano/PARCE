@@ -3,6 +3,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { VehicleProvider } from './contexts/VehicleContext';
 import { RequestProvider } from './contexts/RequestContext';
 import { AdminProvider } from './contexts/AdminContext';
+import { PQRProvider } from './contexts/PQRContext';
 import AuthLayout from './layouts/AuthLayout';
 import MainLayout from './layouts/MainLayout';
 import LoginPage from './pages/LoginPage';
@@ -11,6 +12,7 @@ import CustomerDashboard from './pages/CustomerDashboard';
 import MechanicDashboard from './pages/MechanicDashboard';
 import VehiclesPage from './pages/customer/VehiclesPage';
 import RequestsPage from './pages/customer/RequestsPage';
+import PQRPage from './pages/customer/PQRPage';
 import AvailableRequestsPage from './pages/mechanic/AvailableRequestsPage';
 import MyRequestsPage from './pages/mechanic/MyRequestsPage';
 import RequestDetailsPage from './pages/mechanic/RequestDetailsPage';
@@ -29,6 +31,7 @@ function App() {
         <VehicleProvider>
           <RequestProvider>
             <AdminProvider>
+              <PQRProvider>
               <Routes>
                 {/* Auth routes */}
                 <Route element={<AuthLayout />}>
@@ -60,6 +63,14 @@ function App() {
                     element={
                       <ProtectedRoute requireRole="customer">
                         <RequestsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/pqr"
+                    element={
+                      <ProtectedRoute requireRole="customer">
+                        <PQRPage />
                       </ProtectedRoute>
                     }
                   />
@@ -141,6 +152,7 @@ function App() {
                 {/* 404 */}
                 <Route path="*" element={<NotFoundPage />} />
               </Routes>
+              </PQRProvider>
             </AdminProvider>
           </RequestProvider>
         </VehicleProvider>

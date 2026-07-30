@@ -5,10 +5,9 @@ import { MapPin, Clock, User, Star, MessageSquare, Navigation, Car, AlertTriangl
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import ProfileModal from '../components/ProfileModal';
+import LiveTrackingMap from '../components/LiveTrackingMap';
 import { useAuth } from '../../controllers/AuthContext';
 import { useService } from '../../controllers/ServiceContext';
-
-// coordenadas reservadas para integración futura con Google Maps
 
 /* ── HOOK PROGRESO — 15 segundos de simulación ── */
 function useServiceProgress() {
@@ -25,67 +24,6 @@ function useServiceProgress() {
     remainingSeconds: Math.max(totalSeconds - elapsed, 0),
     arrived: elapsed >= totalSeconds,
   };
-}
-
-/* ── MAPA VISUAL ANIMADO (sin API key) ── */
-function MapComponent({ progress, arrived, distanceKm, remainingSeconds }:
-  { progress: number; arrived: boolean; distanceKm: number; remainingSeconds: number }) {
-  const mx = 80 + (320 - 80) * (progress / 100);
-  const my = 80 + (220 - 80) * (progress / 100);
-  return (
-    <div className="relative w-full h-full bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 rounded-xl overflow-hidden">
-      {/* Grid calles */}
-      <svg className="absolute inset-0 w-full h-full opacity-20" viewBox="0 0 400 300" preserveAspectRatio="none">
-        {[40,80,120,160,200,240].map(y=><line key={y} x1="0" y1={y} x2="400" y2={y} stroke="#4a5568" strokeWidth="1"/>)}
-        {[50,100,150,200,250,300,350].map(x=><line key={x} x1={x} y1="0" x2={x} y2="300" stroke="#4a5568" strokeWidth="1"/>)}
-        <line x1="0" y1="150" x2="400" y2="150" stroke="#6b7280" strokeWidth="2.5"/>
-        <line x1="200" y1="0" x2="200" y2="300" stroke="#6b7280" strokeWidth="2.5"/>
-      </svg>
-      {/* Ruta y marcadores */}
-      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 300" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="routeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#d97706" stopOpacity="0.9"/>
-            <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.9"/>
-          </linearGradient>
-        </defs>
-        {/* Línea de ruta */}
-        <line x1="80" y1="80" x2="320" y2="220" stroke="url(#routeGrad)" strokeWidth="3" strokeDasharray="8,4"/>
-        {/* Mecánico (se mueve) */}
-        <circle cx={mx} cy={my} r="9" fill="#d97706" stroke="white" strokeWidth="2.5"/>
-        <text x={mx} y={my+1} textAnchor="middle" dominantBaseline="middle" fontSize="9" fill="white">🚗</text>
-        {/* Usuario */}
-        <circle cx="320" cy="220" r="11" fill="#0ea5e9" stroke="white" strokeWidth="2.5"/>
-        <circle cx="320" cy="220" r="20" fill="#0ea5e9" fillOpacity="0.2"/>
-        <text x="320" y="221" textAnchor="middle" dominantBaseline="middle" fontSize="9" fill="white">📍</text>
-      </svg>
-      {/* Labels */}
-      <div className="absolute top-3 left-3 bg-gold-600/90 backdrop-blur-sm rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
-        <Car className="w-3.5 h-3.5 text-white"/><span className="text-white text-xs font-bold">Mecánico</span>
-      </div>
-      <div className="absolute top-3 right-3 bg-primary-600/90 backdrop-blur-sm rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
-        <MapPin className="w-3.5 h-3.5 text-white"/><span className="text-white text-xs font-bold">Tu ubicación</span>
-      </div>
-      {/* Info overlay */}
-      <div className="absolute bottom-3 left-3 bg-dark-900/90 backdrop-blur-sm rounded-xl p-3 border border-anthracite-700">
-        <div className="flex items-center gap-2">
-          <Navigation className="w-4 h-4 text-gold-400"/>
-          <div>
-            <p className="text-white text-sm font-bold">{distanceKm} km</p>
-            <p className="text-gray-400 text-xs">{arrived ? '¡Llegó!' : `~${remainingSeconds}s restantes`}</p>
-          </div>
-        </div>
-      </div>
-      {arrived && (
-        <div className="absolute inset-0 flex items-center justify-center bg-dark-950/70 backdrop-blur-sm rounded-xl">
-          <div className="text-center">
-            <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-2"/>
-            <p className="text-white font-bold text-lg">¡Mecánico llegó!</p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
 }
 
 /* ── MODAL CANCELAR ── */
@@ -122,6 +60,12 @@ export default function ServiceInProgressPage() {
   const navigate = useNavigate();
 
   const DISTANCE_KM = 3.2;
+  
+  // Coordenadas de ejemplo (Bogotá)
+  const MECHANIC_START_LAT = 4.6756;  // Chapinero
+  const MECHANIC_START_LNG = -74.0513;
+  const USER_LAT = 4.7110;  // Zona norte
+  const USER_LNG = -74.0721;
 
   const { progress, remainingSeconds, arrived } = useServiceProgress();
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -223,7 +167,16 @@ export default function ServiceInProgressPage() {
                 </div>
               </div>
               <div className="flex-1 min-h-[320px]">
-                <MapComponent progress={progress} arrived={arrived} distanceKm={DISTANCE_KM} remainingSeconds={remainingSeconds}/>
+                <LiveTrackingMap
+                  mechanicStartLat={MECHANIC_START_LAT}
+                  mechanicStartLng={MECHANIC_START_LNG}
+                  userLat={USER_LAT}
+                  userLng={USER_LNG}
+                  progress={progress}
+                  arrived={arrived}
+                  distanceKm={DISTANCE_KM}
+                  remainingSeconds={remainingSeconds}
+                />
               </div>
               <div className="flex items-center justify-center gap-6 mt-4 text-xs text-gray-400">
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-purple-500"/><span>Mecánico</span></div>

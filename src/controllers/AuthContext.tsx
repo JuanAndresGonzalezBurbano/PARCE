@@ -1,87 +1,152 @@
-// Importa las funciones necesarias de React para crear contextos y manejar estado
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { authService, mapApiRoleToAppRole, getFullName, ApiUser } from '../services/authService';
 
-// Define los roles posibles en la plataforma
+// ── Tipos ─────────────────────────────────────────────────────────────────────
+
 export type UserRole = 'user' | 'mechanic' | 'admin';
 
-// Define la estructura de un usuario autenticado
 interface User {
-  name: string;       // Nombre del usuario
-  email: string;      // Correo electrónico
-  role: UserRole;     // Rol actual del usuario
-  avatar?: string;    // URL del avatar (opcional)
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  avatar?: string;
 }
 
-// Define las funciones y datos que expone el contexto de autenticación
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string, role?: UserRole, name?: string) => void;
-  logout: () => void;
-  selectRole: (role: UserRole) => void;
   isAuthenticated: boolean;
+  isLoading: boolean;            // true mientras verifica sesión al arrancar
+  error: string | null;
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
+  selectRole: (role: UserRole) => void;
+  clearError: () => void;
+  // Mantiene compatibilidad con LoginPage anterior (acepta rol/nombre mock)
+  loginMock: (email: string, password: string, role?: UserRole, name?: string) => void;
 }
 
-// Crea el contexto con valor inicial undefined
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// ── Context ───────────────────────────────────────────────────────────────────
 
-// RAMA: Soto - Clave usada para guardar y recuperar la sesión en localStorage
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const STORAGE_KEY = 'parce_user';
 
-// Función que intenta recuperar el usuario guardado en localStorage al recargar la página
 function getSavedUser(): User | null {
   try {
-    // Lee el valor guardado en localStorage con la clave definida
     const saved = localStorage.getItem(STORAGE_KEY);
-    // Si existe, lo convierte de JSON a objeto. Si no, retorna null
     return saved ? JSON.parse(saved) : null;
   } catch {
-    // Si hay error (ej: JSON inválido), retorna null sin romper la app
     return null;
   }
 }
 
-// Proveedor del contexto — envuelve la app y da acceso a la autenticación
-export function AuthProvider({ children }: { children: ReactNode }) {
-  // RAMA: Soto - Inicializa el estado con el usuario guardado para persistir sesión al recargar
-  const [user, setUser] = useState<User | null>(getSavedUser());
+function apiUserToAppUser(apiUser: ApiUser): User {
+  return {
+    id: apiUser.id,
+    name: getFullName(apiUser),
+    email: apiUser.email,
+    role: mapApiRoleToAppRole(apiUser.roles),
+    avatar: apiUser.profile_picture_url ?? undefined,
+  };
+}
 
-  // Función de login: acepta rol y nombre opcionales para accesos directos por rol
-  const login = (email: string, _password: string, role?: UserRole, name?: string) => {
-    const newUser: User = {
-      name: name || 'Juan Gustavo',
-      email: email,
+// ── Provider ──────────────────────────────────────────────────────────────────
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(getSavedUser());
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Al montar: verificar si la cookie de sesión PHP sigue activa
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await authService.me();
+        if (res.success && res.data) {
+          const appUser = apiUserToAppUser(res.data);
+          setUser(appUser);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(appUser));
+        } else {
+          // Sesión expirada o inválida — limpiar local
+          setUser(null);
+          localStorage.removeItem(STORAGE_KEY);
+        }
+      } catch {
+        // Si el backend no está disponible, conservar sesión local
+        // para no desloguear al usuario en modo offline
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, []);
+
+  // ── Login real via API PHP ─────────────────────────────────────────────────
+  const login = async (email: string, password: string): Promise<boolean> => {
+    setError(null);
+    try {
+      const res = await authService.login({ email, password });
+      if (res.success && res.data?.user) {
+        const appUser = apiUserToAppUser(res.data.user);
+        setUser(appUser);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appUser));
+        return true;
+      } else {
+        setError(res.error || res.message || 'Credenciales incorrectas');
+        return false;
+      }
+    } catch {
+      setError('Error de conexión con el servidor');
+      return false;
+    }
+  };
+
+  // ── Logout real via API PHP ────────────────────────────────────────────────
+  const logout = async () => {
+    try {
+      await authService.logout();
+    } catch {
+      // Si falla el logout en el servidor, limpiar igual en el cliente
+    } finally {
+      setUser(null);
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  };
+
+  // ── Mantiene compatibilidad: login mock para accesos de prueba locales ─────
+  const loginMock = (email: string, _password: string, role?: UserRole, name?: string) => {
+    const mockUser: User = {
+      id: 0,
+      name: name || 'Usuario',
+      email,
       role: role || 'user',
     };
-    setUser(newUser);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser));
+    setUser(mockUser);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(mockUser));
   };
 
-  // Función de logout: limpia el usuario del estado y del localStorage
-  const logout = () => {
-    setUser(null); // Elimina el usuario del estado de React
-    // RAMA: Soto - Al cerrar sesión también limpia el localStorage para no persistir más
-    localStorage.removeItem(STORAGE_KEY);
-  };
-
-  // Función para asignar el rol elegido en RoleSelectionPage al usuario actual
+  // ── Cambiar rol sin re-autenticar (RoleSelectionPage) ─────────────────────
   const selectRole = (role: UserRole) => {
     if (user) {
-      const updated = { ...user, role }; // Crea una copia del usuario con el nuevo rol
-      setUser(updated); // Actualiza el estado de React
-      // RAMA: Soto - Actualiza también el localStorage para que el rol persista al recargar
+      const updated = { ...user, role };
+      setUser(updated);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     }
   };
 
+  const clearError = () => setError(null);
+
   return (
-    // Provee el contexto con todos los valores y funciones a los componentes hijos
     <AuthContext.Provider
       value={{
         user,
+        isAuthenticated: !!user,
+        isLoading,
+        error,
         login,
         logout,
         selectRole,
-        isAuthenticated: !!user, // Convierte el usuario a boolean: true si existe, false si es null
+        clearError,
+        loginMock,
       }}
     >
       {children}
@@ -89,10 +154,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// Hook personalizado para usar el contexto de autenticación fácilmente en cualquier componente
+// ── Hook ──────────────────────────────────────────────────────────────────────
+
 export function useAuth() {
   const context = useContext(AuthContext);
-  // Si se usa fuera del AuthProvider, lanza un error para facilitar el debugging
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }

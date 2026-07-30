@@ -25,3 +25,24 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Backend PHP (separado en otro directorio)
+app/
+config/
+database/
+public/index.php
+public/router.php
+scripts/
+tests/
+composer.json
+composer.phar
+composer.lock
+phpunit.xml
+migrate_run.php
+vendor/
+
+# Documentación temporal
+CREDENCIALES.md
+DONDE_VER_DATOS.md
+RESUMEN_OPCION_C.md
+SETUP_LOCAL.md

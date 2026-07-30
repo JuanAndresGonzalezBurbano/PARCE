@@ -1,48 +1,92 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User, Camera, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../../controllers/AuthContext';
+import { authService, getFullName } from '../../services/authService';
 
 export default function ProfilePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  
   const [formData, setFormData] = useState({
-    name: 'Juan Burbano',
-    email: 'example@gmail.com',
+    name: '',
+    email: '',
+    phone: '',
+    idNumber: '',
     password: '',
-    role: 'Usuario/Mecanico',
+    role: '',
+    // Licencia
+    licenseNumber: '',
+    // Vehículo
+    vehicleBrand: '',
+    vehicleModel: '',
+    vehiclePlate: '',
+    vehicleYear: '',
+    vehicleColor: '',
+    soatNumber: '',
+    tecnomecanicaNumber: '',
   });
 
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Función que valida la contraseña
+  // Cargar datos del usuario desde el API al montar
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await authService.me();
+        if (res.success && res.data) {
+          setFormData({
+            name: getFullName(res.data),
+            email: res.data.email,
+            phone: res.data.phone || '',
+            idNumber: res.data.id_number || '',
+            password: '',
+            role: user?.role || 'user',
+            // Licencia
+            licenseNumber: res.data.driver_license?.number || '',
+            // Vehículo
+            vehicleBrand: res.data.vehicle?.make || '',
+            vehicleModel: res.data.vehicle?.model || '',
+            vehiclePlate: res.data.vehicle?.license_plate || '',
+            vehicleYear: res.data.vehicle?.year?.toString() || '',
+            vehicleColor: res.data.vehicle?.color || '',
+            soatNumber: res.data.vehicle?.soat_number || '',
+            tecnomecanicaNumber: res.data.vehicle?.tecnomecanica_number || '',
+          });
+          setProfileImage(res.data.profile_picture_url || null);
+        } else {
+          alert('Error al cargar el perfil');
+        }
+      } catch {
+        alert('Error de conexión al cargar el perfil');
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, [user]);
+
   const validatePassword = (pwd: string): boolean => {
     if (pwd.length === 0) {
       setPasswordError('');
-      return true; // Permitir campo vacío (no cambiar contraseña)
+      return true;
     }
-    
-    // Mínimo 8 caracteres
     if (pwd.length < 8) {
       setPasswordError('La contraseña debe tener mínimo 8 caracteres');
       return false;
     }
-    
-    // Debe tener al menos una mayúscula O un número
     const hasUpperCase = /[A-Z]/.test(pwd);
     const hasNumber = /[0-9]/.test(pwd);
-    
     if (!hasUpperCase && !hasNumber) {
       setPasswordError('La contraseña debe contener al menos una mayúscula o un número');
       return false;
     }
-    
     setPasswordError('');
     return true;
   };
@@ -65,17 +109,38 @@ export default function ProfilePage() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validar contraseña solo si no está vacía
     if (formData.password && !validatePassword(formData.password)) {
       return;
     }
     
-    // Show success message
-    alert('Perfil actualizado correctamente');
+    try {
+      // TODO: authService.updateProfile() cuando el backend lo tenga implementado
+      await authService.me(); // Por ahora solo verificar que la sesión sigue activa
+      
+      if (formData.password) {
+        // TODO: authService.changePassword() cuando el backend lo tenga
+      }
+      
+      alert('Perfil actualizado correctamente (mock)');
+      setFormData(prev => ({ ...prev, password: '' }));
+    } catch {
+      alert('Error al actualizar el perfil');
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-dark-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-gold-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">Cargando perfil...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-dark-950">
@@ -152,33 +217,185 @@ export default function ProfilePage() {
               {/* Name */}
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-300">
-                  Nombre
+                  Nombre Completo
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="input-field"
+                  disabled
                 />
               </div>
 
               {/* Email */}
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-300">
-                  Correo Electronico
+                  Correo Electrónico
                 </label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="input-field"
+                  disabled
                 />
+              </div>
+
+              {/* Phone */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-300">
+                  Teléfono
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="input-field"
+                  disabled
+                />
+              </div>
+
+              {/* ID Number */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-300">
+                  Cédula
+                </label>
+                <input
+                  type="text"
+                  value={formData.idNumber}
+                  onChange={(e) => setFormData({ ...formData, idNumber: e.target.value })}
+                  className="input-field"
+                  disabled
+                />
+              </div>
+
+              {/* License Number */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-300">
+                  Licencia de Conducción
+                </label>
+                <input
+                  type="text"
+                  value={formData.licenseNumber}
+                  onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
+                  className="input-field"
+                  disabled
+                />
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-anthracite-800 pt-4 mt-6">
+                <h3 className="text-lg font-semibold text-white mb-4">Datos del Vehículo</h3>
+              </div>
+
+              {/* Vehicle Brand */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-300">
+                  Marca del Vehículo
+                </label>
+                <input
+                  type="text"
+                  value={formData.vehicleBrand}
+                  onChange={(e) => setFormData({ ...formData, vehicleBrand: e.target.value })}
+                  className="input-field"
+                  disabled
+                />
+              </div>
+
+              {/* Vehicle Model */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-300">
+                  Modelo del Vehículo
+                </label>
+                <input
+                  type="text"
+                  value={formData.vehicleModel}
+                  onChange={(e) => setFormData({ ...formData, vehicleModel: e.target.value })}
+                  className="input-field"
+                  disabled
+                />
+              </div>
+
+              {/* Vehicle Plate */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-300">
+                  Placa del Vehículo
+                </label>
+                <input
+                  type="text"
+                  value={formData.vehiclePlate}
+                  onChange={(e) => setFormData({ ...formData, vehiclePlate: e.target.value })}
+                  className="input-field"
+                  disabled
+                />
+              </div>
+
+              {/* Vehicle Year & Color */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-300">
+                    Año
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.vehicleYear}
+                    onChange={(e) => setFormData({ ...formData, vehicleYear: e.target.value })}
+                    className="input-field"
+                    disabled
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-300">
+                    Color
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.vehicleColor}
+                    onChange={(e) => setFormData({ ...formData, vehicleColor: e.target.value })}
+                    className="input-field"
+                    disabled
+                  />
+                </div>
+              </div>
+
+              {/* SOAT Number */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-300">
+                  Número SOAT
+                </label>
+                <input
+                  type="text"
+                  value={formData.soatNumber}
+                  onChange={(e) => setFormData({ ...formData, soatNumber: e.target.value })}
+                  className="input-field"
+                  disabled
+                />
+              </div>
+
+              {/* Tecnomecánica Number */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-300">
+                  Número Tecnomecánica
+                </label>
+                <input
+                  type="text"
+                  value={formData.tecnomecanicaNumber}
+                  onChange={(e) => setFormData({ ...formData, tecnomecanicaNumber: e.target.value })}
+                  className="input-field"
+                  disabled
+                />
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-anthracite-800 pt-4 mt-6">
+                <h3 className="text-lg font-semibold text-white mb-4">Cambiar Contraseña</h3>
               </div>
 
               {/* Password */}
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-300">
-                  Contraseña
+                  Nueva Contraseña
                 </label>
                 <div className="relative">
                   <input
@@ -233,6 +450,7 @@ export default function ProfilePage() {
               <button
                 type="submit"
                 className="w-full btn-primary py-3"
+                disabled
               >
                 Actualizar cambios
               </button>
@@ -241,6 +459,7 @@ export default function ProfilePage() {
               <button
                 type="button"
                 className="w-full py-3 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg transition-colors border border-red-600/50"
+                disabled
               >
                 Eliminar cuenta
               </button>

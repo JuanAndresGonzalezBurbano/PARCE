@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Eye, DollarSign, CheckCircle, Clock, XCircle, Package } from 'lucide-react';
+import { Search, DollarSign, CheckCircle, Clock, XCircle, Package } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Sidebar from '../../components/Sidebar';
 import { useAuth } from '../../../controllers/AuthContext';
@@ -46,10 +46,12 @@ const MOCK_PAYMENTS: PaymentRecord[] = [
 ];
 
 const methodLabel = { cash: '💵 Efectivo', card: '💳 Tarjeta', transfer: '📱 Transferencia' };
+
+// Colores grises/dorados en lugar de morados/azules
 const statusConfig = {
-  pending: { label: 'Pendiente', color: 'bg-yellow-500/20 text-yellow-400', icon: Clock },
-  confirmed: { label: 'Confirmado', color: 'bg-green-500/20 text-green-400', icon: CheckCircle },
-  rejected: { label: 'Rechazado', color: 'bg-red-500/20 text-red-400', icon: XCircle },
+  pending:   { label: 'Pendiente',   color: 'bg-yellow-500/20 text-yellow-400', icon: Clock },
+  confirmed: { label: 'Confirmado',  color: 'bg-green-500/20 text-green-400',   icon: CheckCircle },
+  rejected:  { label: 'Rechazado',   color: 'bg-red-500/20 text-red-400',       icon: XCircle },
 };
 
 export default function AdminPaymentsPage() {
@@ -145,7 +147,7 @@ export default function AdminPaymentsPage() {
                         </td>
                         <td className="px-4 py-3">
                           {p.partsAmount > 0 ? (
-                            <div className="flex items-center gap-1 text-orange-400 text-xs">
+                            <div className="flex items-center gap-1 text-gold-400 text-xs">
                               <Package className="w-3.5 h-3.5" />
                               <span>+${p.partsAmount.toLocaleString()}</span>
                             </div>
@@ -162,9 +164,11 @@ export default function AdminPaymentsPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
+                          {/* Ver detalle → lupa */}
                           <button onClick={() => setViewDetail(p)}
-                            className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-white">
-                            <Eye className="w-4 h-4" />
+                            className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-gold-400"
+                            title="Ver detalle">
+                            <Search className="w-4 h-4" />
                           </button>
                         </td>
                       </tr>
@@ -206,14 +210,15 @@ export default function AdminPaymentsPage() {
                   <span className={label === 'TOTAL' ? 'text-gold-400 font-bold' : 'text-white font-medium'}>{value}</span>
                 </div>
               ))}
-              {/* Desglose de repuestos */}
               {viewDetail.parts && viewDetail.parts.length > 0 && (
                 <div className="pt-2">
                   <p className="text-gray-400 text-xs uppercase tracking-wider mb-2">Repuestos utilizados</p>
                   {viewDetail.parts.map((part, i) => (
                     <div key={i} className="flex justify-between py-1 text-sm">
-                      <span className="text-gray-300 flex items-center gap-1.5"><Package className="w-3 h-3 text-orange-400" />{part.name}</span>
-                      <span className="text-orange-400">${part.cost.toLocaleString()}</span>
+                      <span className="text-gray-300 flex items-center gap-1.5">
+                        <Package className="w-3 h-3 text-gold-400" />{part.name}
+                      </span>
+                      <span className="text-gold-400">${part.cost.toLocaleString()}</span>
                     </div>
                   ))}
                 </div>

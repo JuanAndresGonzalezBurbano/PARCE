@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Edit2, Trash2, Eye, UserCheck, UserX, Star, ChevronDown, Award } from 'lucide-react';
+import { Search, Edit2, EyeOff, UserCheck, UserX, Star, ChevronDown, Award } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Sidebar from '../../components/Sidebar';
 import { useAuth } from '../../../controllers/AuthContext';
@@ -15,7 +15,7 @@ interface MechanicRecord {
   certTitle: string;
   rating: number;
   servicesCompleted: number;
-  status: 'active' | 'inactive' | 'deleted';
+  status: 'active' | 'inactive' | 'disabled';
   createdAt: string;
 }
 
@@ -29,9 +29,9 @@ export default function AdminMechanicsPage() {
   const { user } = useAuth();
   const [mechanics, setMechanics] = useState<MechanicRecord[]>(MOCK_MECHANICS);
   const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive' | 'deleted'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive' | 'disabled'>('all');
   const [viewMechanic, setViewMechanic] = useState<MechanicRecord | null>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState<number | null>(null);
+  const [showDisableModal, setShowDisableModal] = useState<number | null>(null);
 
   const filtered = mechanics.filter(m => {
     const matchSearch = m.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -41,9 +41,9 @@ export default function AdminMechanicsPage() {
     return matchSearch && matchStatus;
   });
 
-  const handleSoftDelete = (id: number) => {
-    setMechanics(prev => prev.map(m => m.id === id ? { ...m, status: 'deleted' as const } : m));
-    setShowDeleteModal(null);
+  const handleDisable = (id: number) => {
+    setMechanics(prev => prev.map(m => m.id === id ? { ...m, status: 'disabled' as const } : m));
+    setShowDisableModal(null);
   };
 
   const handleRestore = (id: number) => {
@@ -51,15 +51,15 @@ export default function AdminMechanicsPage() {
   };
 
   const statusBadge = (status: MechanicRecord['status']) => {
-    const map = { active: 'bg-green-500/20 text-green-400', inactive: 'bg-yellow-500/20 text-yellow-400', deleted: 'bg-red-500/20 text-red-400' };
-    const labels = { active: 'Activo', inactive: 'Inactivo', deleted: 'Eliminado' };
+    const map = { active: 'bg-green-500/20 text-green-400', inactive: 'bg-yellow-500/20 text-yellow-400', disabled: 'bg-gray-500/20 text-gray-400' };
+    const labels = { active: 'Activo', inactive: 'Inactivo', disabled: 'Deshabilitado' };
     return <span className={`px-2 py-1 rounded-full text-xs font-medium ${map[status]}`}>{labels[status]}</span>;
   };
 
   const renderStars = (rating: number) => (
     <div className="flex items-center gap-1">
       {[...Array(5)].map((_, i) => (
-        <Star key={i} className={`w-3 h-3 ${i < Math.floor(rating) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-600'}`} />
+        <Star key={i} className={`w-3 h-3 ${i < Math.floor(rating) ? 'text-gold-400 fill-gold-400' : 'text-gray-600'}`} />
       ))}
       <span className="text-xs text-gray-400 ml-1">{rating}</span>
     </div>
@@ -89,7 +89,7 @@ export default function AdminMechanicsPage() {
                 <option value="all">Todos</option>
                 <option value="active">Activos</option>
                 <option value="inactive">Inactivos</option>
-                <option value="deleted">Eliminados</option>
+                <option value="disabled">Deshabilitados</option>
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
             </div>
@@ -100,8 +100,8 @@ export default function AdminMechanicsPage() {
             {[
               { label: 'Total', value: mechanics.length, color: 'text-white' },
               { label: 'Activos', value: mechanics.filter(m => m.status === 'active').length, color: 'text-green-400' },
-              { label: 'Promedio ★', value: (mechanics.reduce((a, m) => a + m.rating, 0) / mechanics.length).toFixed(1), color: 'text-yellow-400' },
-              { label: 'Servicios totales', value: mechanics.reduce((a, m) => a + m.servicesCompleted, 0), color: 'text-blue-400' },
+              { label: 'Promedio ★', value: (mechanics.reduce((a, m) => a + m.rating, 0) / mechanics.length).toFixed(1), color: 'text-gold-400' },
+              { label: 'Servicios totales', value: mechanics.reduce((a, m) => a + m.servicesCompleted, 0), color: 'text-gray-300' },
             ].map(stat => (
               <div key={stat.label} className="card p-4 text-center">
                 <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
@@ -125,7 +125,7 @@ export default function AdminMechanicsPage() {
                 </thead>
                 <tbody className="divide-y divide-anthracite-800">
                   {filtered.map(m => (
-                    <tr key={m.id} className={`hover:bg-dark-800/40 transition-colors ${m.status === 'deleted' ? 'opacity-50' : ''}`}>
+                    <tr key={m.id} className={`hover:bg-dark-800/40 transition-colors ${m.status === 'disabled' ? 'opacity-50' : ''}`}>
                       <td className="px-4 py-3">
                         <div>
                           <p className="text-white font-medium">{m.name}</p>
@@ -143,23 +143,25 @@ export default function AdminMechanicsPage() {
                       <td className="px-4 py-3">{statusBadge(m.status)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
+                          {/* Ver detalles → lupa */}
                           <button onClick={() => setViewMechanic(m)}
-                            className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-white">
-                            <Eye className="w-4 h-4" />
+                            className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-gold-400" title="Ver detalles">
+                            <Search className="w-4 h-4" />
                           </button>
-                          {m.status !== 'deleted' ? (
+                          {m.status !== 'disabled' ? (
                             <>
-                              <button className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-gold-400">
+                              <button className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-gold-400" title="Editar">
                                 <Edit2 className="w-4 h-4" />
                               </button>
-                              <button onClick={() => setShowDeleteModal(m.id)}
-                                className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-red-400">
-                                <Trash2 className="w-4 h-4" />
+                              {/* Deshabilitar → ojo cerrado */}
+                              <button onClick={() => setShowDisableModal(m.id)}
+                                className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-gray-300" title="Deshabilitar">
+                                <EyeOff className="w-4 h-4" />
                               </button>
                             </>
                           ) : (
                             <button onClick={() => handleRestore(m.id)}
-                              className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-green-400">
+                              className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-green-400" title="Habilitar">
                               <UserCheck className="w-4 h-4" />
                             </button>
                           )}
@@ -204,7 +206,7 @@ export default function AdminMechanicsPage() {
             </div>
 
             <div>
-              <p className="text-xs text-blue-400 uppercase tracking-wider font-semibold mb-2">Vehículo de Trabajo</p>
+              <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-2">Vehículo de Trabajo</p>
               <div className="space-y-1 text-sm">
                 {[
                   ['Placa', viewMechanic.plate],
@@ -221,7 +223,7 @@ export default function AdminMechanicsPage() {
             </div>
 
             <div>
-              <p className="text-xs text-purple-400 uppercase tracking-wider font-semibold mb-2">Certificación Profesional</p>
+              <p className="text-xs text-gold-400 uppercase tracking-wider font-semibold mb-2">Certificación Profesional</p>
               <div className="space-y-1 text-sm">
                 {[
                   ['Título', viewMechanic.certTitle],
@@ -236,13 +238,13 @@ export default function AdminMechanicsPage() {
             </div>
 
             <div>
-              <p className="text-xs text-green-400 uppercase tracking-wider font-semibold mb-2">Desempeño</p>
+              <p className="text-xs text-gray-300 uppercase tracking-wider font-semibold mb-2">Desempeño</p>
               <div className="space-y-1 text-sm">
                 {[
                   ['Calificación', `${viewMechanic.rating} / 5`],
                   ['Servicios completados', String(viewMechanic.servicesCompleted)],
                   ['Registrado el', viewMechanic.createdAt],
-                  ['Estado', viewMechanic.status === 'active' ? 'Activo' : viewMechanic.status === 'inactive' ? 'Inactivo' : 'Eliminado'],
+                  ['Estado', viewMechanic.status === 'active' ? 'Activo' : viewMechanic.status === 'inactive' ? 'Inactivo' : 'Deshabilitado'],
                 ].map(([label, value]) => (
                   <div key={label} className="flex justify-between py-1.5 border-b border-anthracite-800/50">
                     <span className="text-gray-400">{label}</span>
@@ -257,18 +259,18 @@ export default function AdminMechanicsPage() {
         </div>
       )}
 
-      {showDeleteModal !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowDeleteModal(null)}>
+      {showDisableModal !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowDisableModal(null)}>
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
             onClick={e => e.stopPropagation()} className="card p-6 max-w-sm w-full mx-4 text-center space-y-4">
-            <Trash2 className="w-12 h-12 text-red-400 mx-auto" />
+            <EyeOff className="w-12 h-12 text-gray-400 mx-auto" />
             <div>
-              <h3 className="text-xl font-bold text-white">¿Eliminar mecánico?</h3>
-              <p className="text-gray-400 text-sm mt-1">Borrado lógico — puede restaurarse después.</p>
+              <h3 className="text-xl font-bold text-white">¿Deshabilitar mecánico?</h3>
+              <p className="text-gray-400 text-sm mt-1">El mecánico quedará inactivo — puede reactivarse después.</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => setShowDeleteModal(null)} className="px-4 py-2 bg-dark-700 text-white rounded-xl">Cancelar</button>
-              <button onClick={() => handleSoftDelete(showDeleteModal)} className="px-4 py-2 bg-red-600 text-white rounded-xl">Eliminar</button>
+              <button onClick={() => setShowDisableModal(null)} className="px-4 py-2 bg-dark-700 text-white rounded-xl hover:bg-dark-600 transition-colors">Cancelar</button>
+              <button onClick={() => handleDisable(showDisableModal)} className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-xl transition-colors">Deshabilitar</button>
             </div>
           </motion.div>
         </div>

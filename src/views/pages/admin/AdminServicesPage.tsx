@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Search, Eye, MapPin, Clock, User, Wrench, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Search, MapPin, Clock, User, Wrench, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Sidebar from '../../components/Sidebar';
 import { useAuth } from '../../../controllers/AuthContext';
@@ -34,21 +34,21 @@ const MOCK_MECHANIC_SERVICES: ServiceRecord[] = [
   { id: 103, type: 'Cerrajería automotriz', userName: 'Jorge Ramírez', userPhone: '+57 306 012 3456', mechanicName: 'Roberto Silva', location: 'Calle 80 #20-10, Bogotá', requestedAt: '2026-06-06 16:30', status: 'completed', amount: 75000 },
 ];
 
+// Colores grises/dorados en lugar de azul/morado
 const statusConfig = {
-  pending: { label: 'Pendiente', color: 'bg-yellow-500/20 text-yellow-400', icon: AlertCircle },
-  accepted: { label: 'Aceptado', color: 'bg-blue-500/20 text-blue-400', icon: CheckCircle },
-  in_progress: { label: 'En progreso', color: 'bg-purple-500/20 text-purple-400', icon: Clock },
-  completed: { label: 'Completado', color: 'bg-green-500/20 text-green-400', icon: CheckCircle },
-  cancelled: { label: 'Cancelado', color: 'bg-red-500/20 text-red-400', icon: XCircle },
+  pending:     { label: 'Pendiente',   color: 'bg-yellow-500/20 text-yellow-400',  icon: AlertCircle },
+  accepted:    { label: 'Aceptado',    color: 'bg-gold-500/20 text-gold-400',      icon: CheckCircle },
+  in_progress: { label: 'En progreso', color: 'bg-gray-500/20 text-gray-300',      icon: Clock },
+  completed:   { label: 'Completado',  color: 'bg-green-500/20 text-green-400',    icon: CheckCircle },
+  cancelled:   { label: 'Cancelado',   color: 'bg-red-500/20 text-red-400',        icon: XCircle },
 };
 
 export default function AdminServicesPage({ view = 'users' }: { view?: ServiceView }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeView, setActiveView] = useState<ServiceView>(view);
-
-  // Sync activeView when the prop changes (user navigates via sidebar links)
   useEffect(() => { setActiveView(view); }, [view]);
+
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | ServiceRecord['status']>('all');
   const [viewDetail, setViewDetail] = useState<ServiceRecord | null>(null);
@@ -83,7 +83,9 @@ export default function AdminServicesPage({ view = 'users' }: { view?: ServiceVi
                 className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
                   activeView === v ? 'bg-gold-500 text-anthracite-950' : 'text-gray-400 hover:text-white'
                 }`}>
-                {v === 'users' ? <><User className="w-4 h-4" /> Servicios de Usuarios</> : <><Wrench className="w-4 h-4" /> Servicios de Mecánicos</>}
+                {v === 'users'
+                  ? <><User className="w-4 h-4" /> Servicios de Usuarios</>
+                  : <><Wrench className="w-4 h-4" /> Servicios de Mecánicos</>}
               </button>
             ))}
           </div>
@@ -154,9 +156,11 @@ export default function AdminServicesPage({ view = 'users' }: { view?: ServiceVi
                         {s.amount && <span className="text-green-400 font-medium">${s.amount.toLocaleString()}</span>}
                       </div>
                     </div>
+                    {/* Ver detalle → lupa */}
                     <button onClick={() => setViewDetail(s)}
-                      className="p-2 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-white flex-shrink-0">
-                      <Eye className="w-4 h-4" />
+                      className="p-2 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-gold-400 flex-shrink-0"
+                      title="Ver detalle">
+                      <Search className="w-4 h-4" />
                     </button>
                   </div>
                 </motion.div>
@@ -172,6 +176,7 @@ export default function AdminServicesPage({ view = 'users' }: { view?: ServiceVi
         </motion.div>
       </main>
 
+      {/* Modal detalle */}
       {viewDetail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setViewDetail(null)}>
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}

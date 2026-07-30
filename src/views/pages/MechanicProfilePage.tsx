@@ -1,48 +1,72 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { User, Camera, Mail, Lock, Car, FileText, Calendar, CreditCard, Save, Star, Clock, MapPin, Eye, EyeOff } from 'lucide-react';
+import { User, Camera, Mail, Lock, Car, FileText, Calendar, CreditCard, Save, Star, Clock, MapPin, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../../controllers/AuthContext';
 
+// ── Validadores colombianos ──────────────────────────────────────────────────
+function validateCedula(v: string): string {
+  if (!v) return '';
+  if (!/^\d+$/.test(v)) return 'La cédula solo debe contener números';
+  if (v.length < 6) return 'Mínimo 6 dígitos';
+  if (v.length > 10) return 'Máximo 10 dígitos';
+  return '';
+}
+
+function validatePhone(v: string): string {
+  if (!v) return '';
+  const digits = v.replace(/[\s\-\+]/g, '');
+  const col = digits.startsWith('57') ? digits.slice(2) : digits;
+  if (!/^\d{10}$/.test(col)) return 'Número colombiano inválido (10 dígitos, ej: 300 123 4567)';
+  if (!col.startsWith('3')) return 'Los celulares colombianos deben empezar por 3';
+  return '';
+}
+
+function validatePlate(v: string): string {
+  if (!v) return '';
+  if (!/^[A-Z]{3}[\-]?\d{3}$/.test(v.toUpperCase())) return 'Formato de placa inválido (ej: PDF-345)';
+  return '';
+}
+
+function validatePassword(v: string): string {
+  if (!v) return '';
+  if (v.length < 8) return 'Mínimo 8 caracteres';
+  if (!/[A-Z]/.test(v) && !/[0-9]/.test(v)) return 'Debe tener mayúscula o número';
+  return '';
+}
+
+function FieldMsg({ error, ok }: { error: string; ok?: boolean }) {
+  if (error) return (
+    <p className="flex items-center gap-1 text-xs text-red-400 mt-1">
+      <AlertCircle className="w-3 h-3 flex-shrink-0" />{error}
+    </p>
+  );
+  if (ok) return (
+    <p className="flex items-center gap-1 text-xs text-green-400 mt-1">
+      <CheckCircle className="w-3 h-3 flex-shrink-0" />Campo válido
+    </p>
+  );
+  return null;
+}
+
 export default function MechanicProfilePage() {
   const { user } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
-  const [passwordError, setPasswordError] = useState('');
+
+  // Touched map para mostrar errores solo tras interacción
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const touch = (field: string) => setTouched(prev => ({ ...prev, [field]: true }));
+
   const [profileData, setProfileData] = useState({
     name: 'Juan Andrés',
     email: 'juanandres@example.com',
     password: '',
-    phone: '+57 300 123 4567',
+    phone: '3001234567',
+    cedula: '1023456789',
     location: 'Bogotá',
     experience: '5 años',
   });
-
-  // Función que valida la contraseña
-  const validatePassword = (pwd: string): boolean => {
-    if (pwd.length === 0) {
-      setPasswordError('');
-      return true; // Permitir campo vacío (no cambiar contraseña)
-    }
-    
-    // Mínimo 8 caracteres
-    if (pwd.length < 8) {
-      setPasswordError('La contraseña debe tener mínimo 8 caracteres');
-      return false;
-    }
-    
-    // Debe tener al menos una mayúscula O un número
-    const hasUpperCase = /[A-Z]/.test(pwd);
-    const hasNumber = /[0-9]/.test(pwd);
-    
-    if (!hasUpperCase && !hasNumber) {
-      setPasswordError('La contraseña debe contener al menos una mayúscula o un número');
-      return false;
-    }
-    
-    setPasswordError('');
-    return true;
-  };
 
   const [vehicleData, setVehicleData] = useState({
     licenseCode: 'LCO4548938274',
@@ -50,6 +74,14 @@ export default function MechanicProfilePage() {
     model: '2024',
     plate: 'PDF345',
   });
+
+  // Errores calculados
+  const errs = {
+    phone:    validatePhone(profileData.phone),
+    cedula:   validateCedula(profileData.cedula),
+    password: validatePassword(profileData.password),
+    plate:    validatePlate(vehicleData.plate),
+  };
 
   const serviceHistory = [
     {
@@ -124,17 +156,15 @@ export default function MechanicProfilePage() {
 
   const handleProfileSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validar contraseña solo si no está vacía
-    if (profileData.password && !validatePassword(profileData.password)) {
-      return;
-    }
-    
+    setTouched(prev => ({ ...prev, phone: true, cedula: true, password: true }));
+    if (errs.phone || errs.cedula || errs.password) return;
     alert('Perfil actualizado correctamente');
   };
 
   const handleVehicleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setTouched(prev => ({ ...prev, plate: true }));
+    if (errs.plate) return;
     alert('Información del vehículo actualizada correctamente');
   };
 
@@ -197,74 +227,75 @@ export default function MechanicProfilePage() {
                 <form onSubmit={handleProfileSubmit} className="space-y-3">
                   <div className="space-y-1">
                     <label className="flex items-center gap-2 text-xs font-medium text-gray-300">
-                      <User className="w-3 h-3" />
-                      Nombre
+                      <User className="w-3 h-3" />Nombre
                     </label>
-                    <input
-                      type="text"
-                      value={profileData.name}
+                    <input type="text" value={profileData.name}
                       onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                      className="input-field text-sm"
-                    />
+                      className="input-field text-sm" />
                   </div>
 
                   <div className="space-y-1">
                     <label className="flex items-center gap-2 text-xs font-medium text-gray-300">
-                      <Mail className="w-3 h-3" />
-                      Correo
+                      <Mail className="w-3 h-3" />Correo
                     </label>
-                    <input
-                      type="email"
-                      value={profileData.email}
+                    <input type="email" value={profileData.email}
                       onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                      className="input-field text-sm"
-                    />
+                      className="input-field text-sm" />
                   </div>
 
                   <div className="space-y-1">
                     <label className="flex items-center gap-2 text-xs font-medium text-gray-300">
-                      <Lock className="w-3 h-3" />
-                      Contraseña
+                      <FileText className="w-3 h-3" />Cédula
+                    </label>
+                    <input type="text" value={profileData.cedula}
+                      onChange={(e) => setProfileData({ ...profileData, cedula: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                      onBlur={() => touch('cedula')}
+                      placeholder="1023456789"
+                      inputMode="numeric"
+                      maxLength={10}
+                      className={`input-field text-sm ${touched.cedula && errs.cedula ? 'border-red-500' : touched.cedula && !errs.cedula ? 'border-green-500/50' : ''}`} />
+                    <FieldMsg error={touched.cedula ? errs.cedula : ''} ok={touched.cedula && !errs.cedula && !!profileData.cedula} />
+                    {!touched.cedula && <p className="text-xs text-gray-500">Solo números, 6–10 dígitos</p>}
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="flex items-center gap-2 text-xs font-medium text-gray-300">
+                      <User className="w-3 h-3" />Teléfono
+                    </label>
+                    <input type="tel" value={profileData.phone}
+                      onChange={(e) => setProfileData({ ...profileData, phone: e.target.value.replace(/[^\d\s\+\-]/g, '').slice(0, 15) })}
+                      onBlur={() => touch('phone')}
+                      placeholder="300 123 4567"
+                      maxLength={15}
+                      className={`input-field text-sm ${touched.phone && errs.phone ? 'border-red-500' : touched.phone && !errs.phone ? 'border-green-500/50' : ''}`} />
+                    <FieldMsg error={touched.phone ? errs.phone : ''} ok={touched.phone && !errs.phone && !!profileData.phone} />
+                    {!touched.phone && <p className="text-xs text-gray-500">Número colombiano (ej: 300 123 4567)</p>}
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="flex items-center gap-2 text-xs font-medium text-gray-300">
+                      <Lock className="w-3 h-3" />Contraseña
                     </label>
                     <div className="relative">
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        value={profileData.password}
-                        onChange={(e) => {
-                          setProfileData({ ...profileData, password: e.target.value });
-                          if (e.target.value.length > 0) {
-                            validatePassword(e.target.value);
-                          } else {
-                            setPasswordError('');
-                          }
-                        }}
+                      <input type={showPassword ? 'text' : 'password'} value={profileData.password}
+                        onChange={(e) => setProfileData({ ...profileData, password: e.target.value })}
+                        onBlur={() => touch('password')}
                         placeholder="Dejar vacío para no cambiar"
-                        className={`input-field text-sm pr-10 ${passwordError ? 'border-red-500' : ''}`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
-                      >
+                        className={`input-field text-sm pr-10 ${touched.password && errs.password ? 'border-red-500' : touched.password && !errs.password && profileData.password ? 'border-green-500/50' : ''}`} />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
-                    {passwordError && (
-                      <p className="text-xs text-red-400">{passwordError}</p>
-                    )}
-                    {!passwordError && profileData.password.length > 0 && (
-                      <p className="text-xs text-green-400">✓ Contraseña válida</p>
-                    )}
-                    {profileData.password.length === 0 && (
-                      <p className="text-xs text-gray-500">
-                        Mínimo 8 caracteres, con mayúscula o número
-                      </p>
+                    {touched.password && profileData.password ? (
+                      <FieldMsg error={errs.password} ok={!errs.password} />
+                    ) : (
+                      <p className="text-xs text-gray-500">Mínimo 8 caracteres, con mayúscula o número</p>
                     )}
                   </div>
 
                   <button type="submit" className="w-full btn-primary py-2 text-sm flex items-center justify-center gap-2">
-                    <Save className="w-4 h-4" />
-                    Actualizar cambios
+                    <Save className="w-4 h-4" />Actualizar cambios
                   </button>
                 </form>
               </div>
@@ -315,15 +346,16 @@ export default function MechanicProfilePage() {
 
                   <div className="space-y-1">
                     <label className="flex items-center gap-2 text-xs font-medium text-gray-300">
-                      <CreditCard className="w-3 h-3" />
-                      Placa
+                      <CreditCard className="w-3 h-3" />Placa
                     </label>
-                    <input
-                      type="text"
-                      value={vehicleData.plate}
-                      onChange={(e) => setVehicleData({ ...vehicleData, plate: e.target.value })}
-                      className="input-field text-sm"
-                    />
+                    <input type="text" value={vehicleData.plate}
+                      onChange={(e) => setVehicleData({ ...vehicleData, plate: e.target.value.toUpperCase().replace(/[^A-Z0-9\-]/g, '').slice(0, 7) })}
+                      onBlur={() => touch('plate')}
+                      placeholder="PDF-345"
+                      maxLength={7}
+                      className={`input-field text-sm font-mono ${touched.plate && errs.plate ? 'border-red-500' : touched.plate && !errs.plate ? 'border-green-500/50' : ''}`} />
+                    <FieldMsg error={touched.plate ? errs.plate : ''} ok={touched.plate && !errs.plate && !!vehicleData.plate} />
+                    {!touched.plate && <p className="text-xs text-gray-500">Formato: ABC-123</p>}
                   </div>
 
                   <button type="submit" className="w-full btn-primary py-2 text-sm flex items-center justify-center gap-2">

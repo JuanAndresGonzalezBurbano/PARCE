@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   Home, Wrench, Phone, ClipboardList, User,
   LayoutDashboard, Users, Star, MessageSquare,
-  DollarSign, ChevronDown, ChevronRight, Bot
+  DollarSign, ChevronDown, ChevronRight, Bot, Car, Package
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../controllers/AuthContext';
@@ -124,17 +124,40 @@ export default function Sidebar({ isOpen = true, hidden = false }: SidebarProps)
               </Link>
             </AdminSection>
 
-            {/* Pagos */}
-            <AdminSection icon={DollarSign} label="Pagos" isOpen={isOpen}>
-              <Link to="/admin/payments" className={subLinkClass('/admin/payments')}>
-                <ChevronRight className="w-3.5 h-3.5" /> Historial de Pagos
+            {/* Vehículos */}
+            <AdminSection icon={Car} label="Vehículos" isOpen={isOpen}>
+              <Link to="/admin/vehicles" className={subLinkClass('/admin/vehicles')}>
+                <ChevronRight className="w-3.5 h-3.5" /> Gestión de Vehículos
               </Link>
             </AdminSection>
+
+            {/* Inventario */}
+            <AdminSection icon={Package} label="Inventario" isOpen={isOpen}>
+              <Link to="/admin/inventory" className={subLinkClass('/admin/inventory')}>
+                <ChevronRight className="w-3.5 h-3.5" /> Consultar Inventario
+              </Link>
+            </AdminSection>
+
+            {/* Pagos */}
+              <AdminSection icon={DollarSign} label="Pagos" isOpen={isOpen}>
+                <Link to="/admin/payments" className={subLinkClass('/admin/payments')}>
+                  <ChevronRight className="w-3.5 h-3.5" /> Historial de Pagos
+                </Link>
+                <Link to="/admin/payments/crud" className={subLinkClass('/admin/payments/crud')}>
+                  <ChevronRight className="w-3.5 h-3.5" /> CRUD Pagos
+                </Link>
+                <Link to="/payment/receipt" className={subLinkClass('/payment/receipt')}>
+                  <ChevronRight className="w-3.5 h-3.5" /> Comprobante de Pago
+                </Link>
+              </AdminSection>
 
             {/* Calificaciones */}
             <AdminSection icon={Star} label="Calificaciones" isOpen={isOpen}>
               <Link to="/admin/ratings" className={subLinkClass('/admin/ratings')}>
                 <ChevronRight className="w-3.5 h-3.5" /> Ver Calificaciones
+              </Link>
+              <Link to="/admin/ratings/providers" className={subLinkClass('/admin/ratings/providers')}>
+                <ChevronRight className="w-3.5 h-3.5" /> Por Proveedor
               </Link>
             </AdminSection>
 

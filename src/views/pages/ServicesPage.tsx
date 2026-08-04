@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Fuel, Battery, Wrench, Clock, ChevronLeft, ChevronRight, MessageCircle, X, Send, Bot, User as UserIcon, Zap, Truck, Key } from 'lucide-react';
+import { Fuel, Battery, Wrench, Clock, ChevronLeft, ChevronRight, MessageCircle, X, Send, Bot, User as UserIcon, Zap, Truck, Key, Package } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../../controllers/AuthContext';
@@ -16,6 +16,8 @@ const services = [
     gradient: 'from-orange-500 to-red-600',
     emoji: '⛽',
     bgImage: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80',
+    stock: 18,
+    stockUnit: 'galones',
   },
   {
     id: 2,
@@ -26,6 +28,8 @@ const services = [
     gradient: 'from-blue-500 to-cyan-600',
     emoji: '🔧',
     bgImage: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=600&q=80',
+    stock: 20,
+    stockUnit: 'neumáticos',
   },
   {
     id: 3,
@@ -36,6 +40,8 @@ const services = [
     gradient: 'from-yellow-500 to-amber-600',
     emoji: '🔋',
     bgImage: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=600&q=80',
+    stock: 10,
+    stockUnit: 'baterías',
   },
   {
     id: 4,
@@ -46,6 +52,8 @@ const services = [
     gradient: 'from-purple-500 to-violet-600',
     emoji: '🔍',
     bgImage: 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=600&q=80',
+    stock: 15,
+    stockUnit: 'repuestos',
   },
   {
     id: 5,
@@ -56,6 +64,8 @@ const services = [
     gradient: 'from-green-500 to-emerald-600',
     emoji: '🔑',
     bgImage: 'https://images.unsplash.com/photo-1502877338535-766e1452684a?w=600&q=80',
+    stock: 8,
+    stockUnit: 'kits',
   },
   {
     id: 6,
@@ -66,6 +76,8 @@ const services = [
     gradient: 'from-red-500 to-rose-600',
     emoji: '🚛',
     bgImage: 'https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?w=600&q=80',
+    stock: 5,
+    stockUnit: 'grúas',
   },
 ];
 
@@ -280,6 +292,26 @@ export default function ServicesPage() {
                     <Clock className="w-4 h-4 text-gold-500" />
                     <span className="text-xs text-gray-400">Tiempo estimado:</span>
                     <span className="text-sm font-bold text-gold-400">{service.duration}</span>
+                  </div>
+                  {/* Disponibilidad de inventario — RF 4.3 */}
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex items-center gap-1.5">
+                      <Package className="w-3.5 h-3.5 text-gray-500" />
+                      <span className="text-xs text-gray-400">En stock:</span>
+                      <span className={`text-xs font-bold ${
+                        service.stock > 10 ? 'text-green-400' :
+                        service.stock > 3  ? 'text-yellow-400' : 'text-red-400'
+                      }`}>
+                        {service.stock} {service.stockUnit}
+                      </span>
+                    </div>
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
+                      service.stock > 10 ? 'bg-green-500/20 text-green-400' :
+                      service.stock > 3  ? 'bg-yellow-500/20 text-yellow-400' :
+                      'bg-red-500/20 text-red-400'
+                    }`}>
+                      {service.stock > 10 ? 'Disponible' : service.stock > 3 ? 'Poco stock' : 'Último stock'}
+                    </span>
                   </div>
                   <button onClick={() => handleServiceSelect(service)} className="w-full btn-primary mt-2">PEDIR</button>
                 </div>

@@ -7,10 +7,14 @@ import Navbar from '../components/Navbar';
 export default function MechanicVehicleInfoPage() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    licenseCode: '',
     vehicleBrand: '',
     model: '',
     plate: '',
+    year: '',
+    color: '',
+    soatCode: '',
+    tecnomecanicaCode: '',
+    driverLicense: '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -37,71 +41,142 @@ export default function MechanicVehicleInfoPage() {
                   <Car className="w-10 h-10 text-anthracite-950" />
                 </div>
               </div>
-              <h1 className="text-3xl font-bold text-white mb-2">INFORMACIÓN MECÁNICO</h1>
-              <p className="text-gray-400">Registra la información de tu vehículo de trabajo</p>
+              <h1 className="text-3xl font-bold text-white mb-2">REGISTRO</h1>
+              <p className="text-gray-400">Vehículo Averiado</p>
+            </div>
+
+            {/* Info Alert */}
+            <div className="flex items-center gap-3 p-4 bg-primary-500/10 border border-primary-500/30 rounded-lg">
+              <Car className="w-5 h-5 text-primary-400 flex-shrink-0" />
+              <p className="text-sm text-gray-300">Información del vehículo que necesita asistencia</p>
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Código de licencia */}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Marca y Modelo en fila */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Marca vehículo */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-300">
+                    Marca
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.vehicleBrand}
+                    onChange={(e) => setFormData({ ...formData, vehicleBrand: e.target.value })}
+                    placeholder="a"
+                    className="input-field"
+                    required
+                  />
+                </div>
+
+                {/* Modelo */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-300">
+                    Modelo
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.model}
+                    onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                    placeholder="a"
+                    className="input-field"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Placa y Año en fila */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Placa */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-300">
+                    Placa
+                  </label>
+                  <div className="relative">
+                    <Car className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                    <input
+                      type="text"
+                      value={formData.plate}
+                      onChange={(e) => setFormData({ ...formData, plate: e.target.value })}
+                      placeholder="A"
+                      className="input-field pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Año */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-300">
+                    Año
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.year}
+                    onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+                    placeholder="2026"
+                    className="input-field"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Color */}
               <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
-                  <FileText className="w-4 h-4" />
-                  Código de licencia
+                <label className="block text-sm font-medium text-gray-300">
+                  Color
                 </label>
                 <input
                   type="text"
-                  value={formData.licenseCode}
-                  onChange={(e) => setFormData({ ...formData, licenseCode: e.target.value })}
-                  placeholder="LCO4548938274"
+                  value={formData.color}
+                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                  placeholder="a"
                   className="input-field"
                   required
                 />
               </div>
 
-              {/* Marca vehículo */}
+              {/* Código SOAT */}
               <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
-                  <Car className="w-4 h-4" />
-                  Marca vehículo
+                <label className="block text-sm font-medium text-gray-300">
+                  Código SOAT <span className="text-gray-500 text-xs">(para verificar vigencia)</span>
                 </label>
                 <input
                   type="text"
-                  value={formData.vehicleBrand}
-                  onChange={(e) => setFormData({ ...formData, vehicleBrand: e.target.value })}
-                  placeholder="Chevrolet spark"
+                  value={formData.soatCode}
+                  onChange={(e) => setFormData({ ...formData, soatCode: e.target.value })}
+                  placeholder="SOAT-2024-XXXXXXXX"
                   className="input-field"
                   required
                 />
               </div>
 
-              {/* Modelo */}
+              {/* Código Tecnomecánica */}
               <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
-                  <Calendar className="w-4 h-4" />
-                  Modelo
+                <label className="block text-sm font-medium text-gray-300">
+                  Código Tecnomecánica <span className="text-gray-500 text-xs">(para verificar vigencia)</span>
                 </label>
                 <input
                   type="text"
-                  value={formData.model}
-                  onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                  placeholder="2024"
+                  value={formData.tecnomecanicaCode}
+                  onChange={(e) => setFormData({ ...formData, tecnomecanicaCode: e.target.value })}
+                  placeholder="TM-2024-XXXXXXXX"
                   className="input-field"
                   required
                 />
               </div>
 
-              {/* Placa */}
+              {/* Licencia de Conducción */}
               <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
-                  <CreditCard className="w-4 h-4" />
-                  Placa
+                <label className="block text-sm font-medium text-gray-300">
+                  Licencia de Conducción <span className="text-gray-500 text-xs">(para verificar vigencia)</span>
                 </label>
                 <input
                   type="text"
-                  value={formData.plate}
-                  onChange={(e) => setFormData({ ...formData, plate: e.target.value })}
-                  placeholder="PDF345"
+                  value={formData.driverLicense}
+                  onChange={(e) => setFormData({ ...formData, driverLicense: e.target.value })}
+                  placeholder="LC-2024-XXXXXXXX"
                   className="input-field"
                   required
                 />

@@ -15,6 +15,7 @@ import ServiceInProgressPage from './views/pages/ServiceInProgressPage';
 import ProfilePage from './views/pages/ProfilePage';
 import SatisfactionSurveyPage from './views/pages/SatisfactionSurveyPage';
 import PaymentPage from './views/pages/PaymentPage';
+import PaymentReceiptPage from './views/pages/PaymentReceiptPage';
 import PQRPage from './views/pages/PQRPage';
 
 // ── PÁGINAS MECÁNICO ──
@@ -35,6 +36,10 @@ import AdminServicesPage from './views/pages/admin/AdminServicesPage';
 import AdminPaymentsPage from './views/pages/admin/AdminPaymentsPage';
 import AdminRatingsPage from './views/pages/admin/AdminRatingsPage';
 import AdminPQRPage from './views/pages/admin/AdminPQRPage';
+import AdminVehiclesPage from './views/pages/admin/AdminVehiclesPage';
+import AdminInventoryPage from './views/pages/admin/AdminInventoryPage';
+import AdminProviderRatingsPage from './views/pages/admin/AdminProviderRatingsPage';
+import PaymentCRUDPage from './crud/payments/PaymentCRUDPage';
 
 // ── PÁGINAS COMPARTIDAS ──
 import ContactPage from './views/pages/ContactPage';
@@ -60,8 +65,12 @@ function App() {
         <Route path="/admin/mechanics" element={<ProtectedRoute allowedRoles={['admin']}><AdminMechanicsPage /></ProtectedRoute>} />
         <Route path="/admin/services/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminServicesPage view="users" /></ProtectedRoute>} />
         <Route path="/admin/services/mechanics" element={<ProtectedRoute allowedRoles={['admin']}><AdminServicesPage view="mechanics" /></ProtectedRoute>} />
+        <Route path="/admin/vehicles" element={<ProtectedRoute allowedRoles={['admin']}><AdminVehiclesPage /></ProtectedRoute>} />
         <Route path="/admin/payments" element={<ProtectedRoute allowedRoles={['admin']}><AdminPaymentsPage /></ProtectedRoute>} />
+        <Route path="/admin/payments/crud" element={<ProtectedRoute allowedRoles={['admin']}><PaymentCRUDPage /></ProtectedRoute>} />
         <Route path="/admin/ratings" element={<ProtectedRoute allowedRoles={['admin']}><AdminRatingsPage /></ProtectedRoute>} />
+        <Route path="/admin/ratings/providers" element={<ProtectedRoute allowedRoles={['admin']}><AdminProviderRatingsPage /></ProtectedRoute>} />
+        <Route path="/admin/inventory" element={<ProtectedRoute allowedRoles={['admin']}><AdminInventoryPage /></ProtectedRoute>} />
         <Route path="/admin/pqr/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminPQRPage view="users" /></ProtectedRoute>} />
         <Route path="/admin/pqr/mechanics" element={<ProtectedRoute allowedRoles={['admin']}><AdminPQRPage view="mechanics" /></ProtectedRoute>} />
 
@@ -73,6 +82,7 @@ function App() {
         <Route path="/profile" element={<ProtectedRoute allowedRoles={['user']}><ProfilePage /></ProtectedRoute>} />
         <Route path="/survey" element={<ProtectedRoute allowedRoles={['user']}><SatisfactionSurveyPage /></ProtectedRoute>} />
         <Route path="/payment" element={<ProtectedRoute allowedRoles={['user']}><PaymentPage /></ProtectedRoute>} />
+        <Route path="/payment/receipt" element={<ProtectedRoute allowedRoles={['user', 'admin']}><PaymentReceiptPage /></ProtectedRoute>} />
         <Route path="/pqr" element={<ProtectedRoute allowedRoles={['user']}><PQRPage /></ProtectedRoute>} />
 
         {/* ── Rutas Mecánico ── */}

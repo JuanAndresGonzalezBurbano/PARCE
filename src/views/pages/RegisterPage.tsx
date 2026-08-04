@@ -337,24 +337,34 @@ export default function RegisterPage() {
                   <input type="text" value={form.vehicleColor} onChange={e => set('vehicleColor', e.target.value)}
                     placeholder="Blanco" className="input-field text-sm" required />
                 </div>
-                {/* SOAT y Tecnomecánica solo para usuario */}
-                {role === 'user' && (
-                  <>
-                    <div className="space-y-1">
-                      <label className="block text-sm font-medium text-gray-300">
-                        Código SOAT <span className="text-gray-500 text-xs">(para verificar vigencia)</span>
-                      </label>
-                      <input type="text" value={form.soatCode} onChange={e => set('soatCode', e.target.value)}
-                        placeholder="SOAT-2024-XXXXXXXX" className="input-field text-sm" required />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="block text-sm font-medium text-gray-300">
-                        Código Tecnomecánica <span className="text-gray-500 text-xs">(para verificar vigencia)</span>
-                      </label>
-                      <input type="text" value={form.technoCode} onChange={e => set('technoCode', e.target.value)}
-                        placeholder="TM-2024-XXXXXXXX" className="input-field text-sm" required />
-                    </div>
-                  </>
+                {/* Documentos del vehículo (SOAT, Tecnomecánica, Licencia) - para ambos roles */}
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-300">
+                    Código SOAT <span className="text-gray-500 text-xs">(para verificar vigencia)</span>
+                  </label>
+                  <input type="text" value={form.soatCode} onChange={e => set('soatCode', e.target.value)}
+                    placeholder="SOAT-2024-XXXXXXXX" className="input-field text-sm" required />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-300">
+                    Código Tecnomecánica <span className="text-gray-500 text-xs">(para verificar vigencia)</span>
+                  </label>
+                  <input type="text" value={form.technoCode} onChange={e => set('technoCode', e.target.value)}
+                    placeholder="TM-2024-XXXXXXXX" className="input-field text-sm" required />
+                </div>
+                {/* Licencia de conducción */}
+                {role === 'user' ? (
+                  // Usuario ya ingresó licencia en paso personal, no se repite
+                  null
+                ) : (
+                  // Mecánico ingresa licencia aquí
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-300">
+                      Licencia de Conducción <span className="text-gray-500 text-xs">(para verificar vigencia)</span>
+                    </label>
+                    <input type="text" value={form.licenseCode} onChange={e => set('licenseCode', e.target.value)}
+                      placeholder="LC-2024-XXXXXXXX" className="input-field text-sm" required />
+                  </div>
                 )}
                 <button type="submit" className="w-full btn-primary flex items-center justify-center gap-2">
                   {role === 'mechanic' ? <><span>Siguiente</span><ChevronRight className="w-4 h-4" /></> : 'Crear cuenta'}

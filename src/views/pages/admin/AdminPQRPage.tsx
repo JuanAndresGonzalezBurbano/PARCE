@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Search, Eye, MessageSquare, User, Wrench, Clock, CheckCircle, AlertCircle, ChevronDown } from 'lucide-react';
+import { Search, MessageSquare, User, Wrench, Clock, CheckCircle, AlertCircle, ChevronDown } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Sidebar from '../../components/Sidebar';
 import { useAuth } from '../../../controllers/AuthContext';
@@ -32,16 +32,17 @@ const MOCK_MECHANIC_PQR: PQRRecord[] = [
   { id: 102, authorName: 'Luis Herrera', authorEmail: 'luis@email.com', type: 'queja', subject: 'Usuario calificó injustamente', description: 'El usuario me dio 1 estrella pero el servicio fue correcto.', status: 'in_review', createdAt: '2026-06-07 08:00' },
 ];
 
+// Colores grises/dorados — sin morado/azul
 const typeConfig = {
-  peticion: { label: 'Petición', color: 'bg-blue-500/20 text-blue-400' },
-  queja: { label: 'Queja', color: 'bg-orange-500/20 text-orange-400' },
-  reclamo: { label: 'Reclamo', color: 'bg-red-500/20 text-red-400' },
+  peticion: { label: 'Petición', color: 'bg-gold-500/20 text-gold-400' },
+  queja:    { label: 'Queja',    color: 'bg-yellow-500/20 text-yellow-400' },
+  reclamo:  { label: 'Reclamo',  color: 'bg-red-500/20 text-red-400' },
 };
 
 const statusConfig = {
-  open: { label: 'Abierto', color: 'bg-yellow-500/20 text-yellow-400', icon: AlertCircle },
-  in_review: { label: 'En revisión', color: 'bg-purple-500/20 text-purple-400', icon: Clock },
-  resolved: { label: 'Resuelto', color: 'bg-green-500/20 text-green-400', icon: CheckCircle },
+  open:      { label: 'Abierto',     color: 'bg-yellow-500/20 text-yellow-400', icon: AlertCircle },
+  in_review: { label: 'En revisión', color: 'bg-gray-500/20 text-gray-300',     icon: Clock },
+  resolved:  { label: 'Resuelto',    color: 'bg-green-500/20 text-green-400',   icon: CheckCircle },
 };
 
 export default function AdminPQRPage({ view = 'users' }: { view?: PQRRole }) {
@@ -85,7 +86,9 @@ export default function AdminPQRPage({ view = 'users' }: { view?: PQRRole }) {
                 className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
                   activeView === v ? 'bg-gold-500 text-anthracite-950' : 'text-gray-400 hover:text-white'
                 }`}>
-                {v === 'users' ? <><User className="w-4 h-4" /> PQR Usuarios</> : <><Wrench className="w-4 h-4" /> PQR Mecánicos</>}
+                {v === 'users'
+                  ? <><User className="w-4 h-4" /> PQR Usuarios</>
+                  : <><Wrench className="w-4 h-4" /> PQR Mecánicos</>}
               </button>
             ))}
           </div>
@@ -157,9 +160,11 @@ export default function AdminPQRPage({ view = 'users' }: { view?: PQRRole }) {
                       <p className="text-gray-400 text-xs">{p.authorName} · {p.authorEmail} · {p.createdAt}</p>
                       <p className="text-gray-300 text-sm line-clamp-2">{p.description}</p>
                     </div>
+                    {/* Ver detalle → lupa */}
                     <button onClick={() => { setViewDetail(p); setResponseText(''); }}
-                      className="p-2 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-white flex-shrink-0">
-                      <Eye className="w-4 h-4" />
+                      className="p-2 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-gold-400 flex-shrink-0"
+                      title="Ver detalle">
+                      <Search className="w-4 h-4" />
                     </button>
                   </div>
                 </motion.div>

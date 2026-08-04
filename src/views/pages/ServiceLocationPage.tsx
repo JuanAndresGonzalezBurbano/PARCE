@@ -1,19 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Navigation, ArrowRight, Search, Star, Wrench, Award, X } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { MapPin, Navigation, ArrowRight, Search, Star, Wrench, Award } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
+import TripSimulatorMap from '../components/TripSimulatorMap';
 import { useAuth } from '../../controllers/AuthContext';
 import { useService } from '../../controllers/ServiceContext';
-
-const SUGGESTED_LOCATIONS = [
-  'Calle 72 #10-34, Chapinero, Bogotá',
-  'Av. Caracas #45-67, Teusaquillo, Bogotá',
-  'Calle 100 #15-20, Usaquén, Bogotá',
-  'Carrera 7 #32-16, La Candelaria, Bogotá',
-  'Calle 26 #68D-35, Fontibón, Bogotá',
-];
+import { searchAddress, GeocodingResult } from '../../services/mapService';
 
 // Mecánico asignado (mock — en producción vendría del backend)
 const ASSIGNED_MECHANIC = {
@@ -36,20 +30,34 @@ export default function ServiceLocationPage() {
   const [additionalInfo, setAdditionalInfo] = useState('');
   const [useCurrentLocation, setUseCurrentLocation] = useState(false);
   const [locating, setLocating] = useState(false);
-  const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
+  const [filteredSuggestions, setFilteredSuggestions] = useState<GeocodingResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [pickupPoint, setPickupPoint] = useState<{ lat: number; lng: number; label: string } | null>(null);
+  const [destinationPoint, setDestinationPoint] = useState<{ lat: number; lng: number; label: string } | null>(null);
 
-  const handleAddressChange = (value: string) => {
+  const handleAddressChange = async (value: string) => {
     setAddress(value);
+    
     if (value.length > 2) {
-      const filtered = SUGGESTED_LOCATIONS.filter(loc =>
-        loc.toLowerCase().includes(value.toLowerCase())
-      );
-      setFilteredSuggestions(filtered);
-      setShowSuggestions(filtered.length > 0);
+      setSearching(true);
+      const results = await searchAddress(value);
+      setFilteredSuggestions(results);
+      setShowSuggestions(results.length > 0);
+      setSearching(false);
     } else {
       setShowSuggestions(false);
     }
+  };
+
+  const selectSuggestion = (result: GeocodingResult) => {
+    setAddress(result.display_name);
+    setPickupPoint({
+      lat: parseFloat(result.lat),
+      lng: parseFloat(result.lon),
+      label: result.display_name,
+    });
+    setShowSuggestions(false);
   };
 
   const handleCurrentLocation = () => {
@@ -190,19 +198,24 @@ export default function ServiceLocationPage() {
                   className="input-field pl-10"
                   required
                 />
+                {searching && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="w-4 h-4 border-2 border-gold-400 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
               </div>
               {/* Sugerencias */}
               {showSuggestions && (
-                <div className="absolute z-10 w-full bg-dark-800 border border-anthracite-700 rounded-xl shadow-xl overflow-hidden">
-                  {filteredSuggestions.map((loc, i) => (
+                <div className="absolute z-10 w-full bg-dark-800 border border-anthracite-700 rounded-xl shadow-xl overflow-hidden max-h-60 overflow-y-auto">
+                  {filteredSuggestions.map((result, i) => (
                     <button
                       key={i}
                       type="button"
-                      onClick={() => { setAddress(loc); setShowSuggestions(false); }}
+                      onClick={() => selectSuggestion(result)}
                       className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-dark-700 transition-colors text-sm text-gray-300"
                     >
                       <MapPin className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                      {loc}
+                      <span className="line-clamp-2">{result.display_name}</span>
                     </button>
                   ))}
                 </div>
@@ -222,35 +235,21 @@ export default function ServiceLocationPage() {
               />
             </div>
 
-            {/* Mapa simulado */}
-            <div className="rounded-xl overflow-hidden border border-anthracite-700 bg-dark-800 h-40 flex items-center justify-center relative">
-              <div className="absolute inset-0 opacity-20">
-                <svg className="w-full h-full" viewBox="0 0 400 160" preserveAspectRatio="none">
-                  {[20, 40, 60, 80, 100, 120, 140].map(y =>
-                    <line key={y} x1="0" y1={y} x2="400" y2={y} stroke="#4a5568" strokeWidth="1" />
-                  )}
-                  {[50, 100, 150, 200, 250, 300, 350].map(x =>
-                    <line key={x} x1={x} y1="0" x2={x} y2="160" stroke="#4a5568" strokeWidth="1" />
-                  )}
-                  <line x1="0" y1="80" x2="400" y2="80" stroke="#6b7280" strokeWidth="2" />
-                  <line x1="200" y1="0" x2="200" y2="160" stroke="#6b7280" strokeWidth="2" />
-                </svg>
-              </div>
-              {address ? (
-                <div className="relative flex flex-col items-center gap-2">
-                  <div className="w-10 h-10 bg-gold-500 rounded-full flex items-center justify-center shadow-lg animate-bounce">
-                    <MapPin className="w-6 h-6 text-anthracite-950" />
-                  </div>
-                  <p className="text-white text-sm font-medium bg-dark-900/80 px-3 py-1 rounded-full backdrop-blur-sm">
-                    {address.length > 35 ? address.substring(0, 35) + '...' : address}
-                  </p>
-                </div>
-              ) : (
-                <div className="text-center text-gray-600">
-                  <MapPin className="w-8 h-8 mx-auto mb-2" />
-                  <p className="text-sm">Ingresa tu dirección para ver la ubicación</p>
-                </div>
-              )}
+            {/* Mapa interactivo */}
+            <div className="rounded-xl overflow-hidden border border-anthracite-700 bg-dark-800 h-96">
+              <TripSimulatorMap
+                onPickupChange={(point) => {
+                  setPickupPoint(point);
+                  if (point) {
+                    setAddress(point.label);
+                  }
+                }}
+                onDestinationChange={(point) => {
+                  setDestinationPoint(point);
+                }}
+                initialPickup={pickupPoint}
+                initialDestination={destinationPoint}
+              />
             </div>
 
             {/* Botón confirmar */}

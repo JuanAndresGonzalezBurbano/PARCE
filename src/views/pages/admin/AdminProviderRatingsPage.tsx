@@ -185,8 +185,8 @@ export default function AdminProviderRatingsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="text-white font-semibold text-sm">{s.name}</p>
-                        {s.trend === 'up'   && <TrendingUp   className="w-3.5 h-3.5 text-green-400" title="Tendencia positiva" />}
-                        {s.trend === 'down' && <TrendingDown  className="w-3.5 h-3.5 text-red-400"   title="Tendencia negativa" />}
+                        {s.trend === 'up'   && <TrendingUp   className="w-3.5 h-3.5 text-green-400" />}
+                        {s.trend === 'down' && <TrendingDown  className="w-3.5 h-3.5 text-red-400"   />}
                       </div>
                       <p className="text-gray-500 text-xs">{s.specialty} · {s.totalRatings} calificaciones</p>
                     </div>
@@ -303,8 +303,8 @@ export default function AdminProviderRatingsPage() {
                 selectedProvider.trend === 'down' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
                 'bg-dark-800/60 text-gray-400 border border-anthracite-700'
               }`}>
-                {selectedProvider.trend === 'up'   && <><TrendingUp className="w-4 h-4" /> Tendencia positiva en los últimos servicios</>}
-                {selectedProvider.trend === 'down' && <><TrendingDown className="w-4 h-4" /> Tendencia negativa — requiere seguimiento</>}
+                    {selectedProvider.trend === 'up'   && <><TrendingUp   className="w-4 h-4" /> Tendencia positiva en los últimos servicios</>}
+                {selectedProvider.trend === 'down' && <><TrendingDown  className="w-4 h-4" /> Tendencia negativa — requiere seguimiento</>}
                 {selectedProvider.trend === 'stable' && <>Desempeño estable</>}
               </div>
 

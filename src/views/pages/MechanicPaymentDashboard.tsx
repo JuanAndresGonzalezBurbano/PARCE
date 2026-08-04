@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { DollarSign, CheckCircle, Clock, Package, Eye } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { DollarSign, CheckCircle, Clock, Package, Eye, Star, X } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../../controllers/AuthContext';
@@ -39,6 +39,20 @@ export default function MechanicPaymentDashboard() {
   const { user } = useAuth();
   const [payments, setPayments] = useState<Payment[]>(MOCK);
   const [viewDetail, setViewDetail] = useState<Payment | null>(null);
+  const [ratingModal, setRatingModal] = useState<Payment | null>(null);
+  const [rating, setRating] = useState(0);
+  const [ratingHover, setRatingHover] = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
+  const [ratingDone, setRatingDone] = useState<number | null>(null);
+
+  const handleSubmitRating = (id: number) => {
+    if (rating === 0) return;
+    setRatingDone(id);
+    setRatingModal(null);
+    setRating(0);
+    setRatingComment('');
+    setTimeout(() => setRatingDone(null), 3000);
+  };
 
   const handleConfirm = (id: number) => {
     setPayments(prev => prev.map(p => p.id === id ? { ...p, status: 'confirmed' as const } : p));
@@ -111,9 +125,21 @@ export default function MechanicPaymentDashboard() {
                         <CheckCircle className="w-4 h-4" /> Confirmar pago
                       </button>
                     ) : (
-                      <span className="flex items-center gap-1.5 px-3 py-2 bg-green-500/20 text-green-400 rounded-xl text-sm font-medium">
-                        <CheckCircle className="w-4 h-4" /> Confirmado
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {ratingDone === p.id ? (
+                          <span className="flex items-center gap-1.5 px-3 py-2 bg-yellow-500/20 text-yellow-400 rounded-xl text-sm font-medium">
+                            <Star className="w-4 h-4 fill-yellow-400" /> ¡Calificado!
+                          </span>
+                        ) : (
+                          <button onClick={() => setRatingModal(p)}
+                            className="px-3 py-2 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 rounded-xl text-sm font-semibold transition-colors flex items-center gap-1.5">
+                            <Star className="w-4 h-4" /> Calificar
+                          </button>
+                        )}
+                        <span className="flex items-center gap-1.5 px-3 py-2 bg-green-500/20 text-green-400 rounded-xl text-sm font-medium">
+                          <CheckCircle className="w-4 h-4" /> Confirmado
+                        </span>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -158,6 +184,58 @@ export default function MechanicPaymentDashboard() {
           </motion.div>
         </div>
       )}
+
+      {/* ── MODAL CALIFICAR SERVICIO (mecánico califica al cliente) ── */}
+      <AnimatePresence>
+        {ratingModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+            onClick={() => setRatingModal(null)}>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="card p-6 max-w-sm w-full mx-4 space-y-5 text-center">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-white">Calificar servicio</h3>
+                <button onClick={() => setRatingModal(null)} className="text-gray-400 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-gray-400 text-sm">
+                ¿Cómo calificarías el servicio <span className="text-white font-semibold">{ratingModal.serviceType}</span> con <span className="text-white font-semibold">{ratingModal.userName}</span>?
+              </p>
+              {/* Estrellas */}
+              <div className="flex items-center justify-center gap-2">
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button key={n}
+                    onMouseEnter={() => setRatingHover(n)}
+                    onMouseLeave={() => setRatingHover(0)}
+                    onClick={() => setRating(n)}
+                    className="transition-transform hover:scale-110">
+                    <Star className={`w-10 h-10 transition-colors ${
+                      n <= (ratingHover || rating) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-600'
+                    }`} />
+                  </button>
+                ))}
+              </div>
+              {rating > 0 && (
+                <p className="text-yellow-400 text-sm font-semibold">
+                  {rating === 5 ? '¡Excelente!' : rating === 4 ? 'Muy bueno' : rating === 3 ? 'Regular' : rating === 2 ? 'Malo' : 'Muy malo'}
+                </p>
+              )}
+              <textarea
+                value={ratingComment}
+                onChange={e => setRatingComment(e.target.value)}
+                placeholder="Comentario opcional..."
+                rows={3}
+                className="w-full bg-dark-800 border border-anthracite-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gold-500 resize-none"
+              />
+              <button onClick={() => handleSubmitRating(ratingModal.id)} disabled={rating === 0}
+                className="w-full py-3 btn-primary text-sm font-semibold disabled:opacity-40 flex items-center justify-center gap-2">
+                <Star className="w-4 h-4" /> Enviar calificación
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

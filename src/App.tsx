@@ -39,6 +39,7 @@ import AdminPQRPage from './views/pages/admin/AdminPQRPage';
 import AdminVehiclesPage from './views/pages/admin/AdminVehiclesPage';
 import AdminInventoryPage from './views/pages/admin/AdminInventoryPage';
 import AdminProviderRatingsPage from './views/pages/admin/AdminProviderRatingsPage';
+import AdminMerchandisePage from './views/pages/admin/AdminMerchandisePage';
 import PaymentCRUDPage from './crud/payments/PaymentCRUDPage';
 
 // ── PÁGINAS COMPARTIDAS ──
@@ -71,6 +72,7 @@ function App() {
         <Route path="/admin/ratings" element={<ProtectedRoute allowedRoles={['admin']}><AdminRatingsPage /></ProtectedRoute>} />
         <Route path="/admin/ratings/providers" element={<ProtectedRoute allowedRoles={['admin']}><AdminProviderRatingsPage /></ProtectedRoute>} />
         <Route path="/admin/inventory" element={<ProtectedRoute allowedRoles={['admin']}><AdminInventoryPage /></ProtectedRoute>} />
+        <Route path="/admin/merchandise" element={<ProtectedRoute allowedRoles={['admin']}><AdminMerchandisePage /></ProtectedRoute>} />
         <Route path="/admin/pqr/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminPQRPage view="users" /></ProtectedRoute>} />
         <Route path="/admin/pqr/mechanics" element={<ProtectedRoute allowedRoles={['admin']}><AdminPQRPage view="mechanics" /></ProtectedRoute>} />
 

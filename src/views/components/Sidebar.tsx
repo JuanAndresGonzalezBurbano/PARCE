@@ -136,6 +136,9 @@ export default function Sidebar({ isOpen = true, hidden = false }: SidebarProps)
               <Link to="/admin/inventory" className={subLinkClass('/admin/inventory')}>
                 <ChevronRight className="w-3.5 h-3.5" /> Consultar Inventario
               </Link>
+              <Link to="/admin/merchandise" className={subLinkClass('/admin/merchandise')}>
+                <ChevronRight className="w-3.5 h-3.5" /> Ingreso de Mercancía
+              </Link>
             </AdminSection>
 
             {/* Pagos */}

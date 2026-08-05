@@ -289,12 +289,15 @@ class AuthService
         ?string $phone,
         string $requestedRole,
         string $ipAddress,
-        string $userAgent
+        string $userAgent,
+        ?string $idNumber = null,
+        ?string $driverLicenseNumber = null,
+        ?array $vehicleData = null
     ): AuthResult {
         Database::beginTransaction();
 
         try {
-            $userId = Database::insert('users', [
+            $userData = [
                 'email' => $email,
                 'password_hash' => $passwordHash,
                 'first_name' => $firstName,
@@ -303,7 +306,21 @@ class AuthService
                 'account_status' => 'active',
                 'created_at' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s')
-            ]);
+            ];
+            
+            // Agregar cédula si existe
+            if ($idNumber !== null) {
+                $userData['id_number'] = $idNumber;
+            }
+            
+            // Agregar licencia de conducción si existe
+            if ($driverLicenseNumber !== null) {
+                $userData['driver_license_number'] = $driverLicenseNumber;
+                $userData['driver_license_uploaded_at'] = date('Y-m-d H:i:s');
+                $userData['driver_license_status'] = 'not_set';
+            }
+            
+            $userId = Database::insert('users', $userData);
 
             // Obtener el ID del rol solicitado ('customer' o 'mechanic')
             $role = Database::fetchOne(
@@ -322,6 +339,37 @@ class AuthService
                 'assigned_at' => date('Y-m-d H:i:s'),
                 'is_active' => true
             ]);
+            
+            // Crear vehículo si se proporcionaron datos
+            if ($vehicleData !== null && !empty($vehicleData['license_plate'])) {
+                $vehicleInsertData = [
+                    'user_id' => $userId,
+                    'make' => $vehicleData['make'] ?? 'No especificado',
+                    'model' => $vehicleData['model'] ?? 'No especificado',
+                    'license_plate' => $vehicleData['license_plate'],
+                    'year' => $vehicleData['year'] ?? date('Y'),
+                    'color' => $vehicleData['color'] ?? 'No especificado',
+                    'vehicle_type' => 'car',
+                    'status' => 'active',
+                    'is_primary' => true,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s')
+                ];
+                
+                // Agregar SOAT si existe
+                if (!empty($vehicleData['soat_number'])) {
+                    $vehicleInsertData['soat_number'] = $vehicleData['soat_number'];
+                    $vehicleInsertData['soat_uploaded_at'] = date('Y-m-d H:i:s');
+                }
+                
+                // Agregar tecnomecánica si existe
+                if (!empty($vehicleData['tecnomecanica_number'])) {
+                    $vehicleInsertData['tecnomecanica_number'] = $vehicleData['tecnomecanica_number'];
+                    $vehicleInsertData['tecnomecanica_uploaded_at'] = date('Y-m-d H:i:s');
+                }
+                
+                Database::insert('vehicles', $vehicleInsertData);
+            }
 
             $sessionId = $this->sessionManager->create($userId, [
                 'ip_address' => $ipAddress,

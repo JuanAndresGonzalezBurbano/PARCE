@@ -6,13 +6,18 @@ import { API_ENDPOINTS } from '@/config/api';
 export interface ApiUser {
   id: number;
   email: string;
-  first_name: string;
-  last_name: string;
+  first_name?: string;
+  last_name?: string;
+  firstName?: string;  // Soporte para camelCase
+  lastName?: string;   // Soporte para camelCase
   phone?: string;
   id_number?: string;
   profile_picture_url?: string;
-  account_status: string;
-  roles: { id: number; name: string; slug: string }[];
+  account_status?: string;
+  accountStatus?: string;  // Soporte para camelCase
+  createdAt?: string;
+  lastLoginAt?: string;
+  roles: (string | { id: number; name: string; slug: string })[]; // Acepta array de strings o de objetos
   driver_license?: {
     number?: string;
     expiration_date?: string;
@@ -22,18 +27,19 @@ export interface ApiUser {
   };
   vehicle?: {
     id: number;
-    license_plate: string;
     make: string;
     model: string;
+    licensePlate: string;
     year: number;
     color: string;
-    soat_number?: string;
-    soat_uploaded_at?: string;
-    tecnomecanica_number?: string;
-    tecnomecanica_uploaded_at?: string;
-    is_primary: boolean;
+    vehicleType?: string;
+    soatNumber?: string;
+    soatUploadedAt?: string;
+    tecnomecanicaNumber?: string;
+    tecnomecanicaUploadedAt?: string;
+    isPrimary: boolean;
     status: string;
-    created_at: string;
+    createdAt: string;
   };
 }
 
@@ -96,13 +102,29 @@ export const authService = {
 // ── Helper: convierte el rol del API (slug) al rol interno del frontend ───────
 export function mapApiRoleToAppRole(roles: ApiUser['roles']): 'admin' | 'mechanic' | 'user' {
   if (!roles || roles.length === 0) return 'user';
-  const slugs = roles.map(r => r.slug.toLowerCase());
+  
+  // Manejar tanto array de strings como array de objetos
+  const slugs: string[] = [];
+  
+  for (const role of roles) {
+    if (typeof role === 'string') {
+      // Si es un string directo (e.g., "administrator")
+      slugs.push(role.toLowerCase());
+    } else if (role && typeof role === 'object' && role.slug) {
+      // Si es un objeto con propiedad slug
+      slugs.push(role.slug.toLowerCase());
+    }
+  }
+  
+  if (slugs.length === 0) return 'user';
   if (slugs.some(s => s.includes('admin') || s.includes('super'))) return 'admin';
-  if (slugs.some(s => s.includes('mechanic'))) return 'mechanic';
+  if (slugs.some(s => s.includes('mechanic') || s.includes('mecanico'))) return 'mechanic';
   return 'user';
 }
 
 // ── Helper: nombre completo desde ApiUser ─────────────────────────────────────
 export function getFullName(u: ApiUser): string {
-  return `${u.first_name} ${u.last_name}`.trim();
+  const firstName = u.first_name || u.firstName || '';
+  const lastName = u.last_name || u.lastName || '';
+  return `${firstName} ${lastName}`.trim() || 'Usuario';
 }

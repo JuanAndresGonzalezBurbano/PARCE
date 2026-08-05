@@ -50,26 +50,32 @@ export default function LoginPage() {
     // Intentar login real contra la API PHP
     const ok = await login(email, password);
     if (ok) {
-      // Login exitoso - obtener el usuario actualizado de localStorage
-      const savedUser = localStorage.getItem('parce_user');
-      if (savedUser) {
-        const parsedUser = JSON.parse(savedUser);
-        // Redirigir según el rol del usuario autenticado
-        if (parsedUser.role === 'admin') navigate('/dashboard');
-        else if (parsedUser.role === 'mechanic') navigate('/mechanic-home');
-        else navigate('/home');
-        return;
-      }
+      // Login exitoso - esperar un momento para que el contexto se actualice
+      // y luego redirigir según el rol
+      setTimeout(() => {
+        const savedUser = localStorage.getItem('parce_user');
+        if (savedUser) {
+          const parsedUser = JSON.parse(savedUser);
+          console.log('✅ Login exitoso. Rol del usuario:', parsedUser.role);
+          
+          // Redirigir según el rol del usuario autenticado
+          if (parsedUser.role === 'admin') {
+            console.log('🔀 Redirigiendo a /dashboard');
+            navigate('/dashboard');
+          } else if (parsedUser.role === 'mechanic') {
+            console.log('🔀 Redirigiendo a /mechanic-home');
+            navigate('/mechanic-home');
+          } else {
+            console.log('🔀 Redirigiendo a /home');
+            navigate('/home');
+          }
+        }
+      }, 100);
+      return;
     }
     
-    // Fallback: intentar accesos mock de prueba locales
-    const account = ROLE_ACCOUNTS[email.toLowerCase()];
-    if (account) {
-      loginMock(email, password, account.role, account.name);
-      navigate(account.redirect);
-    } else {
-      setLoginError(authError || 'Credenciales incorrectas. Verifica tu email y contraseña.');
-    }
+    // Si el login falló, mostrar error
+    setLoginError(authError || 'Credenciales incorrectas. Verifica tu email y contraseña.');
   };
 
   // Clases de input con estado visual

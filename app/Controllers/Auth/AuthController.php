@@ -96,6 +96,24 @@ class AuthController extends Controller
             $firstName = RequestValidator::sanitizeString($request->input('first_name'));
             $lastName = RequestValidator::sanitizeString($request->input('last_name'));
             $phone = $request->input('phone') ? RequestValidator::sanitizeString($request->input('phone')) : null;
+            
+            // Datos adicionales opcionales
+            $idNumber = $request->input('id_number') ? RequestValidator::sanitizeString($request->input('id_number')) : null;
+            $driverLicenseNumber = $request->input('driver_license_number') ? RequestValidator::sanitizeString($request->input('driver_license_number')) : null;
+            
+            // Datos del vehículo (opcionales)
+            $vehicleData = null;
+            if ($request->input('vehicle_brand') || $request->input('vehicle_plate')) {
+                $vehicleData = [
+                    'make' => $request->input('vehicle_brand') ? RequestValidator::sanitizeString($request->input('vehicle_brand')) : null,
+                    'model' => $request->input('vehicle_model') ? RequestValidator::sanitizeString($request->input('vehicle_model')) : null,
+                    'license_plate' => $request->input('vehicle_plate') ? RequestValidator::sanitizeString($request->input('vehicle_plate')) : null,
+                    'year' => $request->input('vehicle_year') ? (int)$request->input('vehicle_year') : null,
+                    'color' => $request->input('vehicle_color') ? RequestValidator::sanitizeString($request->input('vehicle_color')) : null,
+                    'soat_number' => $request->input('soat_number') ? RequestValidator::sanitizeString($request->input('soat_number')) : null,
+                    'tecnomecanica_number' => $request->input('tecnomecanica_number') ? RequestValidator::sanitizeString($request->input('tecnomecanica_number')) : null,
+                ];
+            }
 
             // Rol solicitado para el auto-registro (validado por RequestValidator: solo
             // 'customer' o 'mechanic' — nunca administrator/super_admin vía este endpoint)
@@ -119,7 +137,10 @@ class AuthController extends Controller
                 $phone,
                 $requestedRole,
                 IPValidator::getClientIP($request),
-                $request->userAgent()
+                $request->userAgent(),
+                $idNumber,
+                $driverLicenseNumber,
+                $vehicleData
             );
 
             // Contar el registro exitoso para el límite de tasa (evita creación masiva)
@@ -371,6 +392,32 @@ class AuthController extends Controller
                 'uploadedAt'     => $userData['driver_license_uploaded_at'],
             ];
         }
+        
+        // Obtener vehículo primario del usuario
+        $vehicle = null;
+        $vehicleData = \App\Core\Database::fetchOne(
+            'SELECT * FROM vehicles WHERE user_id = ? AND deleted_at IS NULL ORDER BY is_primary DESC, created_at DESC LIMIT 1',
+            [$userId]
+        );
+        
+        if ($vehicleData !== null) {
+            $vehicle = [
+                'id'                      => (int)$vehicleData['id'],
+                'make'                    => $vehicleData['make'],
+                'model'                   => $vehicleData['model'],
+                'licensePlate'            => $vehicleData['license_plate'],
+                'year'                    => (int)$vehicleData['year'],
+                'color'                   => $vehicleData['color'],
+                'vehicleType'             => $vehicleData['vehicle_type'] ?? 'car',
+                'soatNumber'              => $vehicleData['soat_number'],
+                'soatUploadedAt'          => $vehicleData['soat_uploaded_at'],
+                'tecnomecanicaNumber'     => $vehicleData['tecnomecanica_number'],
+                'tecnomecanicaUploadedAt' => $vehicleData['tecnomecanica_uploaded_at'],
+                'isPrimary'               => (bool)$vehicleData['is_primary'],
+                'status'                  => $vehicleData['status'],
+                'createdAt'               => $vehicleData['created_at'],
+            ];
+        }
 
         return [
             'id'            => $userId,
@@ -383,6 +430,7 @@ class AuthController extends Controller
             'lastLoginAt'   => $userData['last_login_at'],
             'roles'         => $roles,
             'driverLicense' => $driverLicense,
+            'vehicle'       => $vehicle,
         ];
     }
 

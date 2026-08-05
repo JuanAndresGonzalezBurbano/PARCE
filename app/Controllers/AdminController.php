@@ -72,4 +72,81 @@ class AdminController extends Controller
             return ErrorHandler::handleException($e);
         }
     }
+
+    /**
+     * Listar todos los usuarios con filtros
+     *
+     * GET /api/admin/users
+     */
+    public function users(Request $request): Response
+    {
+        try {
+            $filters = [
+                'role'   => $request->query('role'),
+                'status' => $request->query('status'),
+                'search' => $request->query('search'),
+            ];
+
+            $users = $this->adminService->getUsers($filters);
+
+            return ResponseFormatter::success([
+                'users' => $users,
+                'count' => count($users),
+            ], 'Usuarios obtenidos correctamente', 200);
+
+        } catch (\Exception $e) {
+            return ErrorHandler::handleException($e);
+        }
+    }
+
+    /**
+     * Listar todos los vehículos
+     *
+     * GET /api/admin/vehicles
+     */
+    public function vehicles(Request $request): Response
+    {
+        try {
+            $search = $request->query('search');
+            $vehicles = $this->adminService->getVehicles($search);
+
+            return ResponseFormatter::success([
+                'vehicles' => $vehicles,
+                'count'    => count($vehicles),
+            ], 'Vehículos obtenidos correctamente', 200);
+
+        } catch (\Exception $e) {
+            return ErrorHandler::handleException($e);
+        }
+    }
+
+    /**
+     * Actualizar estado de un usuario
+     *
+     * PUT /api/admin/users/{id}/status
+     */
+    public function updateUserStatus(Request $request): Response
+    {
+        try {
+            $userId = (int) $request->getAttribute('id');
+            $status = $request->input('status');
+
+            if (!in_array($status, ['active', 'inactive', 'suspended'])) {
+                return ResponseFormatter::validationError([
+                    'status' => 'Estado inválido. Debe ser: active, inactive o suspended'
+                ]);
+            }
+
+            $this->adminService->updateUserStatus($userId, $status);
+
+            return ResponseFormatter::success(
+                null,
+                'Estado del usuario actualizado correctamente',
+                200
+            );
+
+        } catch (\Exception $e) {
+            return ErrorHandler::handleException($e);
+        }
+    }
 }

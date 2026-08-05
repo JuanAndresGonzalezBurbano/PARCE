@@ -321,3 +321,42 @@ $router->get('/api/admin/ratings', [\App\Controllers\AdminController::class, 'ra
         [\App\Middleware\RBACMiddleware::class, ['administrator', 'super_admin']]
     ])
     ->name('api.admin.ratings');
+
+$router->get('/api/test', function($request) {
+    return \App\Infrastructure\Http\ResponseFormatter::success(
+        ['message' => 'Test OK'],
+        'Test',
+        200
+    );
+})->name('api.test');
+
+$router->get('/api/admin/users', [\App\Controllers\AdminController::class, 'users'])
+    ->name('api.admin.users');
+
+// Endpoint de debug - SOLO PARA DESARROLLO
+$router->get('/api/admin/users/debug/all', function($request) {
+    try {
+        $adminService = new \App\Infrastructure\Admin\AdminService();
+        $users = $adminService->getUsers();
+        return \App\Infrastructure\Http\ResponseFormatter::success([
+            'users' => $users,
+            'count' => count($users),
+        ], 'Usuarios obtenidos (DEBUG)', 200);
+    } catch (\Exception $e) {
+        return \App\Infrastructure\Http\ResponseFormatter::error(
+            'Error: ' . $e->getMessage(),
+            null,
+            500
+        );
+    }
+})->name('api.admin.users.debug');
+
+$router->get('/api/admin/vehicles', [\App\Controllers\AdminController::class, 'vehicles'])
+    ->name('api.admin.vehicles');
+
+$router->put('/api/admin/users/{id}/status', [\App\Controllers\AdminController::class, 'updateUserStatus'])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['administrator', 'super_admin']]
+    ])
+    ->name('api.admin.users.updateStatus');

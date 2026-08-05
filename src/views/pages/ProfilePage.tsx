@@ -1,10 +1,11 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Camera, ArrowLeft, Eye, EyeOff, Check, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../../controllers/AuthContext';
+import { authService } from '../../services/authService';
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -12,11 +13,12 @@ export default function ProfilePage() {
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [saved, setSaved] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Inicializa con los datos del usuario actual o valores por defecto editables
   const [formData, setFormData] = useState({
-    name:              user?.name  || 'Juan Gustavo',
-    email:             user?.email || 'juangustavo@email.com',
+    name:              user?.name  || '',
+    email:             user?.email || '',
     phone:             '',
     idNumber:          '',
     password:          '',
@@ -29,6 +31,40 @@ export default function ProfilePage() {
 
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Cargar datos del usuario al montar el componente
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        setIsLoading(true);
+        const response = await authService.me();
+        
+        if (response.success && response.data) {
+          const userData = response.data;
+          
+          // Poblar formulario con datos reales
+          setFormData({
+            name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+            email: userData.email || '',
+            phone: userData.phone || '',
+            idNumber: '', // No está disponible en el backend actualmente
+            password: '',
+            vehicleBrand: userData.vehicle?.make || '',
+            vehicleModel: userData.vehicle?.model || '',
+            vehiclePlate: userData.vehicle?.licensePlate || '',
+            vehicleYear: userData.vehicle?.year?.toString() || '',
+            vehicleColor: userData.vehicle?.color || '',
+          });
+        }
+      } catch (error) {
+        console.error('Error cargando datos del usuario:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadUserData();
+  }, []);
 
   const validatePassword = (pwd: string): boolean => {
     if (pwd.length === 0) { setPasswordError(''); return true; }
@@ -96,7 +132,19 @@ export default function ProfilePage() {
             <ArrowLeft className="w-5 h-5" /> Volver
           </button>
 
-          <div className="card p-8 space-y-6">
+          {/* Mostrar loading mientras carga datos */}
+          {isLoading ? (
+            <div className="card p-8 space-y-6">
+              <div className="text-center">
+                <h1 className="text-3xl font-bold text-white mb-1">Mi Perfil</h1>
+                <p className="text-gray-400 text-sm">Cargando información...</p>
+              </div>
+              <div className="flex justify-center items-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-gold-500 border-t-transparent"></div>
+              </div>
+            </div>
+          ) : (
+            <div className="card p-8 space-y-6">
             <div className="text-center">
               <h1 className="text-3xl font-bold text-white mb-1">Mi Perfil</h1>
               <p className="text-gray-400 text-sm">Edita y guarda tu información personal</p>
@@ -224,6 +272,7 @@ export default function ProfilePage() {
               </AnimatePresence>
             </form>
           </div>
+          )}
         </motion.div>
       </main>
     </div>

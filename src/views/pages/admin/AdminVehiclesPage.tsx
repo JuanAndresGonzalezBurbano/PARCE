@@ -1,86 +1,85 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Edit2, EyeOff, Car, ChevronDown, User, Wrench } from 'lucide-react';
+import { Search, Car, ChevronDown, Loader2, AlertCircle, User } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Sidebar from '../../components/Sidebar';
 import { useAuth } from '../../../controllers/AuthContext';
-
-interface VehicleRecord {
-  id: number;
-  plate: string;
-  brand: string;
-  model: string;
-  year: number;
-  color: string;
-  ownerName: string;
-  ownerType: 'user' | 'mechanic';
-  ownerEmail: string;
-  ownerPhone: string;
-  servicesCount: number;
-  lastService?: string;
-  status: 'active' | 'inactive';
-  createdAt: string;
-}
-
-const MOCK_VEHICLES: VehicleRecord[] = [
-  {
-    id: 1, plate: 'ABC-123', brand: 'Toyota', model: 'Corolla', year: 2020, color: 'Blanco',
-    ownerName: 'Carlos Méndez', ownerType: 'user', ownerEmail: 'carlos@email.com', ownerPhone: '+57 300 111 2222',
-    servicesCount: 12, lastService: '2025-06-20', status: 'active', createdAt: '2024-03-15',
-  },
-  {
-    id: 2, plate: 'XYZ-789', brand: 'Chevrolet', model: 'Spark', year: 2019, color: 'Gris',
-    ownerName: 'Roberto Silva', ownerType: 'mechanic', ownerEmail: 'roberto@email.com', ownerPhone: '+57 310 333 4444',
-    servicesCount: 87, lastService: '2025-06-24', status: 'active', createdAt: '2024-11-01',
-  },
-  {
-    id: 3, plate: 'PDF-456', brand: 'Mazda', model: '3', year: 2021, color: 'Rojo',
-    ownerName: 'Ana Rodríguez', ownerType: 'user', ownerEmail: 'ana@email.com', ownerPhone: '+57 320 555 6666',
-    servicesCount: 5, lastService: '2025-06-18', status: 'active', createdAt: '2025-01-10',
-  },
-  {
-    id: 4, plate: 'QRS-678', brand: 'Renault', model: 'Logan', year: 2018, color: 'Azul',
-    ownerName: 'Luis Herrera', ownerType: 'mechanic', ownerEmail: 'luis@email.com', ownerPhone: '+57 311 777 8888',
-    servicesCount: 52, lastService: '2025-06-22', status: 'active', createdAt: '2024-12-15',
-  },
-];
+import { adminService, AdminVehicle } from '../../../services/adminService';
 
 export default function AdminVehiclesPage() {
   const { user } = useAuth();
-  const [vehicles, setVehicles] = useState<VehicleRecord[]>(MOCK_VEHICLES);
+  
+  // Estados
+  const [vehicles, setVehicles] = useState<AdminVehicle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'user' | 'mechanic'>('all');
-  const [viewVehicle, setViewVehicle] = useState<VehicleRecord | null>(null);
-  const [showDisableModal, setShowDisableModal] = useState<number | null>(null);
 
-  const filtered = vehicles.filter(v => {
-    const matchSearch =
-      v.plate.toLowerCase().includes(search.toLowerCase()) ||
-      v.brand.toLowerCase().includes(search.toLowerCase()) ||
-      v.model.toLowerCase().includes(search.toLowerCase()) ||
-      v.ownerName.toLowerCase().includes(search.toLowerCase());
-    const matchType = filterType === 'all' || v.ownerType === filterType;
-    return matchSearch && matchType && v.status === 'active';
-  });
+  // Cargar vehículos
+  const loadVehicles = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const filters: any = {};
+      if (search.trim()) filters.search = search.trim();
 
-  const handleDisable = (id: number) => {
-    setVehicles(prev => prev.map(v => v.id === id ? { ...v, status: 'inactive' as const } : v));
-    setShowDisableModal(null);
+      const response = await adminService.getVehicles(filters);
+
+      if (response.success && response.data) {
+        setVehicles(response.data.vehicles);
+      } else {
+        setError(response.error || response.message || 'Error al cargar vehículos');
+      }
+    } catch (err) {
+      console.error('Error loading vehicles:', err);
+      setError('Error de conexión. Verifica que el servidor esté funcionando.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const ownerTypeBadge = (type: VehicleRecord['ownerType']) => {
-    if (type === 'mechanic') {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-500/20 text-gray-300">
-          <Wrench className="w-3 h-3" /> Mecánico
-        </span>
-      );
-    }
+  // Cargar al montar y cuando cambie el filtro de búsqueda
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      loadVehicles();
+    }, search ? 500 : 0); // Debounce de 500ms
+
+    return () => clearTimeout(timeoutId);
+  }, [search]);
+
+  // Badge para vehículo primario
+  const primaryBadge = (isPrimary: boolean) => {
+    if (!isPrimary) return null;
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gold-500/20 text-gold-400">
-        <User className="w-3 h-3" /> Usuario
+      <span className="px-2 py-0.5 bg-gold-500/20 text-gold-400 text-xs rounded-full border border-gold-500/30 font-medium">
+        Principal
       </span>
     );
+  };
+
+  // Badge para estado
+  const statusBadge = (status: string) => {
+    const styles = {
+      active: 'bg-green-500/20 text-green-400 border-green-500/30',
+      inactive: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+    };
+    const style = status === 'active' ? styles.active : styles.inactive;
+    const label = status === 'active' ? 'Activo' : 'Inactivo';
+    
+    return (
+      <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${style}`}>
+        {label}
+      </span>
+    );
+  };
+
+  // Estadísticas
+  const stats = {
+    total: vehicles.length,
+    withSOAT: vehicles.filter(v => v.soat_number).length,
+    withTecno: vehicles.filter(v => v.tecnomecanica_number).length,
+    primary: vehicles.filter(v => v.is_primary).length,
   };
 
   return (
@@ -89,217 +88,148 @@ export default function AdminVehiclesPage() {
       <Sidebar />
       <main className="ml-64 pt-16 p-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+          
+          {/* Header */}
           <div>
             <h1 className="text-3xl font-bold text-white">Gestión de Vehículos</h1>
-            <p className="text-gray-400 text-sm mt-1">Administra vehículos de usuarios y mecánicos</p>
+            <p className="text-gray-400 text-sm mt-1">Administra todos los vehículos registrados en la plataforma</p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Buscar por placa, marca, modelo o propietario..."
-                className="input-field pl-9 text-sm"
-              />
-            </div>
-            <div className="relative">
-              <select
-                value={filterType}
-                onChange={e => setFilterType(e.target.value as typeof filterType)}
-                className="input-field pr-8 text-sm appearance-none"
+          {/* Error */}
+          {error && (
+            <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400">
+              <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              <span>{error}</span>
+              <button 
+                onClick={() => setError(null)}
+                className="ml-auto text-red-400 hover:text-red-300"
               >
-                <option value="all">Todos los propietarios</option>
-                <option value="user">Solo usuarios</option>
-                <option value="mechanic">Solo mecánicos</option>
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                ×
+              </button>
             </div>
+          )}
+
+          {/* Filtros */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <input 
+              value={search} 
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar por placa, marca, modelo o propietario..."
+              className="input-field pl-9 text-sm w-full"
+              disabled={loading} 
+            />
           </div>
 
-          {/* Stats — colores grises/dorados */}
-          <div className="grid grid-cols-4 gap-4">
+          {/* Estadísticas */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
-              { label: 'Total activos', value: vehicles.filter(v => v.status === 'active').length, color: 'text-white' },
-              { label: 'De usuarios', value: vehicles.filter(v => v.ownerType === 'user' && v.status === 'active').length, color: 'text-gold-400' },
-              { label: 'De mecánicos', value: vehicles.filter(v => v.ownerType === 'mechanic' && v.status === 'active').length, color: 'text-gray-300' },
-              { label: 'Servicios totales', value: vehicles.reduce((a, v) => a + v.servicesCount, 0), color: 'text-green-400' },
-            ].map(stat => (
-              <div key={stat.label} className="card p-4 text-center">
-                <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-                <p className="text-gray-400 text-xs">{stat.label}</p>
-              </div>
-            ))}
+              { label: 'Total vehículos', value: stats.total, color: 'text-white', icon: Car },
+              { label: 'Primarios', value: stats.primary, color: 'text-gold-400', icon: Car },
+              { label: 'Con SOAT', value: stats.withSOAT, color: 'text-green-400', icon: Car },
+              { label: 'Con Tecnomecánica', value: stats.withTecno, color: 'text-blue-400', icon: Car },
+            ].map(stat => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.label} className="card p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <Icon className={`w-5 h-5 ${stat.color}`} />
+                    <p className={`text-2xl font-bold ${stat.color}`}>
+                      {loading ? '...' : stat.value}
+                    </p>
+                  </div>
+                  <p className="text-gray-400 text-xs">{stat.label}</p>
+                </div>
+              );
+            })}
           </div>
 
+          {/* Tabla */}
           <div className="card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-anthracite-700">
-                    <th className="text-left px-4 py-3 text-gray-400 font-medium">Placa</th>
-                    <th className="text-left px-4 py-3 text-gray-400 font-medium">Vehículo</th>
-                    <th className="text-left px-4 py-3 text-gray-400 font-medium">Propietario</th>
-                    <th className="text-left px-4 py-3 text-gray-400 font-medium">Tipo</th>
-                    <th className="text-left px-4 py-3 text-gray-400 font-medium">Servicios</th>
-                    <th className="text-left px-4 py-3 text-gray-400 font-medium">Último servicio</th>
-                    <th className="text-left px-4 py-3 text-gray-400 font-medium">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-anthracite-800">
-                  {filtered.map(v => (
-                    <tr key={v.id} className="hover:bg-dark-800/40 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <Car className="w-4 h-4 text-gold-500" />
-                          <span className="text-white font-mono font-semibold">{v.plate}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div>
-                          <p className="text-white font-medium">{v.brand} {v.model}</p>
-                          <p className="text-gray-500 text-xs">{v.year} • {v.color}</p>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div>
-                          <p className="text-white">{v.ownerName}</p>
-                          <p className="text-gray-500 text-xs">{v.ownerEmail}</p>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">{ownerTypeBadge(v.ownerType)}</td>
-                      <td className="px-4 py-3 text-gray-300 text-center">{v.servicesCount}</td>
-                      <td className="px-4 py-3 text-gray-300">{v.lastService || 'N/A'}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          {/* Ver detalles → lupa */}
-                          <button
-                            onClick={() => setViewVehicle(v)}
-                            className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-gold-400"
-                            title="Ver detalles"
-                          >
-                            <Search className="w-4 h-4" />
-                          </button>
-                          <button className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-gold-400" title="Editar">
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          {/* Deshabilitar → ojo cerrado */}
-                          <button
-                            onClick={() => setShowDisableModal(v.id)}
-                            className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-gray-300"
-                            title="Deshabilitar"
-                          >
-                            <EyeOff className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <Loader2 className="w-10 h-10 text-gold-400 animate-spin mb-3" />
+                <span className="text-gray-400">Cargando vehículos...</span>
+              </div>
+            ) : vehicles.length === 0 ? (
+              <div className="text-center py-16 text-gray-500">
+                <Car className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">No se encontraron vehículos</p>
+                <p className="text-sm mt-1">Intenta cambiar los filtros de búsqueda</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-anthracite-700 bg-dark-800/50">
+                      <th className="text-left px-4 py-3 text-gray-400 font-semibold">Vehículo</th>
+                      <th className="text-left px-4 py-3 text-gray-400 font-semibold">Propietario</th>
+                      <th className="text-left px-4 py-3 text-gray-400 font-semibold">SOAT</th>
+                      <th className="text-left px-4 py-3 text-gray-400 font-semibold">Tecnomecánica</th>
+                      <th className="text-left px-4 py-3 text-gray-400 font-semibold">Estado</th>
+                      <th className="text-left px-4 py-3 text-gray-400 font-semibold">Registro</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-              {filtered.length === 0 && (
-                <div className="text-center py-12 text-gray-500">
-                  <Car className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>No se encontraron vehículos</p>
-                </div>
-              )}
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-anthracite-800">
+                    {vehicles.map(v => {
+                      return (
+                        <tr key={v.id} className="hover:bg-dark-800/40 transition-colors">
+                          <td className="px-4 py-3">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="text-white font-bold">{v.license_plate}</p>
+                                {primaryBadge(v.is_primary)}
+                              </div>
+                              <p className="text-gray-400 text-sm">{v.make} {v.model}</p>
+                              <p className="text-gray-600 text-xs">{v.year} · {v.color}</p>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-start gap-2">
+                              <div className="flex items-center justify-center w-8 h-8 bg-gold-500/20 rounded-full text-gold-400 text-xs font-bold border border-gold-500/30 flex-shrink-0">
+                                <User className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <p className="text-white font-medium">{v.first_name} {v.last_name}</p>
+                                <p className="text-gray-500 text-xs">{v.email}</p>
+                                {v.phone && <p className="text-gray-600 text-xs">{v.phone}</p>}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            {v.soat_number ? (
+                              <div>
+                                <p className="text-green-400 font-mono text-xs">{v.soat_number}</p>
+                                <p className="text-gray-600 text-xs">✓ Registrado</p>
+                              </div>
+                            ) : (
+                              <span className="text-gray-500 text-xs">Sin registro</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {v.tecnomecanica_number ? (
+                              <div>
+                                <p className="text-blue-400 font-mono text-xs">{v.tecnomecanica_number}</p>
+                                <p className="text-gray-600 text-xs">✓ Registrado</p>
+                              </div>
+                            ) : (
+                              <span className="text-gray-500 text-xs">Sin registro</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">{statusBadge(v.status)}</td>
+                          <td className="px-4 py-3 text-gray-400 text-xs">
+                            {new Date(v.created_at).toLocaleDateString('es-CO')}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </motion.div>
       </main>
-
-      {/* Modal ver vehículo */}
-      {viewVehicle && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setViewVehicle(null)}>
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            onClick={e => e.stopPropagation()}
-            className="card p-6 max-w-lg w-full mx-4 space-y-4"
-          >
-            <h3 className="text-xl font-bold text-white border-b border-anthracite-700 pb-3 flex items-center gap-2">
-              <Car className="w-5 h-5 text-gold-500" />
-              Detalles del Vehículo
-            </h3>
-
-            <div>
-              <p className="text-xs text-gold-400 uppercase tracking-wider font-semibold mb-2">Información del Vehículo</p>
-              <div className="space-y-1 text-sm">
-                {[
-                  ['Placa', viewVehicle.plate],
-                  ['Marca', viewVehicle.brand],
-                  ['Modelo', viewVehicle.model],
-                  ['Año', String(viewVehicle.year)],
-                  ['Color', viewVehicle.color],
-                ].map(([label, value]) => (
-                  <div key={label} className="flex justify-between py-1.5 border-b border-anthracite-800/50">
-                    <span className="text-gray-400">{label}</span>
-                    <span className="text-white font-medium">{value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-2">Propietario</p>
-              <div className="space-y-1 text-sm">
-                {[
-                  ['Nombre', viewVehicle.ownerName],
-                  ['Tipo', viewVehicle.ownerType === 'mechanic' ? 'Mecánico' : 'Usuario'],
-                  ['Email', viewVehicle.ownerEmail],
-                  ['Teléfono', viewVehicle.ownerPhone],
-                ].map(([label, value]) => (
-                  <div key={label} className="flex justify-between py-1.5 border-b border-anthracite-800/50">
-                    <span className="text-gray-400">{label}</span>
-                    <span className="text-white font-medium">{value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <p className="text-xs text-gold-400 uppercase tracking-wider font-semibold mb-2">Historial</p>
-              <div className="space-y-1 text-sm">
-                {[
-                  ['Servicios completados', String(viewVehicle.servicesCount)],
-                  ['Último servicio', viewVehicle.lastService || 'N/A'],
-                  ['Registrado el', viewVehicle.createdAt],
-                ].map(([label, value]) => (
-                  <div key={label} className="flex justify-between py-1.5 border-b border-anthracite-800/50">
-                    <span className="text-gray-400">{label}</span>
-                    <span className="text-white font-medium">{value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <button onClick={() => setViewVehicle(null)} className="w-full btn-primary">Cerrar</button>
-          </motion.div>
-        </div>
-      )}
-
-      {/* Modal confirmar deshabilitar */}
-      {showDisableModal !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowDisableModal(null)}>
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            onClick={e => e.stopPropagation()}
-            className="card p-6 max-w-sm w-full mx-4 text-center space-y-4"
-          >
-            <EyeOff className="w-12 h-12 text-gray-400 mx-auto" />
-            <div>
-              <h3 className="text-xl font-bold text-white">¿Deshabilitar vehículo?</h3>
-              <p className="text-gray-400 text-sm mt-1">El vehículo quedará inactivo — puede reactivarse en cualquier momento.</p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => setShowDisableModal(null)} className="px-4 py-2 bg-dark-700 text-white rounded-xl hover:bg-dark-600 transition-colors">Cancelar</button>
-              <button onClick={() => handleDisable(showDisableModal)} className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-xl transition-colors">Deshabilitar</button>
-            </div>
-          </motion.div>
-        </div>
-      )}
     </div>
   );
 }

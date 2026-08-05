@@ -1,66 +1,51 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Plus, Edit2, EyeOff, UserCheck, UserX, ChevronDown, Loader2, AlertCircle } from 'lucide-react';
+import { Search, Users, UserCheck, UserX, ChevronDown, Loader2, AlertCircle, Eye } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Sidebar from '../../components/Sidebar';
 import { useAuth } from '../../../controllers/AuthContext';
 import { 
   adminService, 
-  AdminUser, 
-  AdminUserDetail, 
-  AdminUsersFilters,
-  mapAccountStatus, 
-  mapStatusToBackend,
+  AdminUser,
   formatUserName,
-  getStatusLabel 
+  getStatusLabel,
+  mapAccountStatus
 } from '../../../services/adminService';
 
-type UserStatus = 'active' | 'inactive' | 'disabled';
+type FilterStatus = 'all' | 'active' | 'inactive' | 'suspended';
+type FilterRole = 'all' | 'customer' | 'mechanic' | 'administrator';
 
 export default function AdminUsersPage() {
   const { user } = useAuth();
   
   // Estados de datos
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-    hasNext: false,
-    hasPrev: false
-  });
-  
-  // Estados de UI
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Estados de filtros
   const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | UserStatus>('all');
-  const [viewUser, setViewUser] = useState<AdminUserDetail | null>(null);
-  const [showDisableModal, setShowDisableModal] = useState<{ id: number; name: string } | null>(null);
-  const [loadingUserDetail, setLoadingUserDetail] = useState<number | null>(null);
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
+  const [filterRole, setFilterRole] = useState<FilterRole>('all');
+  
+  // Estado de actualización
   const [updatingStatus, setUpdatingStatus] = useState<number | null>(null);
 
-  // Función para cargar usuarios
-  const loadUsers = useCallback(async (filters: AdminUsersFilters = {}) => {
+  // Cargar usuarios
+  const loadUsers = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const finalFilters: AdminUsersFilters = {
-        page: pagination.page,
-        limit: pagination.limit,
-        ...filters,
-      };
+      const filters: any = {};
+      if (search.trim()) filters.search = search.trim();
+      if (filterStatus !== 'all') filters.status = filterStatus;
+      if (filterRole !== 'all') filters.role = filterRole;
 
-      if (search.trim()) finalFilters.search = search.trim();
-      if (filterStatus !== 'all') finalFilters.status = mapStatusToBackend(filterStatus);
-
-      const response = await adminService.getUsers(finalFilters);
+      const response = await adminService.getUsers(filters);
 
       if (response.success && response.data) {
         setUsers(response.data.users);
-        setPagination(response.data.pagination);
       } else {
         setError(response.error || response.message || 'Error al cargar usuarios');
       }
@@ -70,63 +55,28 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, filterStatus, pagination.page, pagination.limit]);
+  };
 
-  // Cargar usuarios al montar el componente y cuando cambien los filtros
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
-  // Recargar cuando cambien filtros (con debounce para search)
+  // Cargar al montar y cuando cambien los filtros
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      setPagination(prev => ({ ...prev, page: 1 })); // Reset a página 1 cuando cambian filtros
-      loadUsers({ page: 1 });
+      loadUsers();
     }, search ? 500 : 0); // Debounce de 500ms para búsqueda
 
     return () => clearTimeout(timeoutId);
-  }, [search, filterStatus]);
+  }, [search, filterStatus, filterRole]);
 
-  // Función para ver detalles de usuario
-  const handleViewUser = async (userId: number) => {
-    try {
-      setLoadingUserDetail(userId);
-      setError(null);
-
-      const response = await adminService.getUser(userId);
-
-      if (response.success && response.data) {
-        setViewUser(response.data);
-      } else {
-        setError(response.error || response.message || 'Error al cargar usuario');
-      }
-    } catch (err) {
-      console.error('Error loading user detail:', err);
-      setError('Error al cargar detalles del usuario');
-    } finally {
-      setLoadingUserDetail(null);
-    }
-  };
-
-  // Función para cambiar estado de usuario
-  const handleStatusChange = async (userId: number, newStatus: UserStatus) => {
+  // Cambiar estado de usuario
+  const handleStatusChange = async (userId: number, newStatus: 'active' | 'inactive' | 'suspended') => {
     try {
       setUpdatingStatus(userId);
       setError(null);
 
-      const backendStatus = mapStatusToBackend(newStatus);
-      const response = await adminService.updateUserStatus(userId, backendStatus);
+      const response = await adminService.updateUserStatus(userId, newStatus);
 
       if (response.success) {
-        // Actualizar estado local
-        setUsers(prev => prev.map(u => 
-          u.id === userId 
-            ? { ...u, accountStatus: backendStatus }
-            : u
-        ));
-        
-        // Cerrar modales
-        setShowDisableModal(null);
+        // Recargar usuarios
+        loadUsers();
       } else {
         setError(response.error || response.message || 'Error al actualizar estado');
       }
@@ -138,32 +88,27 @@ export default function AdminUsersPage() {
     }
   };
 
-  // Cambiar página
-  const handlePageChange = (newPage: number) => {
-    setPagination(prev => ({ ...prev, page: newPage }));
-    loadUsers({ page: newPage });
-  };
-
+  // Badge de estado
   const statusBadge = (status: string) => {
     const mappedStatus = mapAccountStatus(status);
-    const map = {
-      active: 'bg-green-500/20 text-green-400',
-      inactive: 'bg-yellow-500/20 text-yellow-400',
-      disabled: 'bg-gray-500/20 text-gray-400 line-through',
+    const styles = {
+      active: 'bg-green-500/20 text-green-400 border-green-500/30',
+      inactive: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+      disabled: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
     };
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${map[mappedStatus]}`}>
+      <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${styles[mappedStatus]}`}>
         {getStatusLabel(status)}
       </span>
     );
   };
 
-  // Estadísticas calculadas
+  // Estadísticas
   const stats = {
-    total: pagination.total,
-    active: users.filter(u => u.accountStatus === 'active').length,
-    inactive: users.filter(u => ['suspended', 'deactivated'].includes(u.accountStatus)).length,
-    disabled: users.filter(u => u.accountStatus === 'deactivated').length,
+    total: users.length,
+    active: users.filter(u => u.account_status === 'active').length,
+    inactive: users.filter(u => u.account_status === 'inactive').length,
+    suspended: users.filter(u => u.account_status === 'suspended').length,
   };
 
   return (
@@ -174,14 +119,9 @@ export default function AdminUsersPage() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
           
           {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-white">Gestión de Usuarios</h1>
-              <p className="text-gray-400 text-sm mt-1">Administra las cuentas de conductores registrados</p>
-            </div>
-            <button className="btn-primary flex items-center gap-2">
-              <Plus className="w-4 h-4" /> Nuevo Usuario
-            </button>
+          <div>
+            <h1 className="text-3xl font-bold text-white">Gestión de Usuarios</h1>
+            <p className="text-gray-400 text-sm mt-1">Administra las cuentas de usuarios y mecánicos registrados</p>
           </div>
 
           {/* Error */}
@@ -205,123 +145,151 @@ export default function AdminUsersPage() {
               <input 
                 value={search} 
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Buscar por nombre, email, cédula o teléfono..."
-                className="input-field pl-9 text-sm"
+                placeholder="Buscar por nombre, email o teléfono..."
+                className="input-field pl-9 text-sm w-full"
                 disabled={loading} 
               />
             </div>
-            <div className="relative">
-              <select 
-                value={filterStatus} 
-                onChange={e => setFilterStatus(e.target.value as typeof filterStatus)}
-                className="input-field pr-8 text-sm appearance-none"
-                disabled={loading}
-              >
-                <option value="all">Todos</option>
-                <option value="active">Activos</option>
-                <option value="inactive">Inactivos</option>
-                <option value="disabled">Deshabilitados</option>
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+            <div className="flex gap-3">
+              <div className="relative">
+                <select 
+                  value={filterRole} 
+                  onChange={e => setFilterRole(e.target.value as FilterRole)}
+                  className="input-field pr-8 text-sm appearance-none"
+                  disabled={loading}
+                >
+                  <option value="all">Todos los roles</option>
+                  <option value="customer">Usuarios</option>
+                  <option value="mechanic">Mecánicos</option>
+                  <option value="administrator">Administradores</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+              </div>
+              <div className="relative">
+                <select 
+                  value={filterStatus} 
+                  onChange={e => setFilterStatus(e.target.value as FilterStatus)}
+                  className="input-field pr-8 text-sm appearance-none"
+                  disabled={loading}
+                >
+                  <option value="all">Todos los estados</option>
+                  <option value="active">Activos</option>
+                  <option value="inactive">Inactivos</option>
+                  <option value="suspended">Suspendidos</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+              </div>
             </div>
           </div>
 
           {/* Estadísticas */}
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
-              { label: 'Total', value: stats.total, color: 'text-white' },
-              { label: 'Activos', value: stats.active, color: 'text-green-400' },
-              { label: 'Inactivos', value: stats.inactive, color: 'text-yellow-400' },
-              { label: 'Deshabilitados', value: stats.disabled, color: 'text-gray-400' },
-            ].map(stat => (
-              <div key={stat.label} className="card p-4 text-center">
-                <p className={`text-2xl font-bold ${stat.color}`}>
-                  {loading ? '...' : stat.value}
-                </p>
-                <p className="text-gray-400 text-xs">{stat.label}</p>
-              </div>
-            ))}
+              { label: 'Total', value: stats.total, color: 'text-white', icon: Users },
+              { label: 'Activos', value: stats.active, color: 'text-green-400', icon: UserCheck },
+              { label: 'Inactivos', value: stats.inactive, color: 'text-yellow-400', icon: AlertCircle },
+              { label: 'Suspendidos', value: stats.suspended, color: 'text-gray-400', icon: UserX },
+            ].map(stat => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.label} className="card p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <Icon className={`w-5 h-5 ${stat.color}`} />
+                    <p className={`text-2xl font-bold ${stat.color}`}>
+                      {loading ? '...' : stat.value}
+                    </p>
+                  </div>
+                  <p className="text-gray-400 text-xs">{stat.label}</p>
+                </div>
+              );
+            })}
           </div>
 
           {/* Tabla */}
           <div className="card overflow-hidden">
             {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 text-gold-400 animate-spin" />
-                <span className="ml-3 text-gray-400">Cargando usuarios...</span>
+              <div className="flex flex-col items-center justify-center py-16">
+                <Loader2 className="w-10 h-10 text-gold-400 animate-spin mb-3" />
+                <span className="text-gray-400">Cargando usuarios...</span>
+              </div>
+            ) : users.length === 0 ? (
+              <div className="text-center py-16 text-gray-500">
+                <UserX className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">No se encontraron usuarios</p>
+                <p className="text-sm mt-1">Intenta cambiar los filtros de búsqueda</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-anthracite-700">
-                      <th className="text-left px-4 py-3 text-gray-400 font-medium">Usuario</th>
-                      <th className="text-left px-4 py-3 text-gray-400 font-medium">Teléfono</th>
-                      <th className="text-left px-4 py-3 text-gray-400 font-medium">Cédula</th>
-                      <th className="text-left px-4 py-3 text-gray-400 font-medium">Roles</th>
-                      <th className="text-left px-4 py-3 text-gray-400 font-medium">Estado</th>
-                      <th className="text-left px-4 py-3 text-gray-400 font-medium">Acciones</th>
+                    <tr className="border-b border-anthracite-700 bg-dark-800/50">
+                      <th className="text-left px-4 py-3 text-gray-400 font-semibold">Usuario</th>
+                      <th className="text-left px-4 py-3 text-gray-400 font-semibold">Teléfono</th>
+                      <th className="text-left px-4 py-3 text-gray-400 font-semibold">Roles</th>
+                      <th className="text-left px-4 py-3 text-gray-400 font-semibold">Vehículos</th>
+                      <th className="text-left px-4 py-3 text-gray-400 font-semibold">Estado</th>
+                      <th className="text-left px-4 py-3 text-gray-400 font-semibold">Último acceso</th>
+                      <th className="text-left px-4 py-3 text-gray-400 font-semibold">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-anthracite-800">
                     {users.map(u => {
-                      const mappedStatus = mapAccountStatus(u.accountStatus);
-                      const isDisabled = mappedStatus === 'disabled';
+                      const mappedStatus = mapAccountStatus(u.account_status);
+                      const isActive = mappedStatus === 'active';
+                      const roles = u.roles ? u.roles.split(', ') : [];
                       
                       return (
-                        <tr key={u.id} className={`hover:bg-dark-800/40 transition-colors ${isDisabled ? 'opacity-50' : ''}`}>
+                        <tr key={u.id} className="hover:bg-dark-800/40 transition-colors">
                           <td className="px-4 py-3">
                             <div>
                               <p className="text-white font-medium">{formatUserName(u)}</p>
                               <p className="text-gray-500 text-xs">{u.email}</p>
+                              <p className="text-gray-600 text-xs mt-0.5">
+                                Registro: {new Date(u.created_at).toLocaleDateString('es-CO')}
+                              </p>
                             </div>
                           </td>
                           <td className="px-4 py-3 text-gray-300">{u.phone || '-'}</td>
-                          <td className="px-4 py-3 text-gray-300 font-mono">{u.idNumber || '-'}</td>
-                          <td className="px-4 py-3 text-gray-300">
-                            {u.roles.length > 0 ? u.roles.join(', ') : '-'}
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-1">
+                              {roles.map((role, idx) => (
+                                <span key={idx} className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded-full border border-blue-500/30">
+                                  {role}
+                                </span>
+                              ))}
+                              {roles.length === 0 && <span className="text-gray-500 text-xs">Sin rol</span>}
+                            </div>
                           </td>
-                          <td className="px-4 py-3">{statusBadge(u.accountStatus)}</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="inline-flex items-center justify-center w-8 h-8 bg-purple-500/20 text-purple-400 rounded-full text-xs font-bold border border-purple-500/30">
+                              {u.vehicle_count}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">{statusBadge(u.account_status)}</td>
+                          <td className="px-4 py-3 text-gray-400 text-xs">
+                            {u.last_login_at ? new Date(u.last_login_at).toLocaleDateString('es-CO') : 'Nunca'}
+                          </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
-                              {/* Ver detalles */}
-                              <button 
-                                onClick={() => handleViewUser(u.id)}
-                                disabled={loadingUserDetail === u.id}
-                                className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-gold-400 disabled:opacity-50" 
-                                title="Ver detalles"
-                              >
-                                {loadingUserDetail === u.id ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <Search className="w-4 h-4" />
-                                )}
-                              </button>
-                              
-                              {!isDisabled ? (
-                                <>
-                                  <button className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-gold-400" title="Editar">
-                                    <Edit2 className="w-4 h-4" />
-                                  </button>
-                                  <button 
-                                    onClick={() => setShowDisableModal({ id: u.id, name: formatUserName(u) })}
-                                    disabled={updatingStatus === u.id}
-                                    className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-gray-300 disabled:opacity-50" 
-                                    title="Deshabilitar"
-                                  >
-                                    {updatingStatus === u.id ? (
-                                      <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                      <EyeOff className="w-4 h-4" />
-                                    )}
-                                  </button>
-                                </>
+                              {isActive ? (
+                                <button 
+                                  onClick={() => handleStatusChange(u.id, 'suspended')}
+                                  disabled={updatingStatus === u.id}
+                                  className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-yellow-400 disabled:opacity-50" 
+                                  title="Suspender"
+                                >
+                                  {updatingStatus === u.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <UserX className="w-4 h-4" />
+                                  )}
+                                </button>
                               ) : (
                                 <button 
                                   onClick={() => handleStatusChange(u.id, 'active')}
                                   disabled={updatingStatus === u.id}
                                   className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-green-400 disabled:opacity-50" 
-                                  title="Restaurar"
+                                  title="Activar"
                                 >
                                   {updatingStatus === u.id ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -337,176 +305,11 @@ export default function AdminUsersPage() {
                     })}
                   </tbody>
                 </table>
-                
-                {users.length === 0 && !loading && (
-                  <div className="text-center py-12 text-gray-500">
-                    <UserX className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No se encontraron usuarios</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Paginación */}
-            {pagination.totalPages > 1 && (
-              <div className="border-t border-anthracite-700 px-4 py-3 flex items-center justify-between text-sm">
-                <p className="text-gray-400">
-                  Mostrando {((pagination.page - 1) * pagination.limit) + 1} a {Math.min(pagination.page * pagination.limit, pagination.total)} de {pagination.total} usuarios
-                </p>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => handlePageChange(pagination.page - 1)}
-                    disabled={!pagination.hasPrev || loading}
-                    className="px-3 py-1 bg-dark-700 hover:bg-dark-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                  >
-                    Anterior
-                  </button>
-                  <span className="text-gray-400">
-                    Página {pagination.page} de {pagination.totalPages}
-                  </span>
-                  <button 
-                    onClick={() => handlePageChange(pagination.page + 1)}
-                    disabled={!pagination.hasNext || loading}
-                    className="px-3 py-1 bg-dark-700 hover:bg-dark-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                  >
-                    Siguiente
-                  </button>
-                </div>
               </div>
             )}
           </div>
         </motion.div>
       </main>
-
-      {/* Modal ver usuario */}
-      {viewUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-          onClick={() => setViewUser(null)}>
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            onClick={e => e.stopPropagation()}
-            className="card p-6 max-w-lg w-full mx-4 space-y-4 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-bold text-white border-b border-anthracite-700 pb-3">Perfil del Usuario</h3>
-
-            <div>
-              <p className="text-xs text-gold-400 uppercase tracking-wider font-semibold mb-2">Información Personal</p>
-              <div className="space-y-1 text-sm">
-                {[
-                  ['Nombre completo', formatUserName(viewUser)],
-                  ['Email', viewUser.email],
-                  ['Teléfono', viewUser.phone || 'No registrado'],
-                  ['Cédula', viewUser.idNumber || 'No registrada'],
-                  ['Licencia de conducción', viewUser.driverLicense.number || 'No registrada'],
-                ].map(([label, value]) => (
-                  <div key={label} className="flex justify-between py-1.5 border-b border-anthracite-800/50">
-                    <span className="text-gray-400">{label}</span>
-                    <span className="text-white font-medium">{value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {viewUser.vehicles && viewUser.vehicles.length > 0 && (
-              <div>
-                <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-2">Vehículos</p>
-                {viewUser.vehicles.map((vehicle, idx) => (
-                  <div key={vehicle.id} className="mb-3">
-                    <p className="text-xs text-gold-400 mb-1">
-                      Vehículo {idx + 1} {vehicle.isPrimary && '(Principal)'}
-                    </p>
-                    <div className="space-y-1 text-sm">
-                      {[
-                        ['Placa', vehicle.licensePlate],
-                        ['Marca / Modelo', `${vehicle.make} ${vehicle.model}`],
-                        ['Año', String(vehicle.year)],
-                        ['Color', vehicle.color],
-                        ['SOAT', vehicle.soat.number || 'No registrado'],
-                        ['Tecnomecánica', vehicle.tecnomecanica.number || 'No registrada'],
-                      ].map(([label, value]) => (
-                        <div key={label} className="flex justify-between py-1.5 border-b border-anthracite-800/50">
-                          <span className="text-gray-400">{label}</span>
-                          <span className="text-white font-medium">{value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {viewUser.mechanicCertification.title && (
-              <div>
-                <p className="text-xs text-gold-400 uppercase tracking-wider font-semibold mb-2">Certificación</p>
-                <div className="space-y-1 text-sm">
-                  <div className="flex justify-between py-1.5 border-b border-anthracite-800/50">
-                    <span className="text-gray-400">Título</span>
-                    <span className="text-white font-medium">{viewUser.mechanicCertification.title}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div>
-              <p className="text-xs text-gold-400 uppercase tracking-wider font-semibold mb-2">Actividad</p>
-              <div className="space-y-1 text-sm">
-                {[
-                  ['Roles', viewUser.roles.join(', ')],
-                  ['Registrado', new Date(viewUser.createdAt).toLocaleDateString('es-CO')],
-                  ['Último ingreso', viewUser.lastLoginAt ? new Date(viewUser.lastLoginAt).toLocaleDateString('es-CO') : 'Nunca'],
-                  ['Estado', getStatusLabel(viewUser.accountStatus)],
-                ].map(([label, value]) => (
-                  <div key={label} className="flex justify-between py-1.5 border-b border-anthracite-800/50">
-                    <span className="text-gray-400">{label}</span>
-                    <span className="text-white font-medium">{value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <button onClick={() => setViewUser(null)} className="w-full btn-primary">Cerrar</button>
-          </motion.div>
-        </div>
-      )}
-
-      {/* Modal confirmación deshabilitar */}
-      {showDisableModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-          onClick={() => setShowDisableModal(null)}>
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            onClick={e => e.stopPropagation()}
-            className="card p-6 max-w-sm w-full mx-4 text-center space-y-4">
-            <EyeOff className="w-12 h-12 text-gray-400 mx-auto" />
-            <div>
-              <h3 className="text-xl font-bold text-white">¿Deshabilitar usuario?</h3>
-              <p className="text-gray-400 text-sm mt-1">
-                <strong>{showDisableModal.name}</strong> quedará inactivo — puede ser reactivado en cualquier momento.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <button 
-                onClick={() => setShowDisableModal(null)} 
-                disabled={updatingStatus !== null}
-                className="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-white rounded-xl transition-colors disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={() => handleStatusChange(showDisableModal.id, 'disabled')} 
-                disabled={updatingStatus !== null}
-                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {updatingStatus === showDisableModal.id ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Deshabilitando...
-                  </>
-                ) : (
-                  'Deshabilitar'
-                )}
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
     </div>
   );
 }

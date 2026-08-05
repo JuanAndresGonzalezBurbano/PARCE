@@ -85,16 +85,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       const res = await authService.login({ email, password });
+      console.log('🔍 Login response:', res); // DEBUG
+      console.log('🔍 res.data:', res.data); // DEBUG
+      console.log('🔍 res.data?.user:', res.data?.user); // DEBUG
+      
       if (res.success && res.data?.user) {
         const appUser = apiUserToAppUser(res.data.user);
         setUser(appUser);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(appUser));
         return true;
       } else {
+        console.error('❌ Login failed. Response:', res); // DEBUG
         setError(res.error || res.message || 'Credenciales incorrectas');
         return false;
       }
-    } catch {
+    } catch (err) {
+      console.error('❌ Login exception:', err); // DEBUG
       setError('Error de conexión con el servidor');
       return false;
     }

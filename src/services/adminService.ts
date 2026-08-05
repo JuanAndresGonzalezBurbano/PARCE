@@ -5,123 +5,88 @@ import { apiClient, ApiResponse } from './apiClient';
 export interface AdminUser {
   id: number;
   email: string;
-  firstName: string;
-  lastName: string;
-  fullName: string;
-  phone: string;
-  idNumber: string;
-  accountStatus: 'active' | 'suspended' | 'deactivated';
-  roles: string[];
-  createdAt: string;
-  lastLoginAt?: string;
-  driverLicense?: string;
-  mechanicCertification?: string;
+  first_name: string;
+  last_name: string;
+  phone: string | null;
+  account_status: string;
+  roles: string;  // roles concatenados como string
+  role_slugs: string;  // slugs concatenados como string
+  vehicle_count: number;
+  created_at: string;
+  last_login_at: string | null;
 }
 
-export interface AdminUserDetail extends AdminUser {
-  profilePictureUrl?: string;
-  emailVerificationStatus: string;
-  phoneVerificationStatus: string;
-  emailVerifiedAt?: string;
-  phoneVerifiedAt?: string;
-  lastLoginIp?: string;
-  updatedAt: string;
-  driverLicense: {
-    number?: string;
-    expirationDate?: string;
-    documentUrl?: string;
-    status?: string;
-    uploadedAt?: string;
-  };
-  mechanicCertification: {
-    title?: string;
-    documentUrl?: string;
-    uploadedAt?: string;
-  };
-  vehicles: Array<{
-    id: number;
-    licensePlate: string;
-    make: string;
-    model: string;
-    year: number;
-    color: string;
-    soat: {
-      number?: string;
-      expirationDate?: string;
-      uploadedAt?: string;
-    };
-    tecnomecanica: {
-      number?: string;
-      expirationDate?: string;
-      uploadedAt?: string;
-    };
-    isPrimary: boolean;
-    status: string;
-    createdAt: string;
-  }>;
-}
-
-export interface AdminUsersResponse {
-  users: AdminUser[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasNext: boolean;
-    hasPrev: boolean;
-  };
-  filters: {
-    search: string;
-    role: string;
-    status: string;
-  };
+export interface AdminVehicle {
+  id: number;
+  make: string;
+  model: string;
+  license_plate: string;
+  year: number;
+  color: string;
+  vehicle_type: string | null;
+  soat_number: string | null;
+  tecnomecanica_number: string | null;
+  is_primary: boolean;
+  status: string;
+  created_at: string;
+  user_id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
 }
 
 export interface AdminUsersFilters {
-  page?: number;
-  limit?: number;
-  search?: string;
   role?: string;
   status?: string;
+  search?: string;
+}
+
+export interface AdminVehiclesFilters {
+  search?: string;
 }
 
 // ── Servicio de administración ───────────────────────────────────────────────
 
 export const adminService = {
   /**
-   * Obtener lista paginada de usuarios con filtros
+   * Obtener lista de usuarios con filtros
    */
-  async getUsers(filters: AdminUsersFilters = {}): Promise<ApiResponse<AdminUsersResponse>> {
+  async getUsers(filters: AdminUsersFilters = {}): Promise<ApiResponse<{ users: AdminUser[]; count: number }>> {
     const params = new URLSearchParams();
     
-    if (filters.page) params.append('page', filters.page.toString());
-    if (filters.limit) params.append('limit', filters.limit.toString());
     if (filters.search) params.append('search', filters.search);
     if (filters.role) params.append('role', filters.role);
     if (filters.status) params.append('status', filters.status);
 
     const queryString = params.toString();
-    const url = queryString ? `/api/admin/users?${queryString}` : '/api/admin/users';
+    const url = queryString ? `/admin/users?${queryString}` : '/admin/users';
 
-    return apiClient.get<AdminUsersResponse>(url);
+    return apiClient.get<{ users: AdminUser[]; count: number }>(url);
   },
 
   /**
-   * Obtener detalles completos de un usuario específico
+   * Obtener lista de vehículos con filtros
    */
-  async getUser(id: number): Promise<ApiResponse<AdminUserDetail>> {
-    return apiClient.get<AdminUserDetail>(`/api/admin/users/${id}`);
+  async getVehicles(filters: AdminVehiclesFilters = {}): Promise<ApiResponse<{ vehicles: AdminVehicle[]; count: number }>> {
+    const params = new URLSearchParams();
+    
+    if (filters.search) params.append('search', filters.search);
+
+    const queryString = params.toString();
+    const url = queryString ? `/admin/vehicles?${queryString}` : '/admin/vehicles';
+
+    return apiClient.get<{ vehicles: AdminVehicle[]; count: number }>(url);
   },
 
   /**
-   * Actualizar el estado de un usuario (activar/desactivar)
+   * Actualizar el estado de un usuario
    */
   async updateUserStatus(
     id: number, 
-    status: 'active' | 'suspended' | 'deactivated'
-  ): Promise<ApiResponse<{ status: string }>> {
-    return apiClient.patch(`/api/admin/users/${id}/status`, { status });
+    status: 'active' | 'inactive' | 'suspended'
+  ): Promise<ApiResponse<null>> {
+    return apiClient.put(`/admin/users/${id}/status`, { status });
   },
 };
 
@@ -135,6 +100,8 @@ export function mapAccountStatus(status: string): 'active' | 'inactive' | 'disab
     case 'active':
       return 'active';
     case 'suspended':
+      return 'inactive';
+    case 'inactive':
     case 'deactivated':
       return 'disabled';
     default:
@@ -145,23 +112,23 @@ export function mapAccountStatus(status: string): 'active' | 'inactive' | 'disab
 /**
  * Mapea el estado del frontend de vuelta al backend
  */
-export function mapStatusToBackend(status: 'active' | 'inactive' | 'disabled'): 'active' | 'suspended' | 'deactivated' {
+export function mapStatusToBackend(status: 'active' | 'inactive' | 'disabled'): 'active' | 'inactive' | 'suspended' {
   switch (status) {
     case 'active':
       return 'active';
     case 'disabled':
-      return 'deactivated';
+      return 'suspended';
     case 'inactive':
     default:
-      return 'suspended';
+      return 'inactive';
   }
 }
 
 /**
  * Formatea el nombre completo de un usuario
  */
-export function formatUserName(user: AdminUser | AdminUserDetail): string {
-  return `${user.firstName} ${user.lastName}`.trim();
+export function formatUserName(user: AdminUser): string {
+  return `${user.first_name} ${user.last_name}`.trim();
 }
 
 /**
@@ -173,9 +140,11 @@ export function getStatusLabel(status: string): string {
       return 'Activo';
     case 'suspended':
       return 'Suspendido';
+    case 'inactive':
+      return 'Inactivo';
     case 'deactivated':
       return 'Desactivado';
     default:
-      return 'Inactivo';
+      return 'Desconocido';
   }
 }

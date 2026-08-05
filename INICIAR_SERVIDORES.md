@@ -8,16 +8,16 @@ Necesitas **2 terminales abiertas** (o 2 ventanas de PowerShell):
 
 ## 1️⃣ BACKEND PHP (Puerto 8000)
 
-### Opción A: PowerShell/CMD
+### PowerShell/CMD
 ```powershell
-cd "C:\Program Files\Ampps\www\parce-api"
+cd C:\Users\juans\PARCE
 php -S localhost:8000 -t public public/router.php
 ```
 
-### Opción B: Desde AMPPS
-1. Abre AMPPS
-2. Asegúrate que Apache y MySQL estén corriendo
-3. Abre PowerShell y ejecuta el comando de arriba
+### Requisitos:
+1. MySQL debe estar corriendo (XAMPP/AMPPS)
+2. Base de datos `parce` debe existir
+3. Migraciones ejecutadas
 
 **Sabrás que funciona cuando veas:**
 ```
@@ -36,7 +36,7 @@ Debe mostrar: `{"success":true,"data":{"status":"healthy"...}}`
 
 ### PowerShell/CMD (nueva ventana)
 ```powershell
-cd c:\Users\APRENDIZ\PARCE
+cd C:\Users\juans\PARCE
 npm run dev
 ```
 
@@ -61,8 +61,7 @@ Debe cargar la página de login de P.A.R.C.E
 ```
 ┌─────────────────────────────────────────┐
 │  Terminal 1: BACKEND                    │
-│  cd "C:\Program Files\Ampps\www\parce-  │
-│  api"                                    │
+│  cd C:\Users\juans\PARCE                │
 │  php -S localhost:8000 -t public        │
 │  public/router.php                       │
 │                                          │
@@ -71,7 +70,7 @@ Debe cargar la página de login de P.A.R.C.E
 
 ┌─────────────────────────────────────────┐
 │  Terminal 2: FRONTEND                   │
-│  cd c:\Users\APRENDIZ\PARCE             │
+│  cd C:\Users\juans\PARCE                │
 │  npm run dev                             │
 │                                          │
 │  ✅ http://localhost:5173               │
@@ -88,12 +87,12 @@ Puedes crear un archivo `.bat` para iniciar ambos automáticamente:
 ```batch
 @echo off
 echo Iniciando Backend PHP...
-start "Backend PHP" cmd /k "cd /d C:\Program Files\Ampps\www\parce-api && php -S localhost:8000 -t public public/router.php"
+start "Backend PHP" cmd /k "cd /d C:\Users\juans\PARCE && php -S localhost:8000 -t public public/router.php"
 
 timeout /t 3 /nobreak > nul
 
 echo Iniciando Frontend React...
-start "Frontend React" cmd /k "cd /d c:\Users\APRENDIZ\PARCE && npm run dev"
+start "Frontend React" cmd /k "cd /d C:\Users\juans\PARCE && npm run dev"
 
 echo.
 echo ============================================
@@ -106,7 +105,7 @@ echo Presiona cualquier tecla para cerrar esta ventana...
 pause > nul
 ```
 
-**Guarda este archivo en:** `c:\Users\APRENDIZ\INICIAR_TODO.bat`
+**Guarda este archivo en:** `C:\Users\juans\INICIAR_TODO.bat`
 
 **Para usarlo:**
 - Doble click en `INICIAR_TODO.bat`

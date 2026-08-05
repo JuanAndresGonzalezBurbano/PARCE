@@ -1,21 +1,41 @@
 # Environment
 .env
+.env.local
 
-# Composer
+# Composer (Backend PHP)
 /vendor/
 composer.lock
 
+# Node (Frontend)
+node_modules
+dist
+dist-ssr
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
 # IDE
-.vscode/
+.vscode/*
+!.vscode/extensions.json
 .idea/
 *.sublime-project
 *.sublime-workspace
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
 # OS
 .DS_Store
 Thumbs.db
 
 # Logs
+logs
+*.log
 /storage/logs/*.log
 
 # Cache
@@ -35,7 +55,7 @@ Thumbs.db
 /frontend/.env
 /frontend/.env.local
 
-# Local scratch/test artifacts (curl cookie jars, SQL backups, ad-hoc test payloads)
+# Local scratch/test artifacts
 cookies*.txt
 backup_*.sql
 test_*.json

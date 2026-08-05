@@ -1,243 +1,401 @@
-# Guía de Servidores - PARCE
+# 🚀 Guía de Servidores - PARCE con XAMPP
 
-Este documento explica cómo iniciar los dos servidores necesarios y cómo resolver problemas comunes.
-
-## 📋 Requisitos Previos
-
-- **PHP 8.0+** (con extensiones: pdo, pdo_mysql, json)
-- **Node.js 16+** y npm
-- **MySQL 5.7+** corriendo en `localhost` sin contraseña (usuario `root`)
-- Base de datos `parce` ya creada
-
-## 🚀 Iniciar Servidores
-
-### 1. Backend PHP (Puerto 8000)
-
-En PowerShell, ejecuta:
-
-```powershell
-cd c:\Users\juans\PARCE
-php -S localhost:8000
-```
-
-✅ Debería ver:
-```
-Development Server (http://localhost:8000)
-Listening on http://localhost:8000
-Press Ctrl-C to quit
-```
-
-**Verificar que funciona:**
-- Abre en navegador: `http://localhost:8000/api/test`
-- Debería devolver: `{"success":true,"data":{"message":"Test OK"}}`
+Este documento explica cómo iniciar los dos servidores (Backend PHP + Frontend React) usando XAMPP y cómo resolver problemas comunes.
 
 ---
 
-### 2. Frontend React (Puerto 5173)
+## 📋 Requisitos Previos
 
-En otra ventana de PowerShell, ejecuta:
+✅ **XAMPP 8.0+** instalado en `C:\xampp` (o ruta similar)
+✅ **Node.js 16+** y npm instalados
+✅ Base de datos `parce` ya creada en MySQL
+
+---
+
+## 🎯 Iniciar XAMPP
+
+### Paso 1: Abrir XAMPP Control Panel
+
+1. Abre **XAMPP Control Panel**
+   - Busca en Inicio: `xampp`
+   - O ve a: `C:\xampp\xampp-control.exe`
+
+2. Debería verse así:
+```
+┌─ XAMPP Control Panel ─────────────────────┐
+│                                           │
+│  Apache     [ Start ] [ Admin ]           │
+│  MySQL      [ Start ] [ Admin ]           │
+│  FileZilla  [ ]                           │
+│  Tomcat     [ ]                           │
+│                                           │
+└───────────────────────────────────────────┘
+```
+
+### Paso 2: Iniciar Apache y MySQL
+
+Haz clic en **"Start"** para ambos:
+
+1. **Apache** - Click en "Start" (debe quedar en verde)
+2. **MySQL** - Click en "Start" (debe quedar en verde)
+
+✅ Debería verse:
+```
+Apache     [Stop] [ Admin ]  ✓ Running
+MySQL      [Stop] [ Admin ]  ✓ Running
+```
+
+---
+
+## 🔧 Configurar Backend PHP
+
+### Paso 1: Ubicar proyecto en XAMPP
+
+El proyecto debe estar en:
+```
+C:\xampp\htdocs\PARCE\
+```
+
+Si **NO** está ahí:
+
+**OPCIÓN A: Copiar proyecto**
+```powershell
+# Copiar carpeta PARCE a htdocs
+Copy-Item -Recurse "c:\Users\juans\PARCE" "C:\xampp\htdocs\PARCE"
+```
+
+**OPCIÓN B: Crear enlace simbólico (mejor)**
+```powershell
+# Ejecutar como Administrador en PowerShell
+New-Item -ItemType SymbolicLink -Path "C:\xampp\htdocs\PARCE" -Target "c:\Users\juans\PARCE"
+```
+
+### Paso 2: Verificar configuración PHP
+
+Abre en navegador:
+```
+http://localhost/PARCE/public/index.php?page=test
+```
+
+Si ves un error, haz clic en **"Admin"** en MySQL y verifica:
+- Usuario: `root`
+- Sin contraseña
+- Base de datos: `parce`
+
+### Paso 3: Verificar que API funciona
+
+Abre en navegador:
+```
+http://localhost/PARCE/public/index.php/api/test
+```
+
+✅ Debería devolver:
+```json
+{
+  "success": true,
+  "data": { "message": "Test OK" },
+  "message": "Test"
+}
+```
+
+---
+
+## 🎨 Iniciar Frontend React
+
+### Paso 1: Abrir PowerShell
 
 ```powershell
+# Ir a la carpeta del proyecto
 cd c:\Users\juans\PARCE
+```
+
+### Paso 2: Instalar dependencias (primera vez)
+
+```powershell
+npm install
+```
+
+### Paso 3: Iniciar servidor React
+
+```powershell
 npm run dev
 ```
 
 ✅ Debería ver:
 ```
-  VITE v... ready in XXX ms
+  VITE v5... ready in 234 ms
 
   ➜  Local:   http://localhost:5173/
-  ➜  press h to show help
+  ➜  Press h to show help
 ```
 
-**Verificar que funciona:**
-- Abre en navegador: `http://localhost:5173`
-- Debería cargar la página de login
+### Paso 4: Abrir en navegador
+
+Abre: `http://localhost:5173`
+
+Debería cargar la página de login.
 
 ---
 
 ## 🔑 Credenciales de Prueba
 
+Usa estas para probar:
+
 | Rol | Email | Contraseña |
 |-----|-------|-----------|
-| Admin | `admin.demo@parcedemo.local` | `Demo12345` |
-| Mecánico | `mecanico.demo@parcedemo.local` | `Demo12345` |
-| Cliente | `cliente.demo@parcedemo.local` | `Demo12345` |
+| 👨‍💼 Admin | `admin.demo@parcedemo.local` | `Demo12345` |
+| 🔧 Mecánico | `mecanico.demo@parcedemo.local` | `Demo12345` |
+| 👤 Cliente | `cliente.demo@parcedemo.local` | `Demo12345` |
+
+---
+
+## 📊 Verificación Rápida (Todo Funcionando)
+
+Cuando ambos servidores estén corriendo:
+
+1. ✅ **Backend disponible:**
+   - http://localhost/PARCE/public/index.php/api/test
+
+2. ✅ **Frontend disponible:**
+   - http://localhost:5173
+
+3. ✅ **Login funciona:**
+   - Ir a http://localhost:5173
+   - Iniciar sesión con admin.demo@parcedemo.local
+
+4. ✅ **Dashboard carga:**
+   - Debería ver tabla de usuarios y vehículos
 
 ---
 
 ## 🔧 Solucionar Problemas
 
-### Backend PHP se cae o no responde
+### ❌ Apache no inicia (error en rojo)
 
-**Problema:** Backend en puerto 8000 no responde o muestra error
+**Posible causa:** Puerto 80 ya está en uso
 
 **Solución:**
 
 ```powershell
-# 1. Verificar que PHP está funcionando
-php -v
+# 1. Ver qué está usando puerto 80
+netstat -ano | findstr :80
 
-# 2. Verificar que el puerto 8000 está disponible
-netstat -ano | findstr :8000
-
-# 3. Si algo está usando el puerto, matar el proceso
+# 2. Si algo está usando, matar el proceso
 # Reemplaza 12345 con el PID mostrado arriba
 taskkill /PID 12345 /F
 
-# 4. Reiniciar el servidor PHP
-cd c:\Users\juans\PARCE
-php -S localhost:8000
+# 3. En XAMPP, hacer clic nuevamente en "Start" para Apache
 ```
 
-**Si aún así falla:**
-
-```powershell
-# Probar en otro puerto
-php -S localhost:8001
-
-# Y en el frontend, actualizar vite.config.ts
-# Cambiar 'target': 'http://localhost:8000' por 'http://localhost:8001'
+**Solución alternativa:** Cambiar puerto en XAMPP
+```
+1. Click en "Config" en Apache
+2. Buscar "Listen 80"
+3. Cambiar a "Listen 8080"
+4. Reiniciar Apache
+5. Backend estará en: http://localhost:8080/PARCE/public/index.php/api/...
 ```
 
 ---
 
-### Frontend no carga o muestra errores de proxy
+### ❌ MySQL no inicia (error en rojo)
 
-**Problema:** Frontend muestra errores 404 al llamar a `/api/...`
+**Posible causa:** Puerto 3306 en uso o MySQL dañado
+
+**Solución 1:**
+```powershell
+# 1. Detener MySQL en XAMPP
+# 2. En PowerShell, ejecutar:
+cd C:\xampp\mysql\bin
+mysql.exe
+
+# Si se abre, escribir:
+EXIT;
+
+# 3. Volver a iniciar MySQL en XAMPP
+```
+
+**Solución 2: Reparar MySQL**
+```powershell
+# Ir a XAMPP y hacer clic en "Shell"
+cd C:\xampp\mysql\bin
+mysqld --repair-defaults
+
+# Cerrar shell y reintentar en XAMPP
+```
+
+---
+
+### ❌ Base de datos `parce` no existe
+
+**Solución:**
+
+1. Abre **phpMyAdmin** en XAMPP:
+   - Click en "Admin" en MySQL
+   - O ve a: http://localhost/phpmyadmin
+
+2. Crea la base de datos:
+   - Click en "New"
+   - Nombre: `parce`
+   - Collation: `utf8mb4_unicode_ci`
+   - Click "Create"
+
+3. Ejecuta migraciones desde PowerShell:
+   ```powershell
+   cd c:\Users\juans\PARCE
+   php public\index.php migrate:run
+   php public\index.php seed:run
+   ```
+
+---
+
+### ❌ Frontend muestra "Cannot GET /api/admin/users"
+
+**Posible causa:** Backend no accesible o proxy no configurado correctamente
+
+**Solución:**
+
+1. Verifica que Apache está corriendo (verde en XAMPP)
+
+2. Abre DevTools (F12) en navegador
+   - Pestaña "Network"
+   - Intenta hacer algo en la app
+   - Si ves red 404, revisar:
+     - ¿Dice `/api/api/admin/users`? → Error de duplicación
+     - ¿Dice `/admin/users`? → Backend no responde
+
+3. Reinicia ambos servidores:
+   ```powershell
+   # En XAMPP:
+   # - Stop Apache
+   # - Stop MySQL
+   # Esperar 2 segundos
+   # - Start MySQL
+   # - Start Apache
+   # 
+   # En PowerShell (Ctrl+C en npm run dev):
+   npm run dev
+   ```
+
+---
+
+### ❌ Error "Too many requests"
+
+**Posible causa:** Rate limiter activado
 
 **Solución:**
 
 ```powershell
-# 1. Verificar que el backend está corriendo en puerto 8000
-# Ir a http://localhost:8000/api/test en navegador
-
-# 2. Limpiar cache y node_modules
+# Limpiar rate limiter en PowerShell:
 cd c:\Users\juans\PARCE
-rmdir /s /q node_modules
-npm install
+php public\index.php clear:cache
 
-# 3. Reiniciar Vite
-# Presionar Ctrl+C en la ventana de Vite
-# Luego ejecutar nuevamente
+# O eliminar archivo de cache manualmente:
+Remove-Item storage/cache/* -Force
+
+# Luego reiniciar frontend:
 npm run dev
 ```
 
 ---
 
-### Base de datos no conecta
-
-**Problema:** Backend muestra "Error conectando a base de datos"
+### ❌ Login no funciona (error de autenticación)
 
 **Solución:**
 
-```powershell
-# 1. Verificar que MySQL está corriendo
-# Ir a Servicios de Windows y buscar MySQL
-# O desde PowerShell:
-Get-Service | findstr MySQL
+1. Verificar que hay usuarios en BD:
+   - Abre http://localhost/phpmyadmin
+   - Click en `parce` → `users`
+   - Debería haber al menos 3 usuarios (admin, mechanic, customer)
 
-# 2. Verificar credenciales en .env
-# Abrir c:\Users\juans\PARCE\.env
-# Debe tener:
-# DB_HOST=localhost
-# DB_USER=root
-# DB_PASS=
-# DB_NAME=parce
+2. Si no hay usuarios, ejecutar seeders:
+   ```powershell
+   cd c:\Users\juans\PARCE
+   php public\index.php seed:run
+   ```
 
-# 3. Si la BD no existe, crear:
-mysql -u root
-CREATE DATABASE parce;
-EXIT;
+3. Limpiar cookies del navegador:
+   - DevTools (F12) → Application → Cookies
+   - Eliminar todas
+   - Recargar página (F5)
 
-# 4. Ejecutar migraciones desde PHP
-cd c:\Users\juans\PARCE
-php public/index.php migrate:run
+---
+
+## 📂 Estructura de Carpetas
+
+```
+C:\xampp\
+├── htdocs/
+│   └── PARCE/
+│       ├── app/              (Backend)
+│       ├── config/           (Configuración)
+│       ├── database/         (Migraciones)
+│       ├── public/           (Entry point)
+│       ├── src/              (Frontend React)
+│       ├── vendor/           (PHP dependencies)
+│       ├── node_modules/     (JS dependencies)
+│       ├── .env              (Config)
+│       └── composer.json
+├── mysql/
+├── apache/
+└── php/
 ```
 
 ---
 
-### Errores de autenticación (login no funciona)
+## 🎯 Flujo de Uso Diario
 
-**Problema:** No puede iniciar sesión o roles incorrectos
+Cada vez que quieras trabajar:
 
-**Solución:**
+**Mañana:**
+1. Abre XAMPP Control Panel
+2. Click "Start" en Apache y MySQL
+3. Espera a que salga ✓ Running
+4. En PowerShell: `cd c:\Users\juans\PARCE && npm run dev`
+5. Abre http://localhost:5173
 
-```powershell
-# 1. Verificar que la tabla users tiene datos
-mysql -u root parce
-SELECT id, email, account_status FROM users;
-EXIT;
+**Tarde (si cierras):**
+1. En PowerShell: Ctrl+C para parar npm
+2. En XAMPP: Click "Stop" en Apache y MySQL
+3. Repetir desde "Mañana" para reencender
 
-# 2. Si está vacía, ejecutar seeders
-cd c:\Users\juans\PARCE
-php public/index.php seed:run
-
-# 3. Limpiar cookies del navegador
-# Abrir DevTools (F12) → Application → Cookies → Delete all
-
-# 4. Reiniciar ambos servidores
-```
-
----
-
-## 📊 Estructura del Proyecto
-
-```
-c:\Users\juans\PARCE\
-├── app/                    # Backend PHP
-│   ├── Controllers/        # Controladores (HTTP requests)
-│   ├── Core/              # Núcleo de framework
-│   ├── Infrastructure/    # Servicios y DTOs
-│   └── Middleware/        # Auth, CORS, Rate Limiter, etc
-├── config/                # Configuración (rutas, BD)
-├── database/              # Migraciones y seeders
-├── public/                # Entry point del backend
-├── src/                   # Frontend React/TypeScript
-│   ├── controllers/       # Context (Redux-like)
-│   ├── services/          # API calls, business logic
-│   ├── views/
-│   │   ├── components/    # Componentes reutilizables
-│   │   └── pages/         # Páginas principales
-│   └── config/            # Configuración frontend
-├── .env                   # Variables de entorno
-├── composer.json          # Backend dependencies
-└── package.json           # Frontend dependencies
-```
+**Si algo falla:**
+1. Lee la sección "Solucionar Problemas" arriba
+2. Si no funciona, para todo:
+   - XAMPP: Stop Apache y MySQL
+   - PowerShell: Ctrl+C
+   - Espera 5 segundos
+   - Reinicia todo desde cero
 
 ---
 
-## 🧪 Verificación Rápida
+## ✅ Checklist Final
 
-Ejecuta esto para verificar que todo funciona:
+Antes de empezar a programar:
 
-```powershell
-# Terminal 1: Backend
-cd c:\Users\juans\PARCE
-php -S localhost:8000
+- [ ] XAMPP Control Panel abierto
+- [ ] Apache está en verde (Running)
+- [ ] MySQL está en verde (Running)
+- [ ] Frontend corre (`npm run dev`)
+- [ ] http://localhost:5173 abre correctamente
+- [ ] http://localhost/PARCE/public/index.php/api/test devuelve JSON
+- [ ] Puedo iniciar sesión con admin.demo@parcedemo.local
 
-# Terminal 2: Frontend
-cd c:\Users\juans\PARCE
-npm run dev
-
-# Terminal 3: Pruebas
-# Ir a http://localhost:5173
-# Login con: admin.demo@parcedemo.local / Demo12345
-# Ir a Dashboard → Gestión → Usuarios
-# Debería cargar tabla de usuarios desde BD
-```
+Si todo está ✓, **¡listo para trabajar!**
 
 ---
 
 ## 📞 Contacto/Soporte
 
-Si persisten los problemas:
+Si persisten problemas:
 
-1. Verificar logs en `storage/logs/` (si existen)
-2. Revisar DevTools (F12) en navegador para errores JavaScript
-3. Revisar consola de PHP para errores de backend
-4. Asegurar que la base de datos `parce` existe y MySQL está corriendo
+1. Verifica que XAMPP está corriendo (ambos en verde)
+2. Verifica que npm run dev está corriendo
+3. Limpia caché del navegador (Ctrl+Shift+Del)
+4. Reinicia todo de cero (para Apache, MySQL, npm)
+5. Si aún no funciona, revisa errores en consola PHP y DevTools
 
 ---
 
-**Última actualización:** 2026-08-05
+**Última actualización:** 2026-08-05  
+**Sistema:** Windows + XAMPP + PHP 8+ + MySQL 5.7+ + Node.js 16+

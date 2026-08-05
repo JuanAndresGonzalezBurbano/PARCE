@@ -5,12 +5,12 @@ namespace App\Controllers;
 use App\Core\Controller;
 use App\Core\Request;
 use App\Core\Response;
-use App\Infrastructure\ServiceRequest\ServiceRequestService;
-use App\Infrastructure\ServiceRequest\ServiceRequestValidator;
-use App\Infrastructure\ServiceRequest\ServiceRequestEvidenceService;
-use App\Infrastructure\Http\RequestValidator;
-use App\Infrastructure\Http\ResponseFormatter;
-use App\Infrastructure\Http\ErrorHandler;
+use App\Models\ServiceRequest\ServiceRequestService;
+use App\Models\ServiceRequest\ServiceRequestValidator;
+use App\Models\ServiceRequest\ServiceRequestEvidenceService;
+use App\Views\RequestValidator;
+use App\Views\ResponseFormatter;
+use App\Views\ErrorHandler;
 
 /**
  * Controlador de Solicitudes de Servicio

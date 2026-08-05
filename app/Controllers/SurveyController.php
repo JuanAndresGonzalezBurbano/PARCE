@@ -5,11 +5,11 @@ namespace App\Controllers;
 use App\Core\Controller;
 use App\Core\Request;
 use App\Core\Response;
-use App\Infrastructure\Survey\SurveyService;
-use App\Infrastructure\Survey\SurveyValidator;
-use App\Infrastructure\Http\RequestValidator;
-use App\Infrastructure\Http\ResponseFormatter;
-use App\Infrastructure\Http\ErrorHandler;
+use App\Models\Survey\SurveyService;
+use App\Models\Survey\SurveyValidator;
+use App\Views\RequestValidator;
+use App\Views\ResponseFormatter;
+use App\Views\ErrorHandler;
 
 /**
  * Controlador de Encuestas

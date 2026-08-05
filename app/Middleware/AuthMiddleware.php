@@ -5,10 +5,10 @@ namespace App\Middleware;
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\Database;
-use App\Infrastructure\Auth\Services\SessionManager;
-use App\Infrastructure\Auth\Services\RoleValidator;
-use App\Infrastructure\Http\ResponseFormatter;
-use App\Infrastructure\Http\IPValidator;
+use App\Models\Auth\SessionManager;
+use App\Models\Auth\RoleValidator;
+use App\Views\ResponseFormatter;
+use App\Views\IPValidator;
 
 /**
  * Middleware de Autenticación

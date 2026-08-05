@@ -5,9 +5,9 @@ namespace App\Controllers;
 use App\Core\Controller;
 use App\Core\Request;
 use App\Core\Response;
-use App\Infrastructure\Admin\AdminService;
-use App\Infrastructure\Http\ResponseFormatter;
-use App\Infrastructure\Http\ErrorHandler;
+use App\Models\Admin\AdminService;
+use App\Views\ResponseFormatter;
+use App\Views\ErrorHandler;
 
 /**
  * Controlador de Administración

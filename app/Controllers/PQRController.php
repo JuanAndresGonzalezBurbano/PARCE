@@ -5,11 +5,11 @@ namespace App\Controllers;
 use App\Core\Controller;
 use App\Core\Request;
 use App\Core\Response;
-use App\Infrastructure\PQR\PQRService;
-use App\Infrastructure\PQR\PQRValidator;
-use App\Infrastructure\Http\RequestValidator;
-use App\Infrastructure\Http\ResponseFormatter;
-use App\Infrastructure\Http\ErrorHandler;
+use App\Models\PQR\PQRService;
+use App\Models\PQR\PQRValidator;
+use App\Views\RequestValidator;
+use App\Views\ResponseFormatter;
+use App\Views\ErrorHandler;
 
 /**
  * Controlador de PQR

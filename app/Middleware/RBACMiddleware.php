@@ -4,8 +4,8 @@ namespace App\Middleware;
 
 use App\Core\Request;
 use App\Core\Response;
-use App\Infrastructure\Auth\Services\RoleValidator;
-use App\Infrastructure\Http\ResponseFormatter;
+use App\Models\Auth\RoleValidator;
+use App\Views\ResponseFormatter;
 
 /**
  * Middleware RBAC (Control de Acceso Basado en Roles)

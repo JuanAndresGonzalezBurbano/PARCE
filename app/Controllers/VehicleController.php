@@ -5,11 +5,11 @@ namespace App\Controllers;
 use App\Core\Controller;
 use App\Core\Request;
 use App\Core\Response;
-use App\Infrastructure\Vehicle\VehicleService;
-use App\Infrastructure\Vehicle\VehicleValidator;
-use App\Infrastructure\Http\RequestValidator;
-use App\Infrastructure\Http\ResponseFormatter;
-use App\Infrastructure\Http\ErrorHandler;
+use App\Models\Vehicle\VehicleService;
+use App\Models\Vehicle\VehicleValidator;
+use App\Views\RequestValidator;
+use App\Views\ResponseFormatter;
+use App\Views\ErrorHandler;
 
 /**
  * Controlador de Vehículos

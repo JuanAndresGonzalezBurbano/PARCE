@@ -6,16 +6,16 @@ use App\Core\Controller;
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\DomainException;
-use App\Infrastructure\Auth\Services\AuthService;
-use App\Infrastructure\Auth\Services\SessionManager;
-use App\Infrastructure\Auth\Services\PasswordHasher;
-use App\Infrastructure\Auth\Services\RoleValidator;
-use App\Infrastructure\Http\RequestValidator;
-use App\Infrastructure\Http\ResponseFormatter;
-use App\Infrastructure\Http\RateLimiter;
-use App\Infrastructure\Http\IPValidator;
-use App\Infrastructure\Http\ErrorHandler;
-use App\Infrastructure\Auth\Exceptions\AuthenticationException;
+use App\Models\Auth\AuthService;
+use App\Models\Auth\SessionManager;
+use App\Models\Auth\PasswordHasher;
+use App\Models\Auth\RoleValidator;
+use App\Views\RequestValidator;
+use App\Views\ResponseFormatter;
+use App\Views\RateLimiter;
+use App\Views\IPValidator;
+use App\Views\ErrorHandler;
+use App\Models\Auth\AuthenticationException;
 
 /**
  * Authentication Controller

@@ -37,10 +37,19 @@ export default function Navbar({ isAuthenticated = false, userName, userAvatar, 
   };
 
   // Función que ejecuta el logout real, cierra el modal y redirige al inicio
-  const confirmLogout = () => {
-    authLogout();
+  const confirmLogout = async () => {
+    // Limpiar el historial del navegador
+    window.history.pushState(null, '', '/login');
+    
+    // Desactivar el botón atrás completamente
+    window.addEventListener('popstate', (e) => {
+      e.preventDefault();
+      window.history.pushState(null, '', '/login');
+    });
+    
+    await authLogout();
     setShowLogoutModal(false);
-    navigate('/');
+    navigate('/login', { replace: true });
   };
 
   // Función que cancela el logout y cierra el modal

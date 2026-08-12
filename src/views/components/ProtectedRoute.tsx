@@ -1,5 +1,7 @@
 // Importa Navigate para redirigir al usuario a otra ruta
 import { Navigate } from 'react-router-dom';
+// Importa useEffect para ejecutar código cuando el componente se monta
+import { useEffect } from 'react';
 // Importa el hook de autenticación y el tipo UserRole
 import { useAuth, UserRole } from '../../controllers/AuthContext';
 
@@ -13,6 +15,28 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   // Obtiene el usuario y si está autenticado del contexto
   const { user, isAuthenticated } = useAuth();
+
+  // Cuando se monta una ruta protegida, prevenir que se vuelva atrás
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Agregar una entrada al historial para que el botón atrás no funcione correctamente
+      window.history.pushState(null, '', window.location.href);
+      
+      // Escuchar intentos de volver atrás
+      const handlePopState = (e: PopStateEvent) => {
+        e.preventDefault();
+        // Mantener al usuario en la página actual
+        window.history.pushState(null, '', window.location.href);
+      };
+      
+      window.addEventListener('popstate', handlePopState);
+      
+      // Limpiar el listener cuando el componente se desmonta
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+      };
+    }
+  }, [isAuthenticated]);
 
   // Si el usuario no está autenticado, lo manda al login
   if (!isAuthenticated) {

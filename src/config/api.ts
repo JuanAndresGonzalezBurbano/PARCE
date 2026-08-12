@@ -18,6 +18,8 @@ export const API_ENDPOINTS = {
     HEALTH:   '/auth/health',
     PROFILE:  '/auth/profile',
     PASSWORD: '/auth/password',
+    FORGOT_PASSWORD: '/auth/forgot-password',
+    RESET_PASSWORD:  '/auth/reset-password',
   },
   VEHICLES: {
     LIST:        '/vehicles',

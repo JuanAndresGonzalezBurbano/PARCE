@@ -66,6 +66,13 @@ $router->post('/api/auth/register', [\App\Controllers\Auth\AuthController::class
 $router->post('/api/auth/login', [\App\Controllers\Auth\AuthController::class, 'login'])
     ->name('api.auth.login');
 
+// Password recovery routes (public - no auth required)
+$router->post('/api/auth/forgot-password', [\App\Controllers\Auth\AuthController::class, 'forgotPassword'])
+    ->name('api.auth.forgot-password');
+
+$router->post('/api/auth/reset-password', [\App\Controllers\Auth\AuthController::class, 'resetPassword'])
+    ->name('api.auth.reset-password');
+
 // Protected authentication routes (require AuthMiddleware)
 $router->post('/api/auth/logout', [\App\Controllers\Auth\AuthController::class, 'logout'])
     ->middleware([\App\Middleware\AuthMiddleware::class])
@@ -323,7 +330,7 @@ $router->get('/api/admin/ratings', [\App\Controllers\AdminController::class, 'ra
     ->name('api.admin.ratings');
 
 $router->get('/api/test', function($request) {
-    return \App\Infrastructure\Http\ResponseFormatter::success(
+    return \App\Views\ResponseFormatter::success(
         ['message' => 'Test OK'],
         'Test',
         200

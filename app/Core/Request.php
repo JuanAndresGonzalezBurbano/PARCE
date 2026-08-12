@@ -46,7 +46,34 @@ class Request
     public function uri(): string
     {
         $uri = $this->server['REQUEST_URI'] ?? '/';
-        return strtok($uri, '?');
+        
+        // Remover query string
+        $uri = strtok($uri, '?');
+        
+        // Fix backslashes on Windows
+        $uri = str_replace('\\', '/', $uri);
+        
+        // Para php -S (servidor nativo), la URI ya es correcta (/api/auth/forgot-password)
+        // Para Apache, podría ser /PARCE/public/index.php/api/auth/forgot-password
+        // Entonces, extraer la parte después de index.php si existe
+        if (strpos($uri, 'index.php') !== false) {
+            $parts = explode('index.php', $uri);
+            if (isset($parts[1])) {
+                $uri = $parts[1];
+            }
+        }
+        
+        // Remover /PARCE/public si está al inicio
+        if (strpos($uri, '/PARCE/public') === 0) {
+            $uri = substr($uri, strlen('/PARCE/public'));
+        }
+        
+        // Asegurar que empieza con /
+        if (empty($uri) || $uri[0] !== '/') {
+            $uri = '/' . $uri;
+        }
+        
+        return $uri;
     }
 
     /**
@@ -154,6 +181,19 @@ class Request
      */
     public function header(string $key, mixed $default = null): mixed
     {
+        // En Apache/CGI, algunos headers no tienen el prefijo HTTP_
+        // Content-Type se guarda como CONTENT_TYPE
+        // Content-Length se guarda como CONTENT_LENGTH
+        $specialHeaders = ['Content-Type', 'Content-Length'];
+        
+        if (in_array($key, $specialHeaders)) {
+            $specialKey = strtoupper(str_replace('-', '_', $key));
+            if (isset($this->server[$specialKey])) {
+                return $this->server[$specialKey];
+            }
+        }
+        
+        // Para otros headers, usar el prefijo HTTP_
         $key = 'HTTP_' . strtoupper(str_replace('-', '_', $key));
         return $this->server[$key] ?? $default;
     }

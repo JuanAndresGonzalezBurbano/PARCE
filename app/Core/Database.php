@@ -184,6 +184,28 @@ class Database
     }
 
     /**
+     * Ejecuta una consulta SQL directa sin parámetros (para DDL como CREATE TABLE, DROP TABLE, etc.)
+     * 
+     * IMPORTANTE: Usar SOLO para consultas DDL (CREATE, ALTER, DROP) o cuando no se pueden usar parámetros preparados.
+     * Para consultas DML normales (SELECT, INSERT, UPDATE, DELETE), usar query() con parámetros preparados.
+     */
+    public static function raw(string $sql): \PDOStatement
+    {
+        try {
+            $connection = self::getConnection();
+            $statement = $connection->query($sql);
+            return $statement;
+        } catch (PDOException $e) {
+            self::logQuery('failed', $sql, [], $e->getMessage());
+            throw new DatabaseException(
+                "Raw query execution failed: " . $e->getMessage(),
+                (int) $e->getCode(),
+                $e
+            );
+        }
+    }
+
+    /**
      * Inicia una transacción de base de datos
      */
     public static function beginTransaction(): bool

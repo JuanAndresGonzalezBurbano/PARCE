@@ -5,6 +5,7 @@ import LandingPage from './views/pages/LandingPage';
 import LoginPage from './views/pages/LoginPage';
 import RegisterPage from './views/pages/RegisterPage';
 import ForgotPasswordPage from './views/pages/ForgotPasswordPage';
+import ResetPasswordPage from './views/pages/ResetPasswordPage';
 import RoleSelectionPage from './views/pages/RoleSelectionPage';
 
 // ── PÁGINAS USUARIO ──
@@ -57,6 +58,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/role-selection" element={<RoleSelectionPage />} />
 
         {/* ── Rutas Admin ── */}

@@ -236,13 +236,13 @@ export default function AdminUsersPage() {
                     {users.map(u => {
                       const mappedStatus = mapAccountStatus(u.account_status);
                       const isActive = mappedStatus === 'active';
-                      const roles = u.roles ? u.roles.split(', ') : [];
+                      const roles = u.roles ? u.roles.split(', ').map(r => r.trim()).filter(r => r) : [];
                       
                       return (
                         <tr key={u.id} className="hover:bg-dark-800/40 transition-colors">
                           <td className="px-4 py-3">
                             <div>
-                              <p className="text-white font-medium">{formatUserName(u)}</p>
+                              <p className="text-white font-medium">{u.first_name || ''} {u.last_name || ''}</p>
                               <p className="text-gray-500 text-xs">{u.email}</p>
                               <p className="text-gray-600 text-xs mt-0.5">
                                 Registro: {new Date(u.created_at).toLocaleDateString('es-CO')}
@@ -252,22 +252,42 @@ export default function AdminUsersPage() {
                           <td className="px-4 py-3 text-gray-300">{u.phone || '-'}</td>
                           <td className="px-4 py-3">
                             <div className="flex flex-wrap gap-1">
-                              {roles.map((role, idx) => (
-                                <span key={idx} className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded-full border border-blue-500/30">
-                                  {role}
-                                </span>
-                              ))}
-                              {roles.length === 0 && <span className="text-gray-500 text-xs">Sin rol</span>}
+                              {roles.length > 0 ? (
+                                roles.map((role, idx) => {
+                                  const roleLabel = role === 'customer' ? 'Usuario' : 
+                                                  role === 'mechanic' ? 'Mecánico' : 
+                                                  role === 'administrator' ? 'Administrador' :
+                                                  role === 'admin' ? 'Administrador' : role;
+                                  const roleColor = role === 'customer' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                                                  role === 'mechanic' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' :
+                                                  'bg-red-500/20 text-red-400 border-red-500/30';
+                                  return (
+                                    <span key={idx} className={`px-2 py-0.5 text-xs rounded-full border ${roleColor}`}>
+                                      {roleLabel}
+                                    </span>
+                                  );
+                                })
+                              ) : (
+                                <span className="text-gray-500 text-xs">Sin rol</span>
+                              )}
                             </div>
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <span className="inline-flex items-center justify-center w-8 h-8 bg-purple-500/20 text-purple-400 rounded-full text-xs font-bold border border-purple-500/30">
+                            <span className="inline-flex items-center justify-center w-8 h-8 bg-gray-500/20 text-gray-400 rounded-full text-xs font-bold border border-gray-500/30">
                               {u.vehicle_count}
                             </span>
                           </td>
                           <td className="px-4 py-3">{statusBadge(u.account_status)}</td>
                           <td className="px-4 py-3 text-gray-400 text-xs">
-                            {u.last_login_at ? new Date(u.last_login_at).toLocaleDateString('es-CO') : 'Nunca'}
+                            {u.last_login_at ? new Date(u.last_login_at).toLocaleString('es-CO', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              second: '2-digit',
+                              hour12: true
+                            }) : 'Nunca'}
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">

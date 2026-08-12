@@ -90,6 +90,18 @@ export const authService = {
     return apiClient.post<null>(API_ENDPOINTS.AUTH.LOGOUT);
   },
 
+  async forgotPassword(email: string): Promise<ApiResponse<{ token: string }>> {
+    return apiClient.post<{ token: string }>(API_ENDPOINTS.AUTH.FORGOT_PASSWORD || '/api/auth/forgot-password', { email });
+  },
+
+  async resetPassword(token: string, password: string, passwordConfirmation: string): Promise<ApiResponse<null>> {
+    return apiClient.post<null>(API_ENDPOINTS.AUTH.RESET_PASSWORD || '/api/auth/reset-password', {
+      token,
+      password,
+      password_confirmation: passwordConfirmation
+    });
+  },
+
   async me(): Promise<ApiResponse<ApiUser>> {
     return apiClient.get<ApiUser>(API_ENDPOINTS.AUTH.ME);
   },

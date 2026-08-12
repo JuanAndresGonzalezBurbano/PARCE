@@ -11,11 +11,15 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      // Redirige /api/... al servidor PHP en localhost:8000
-      '/api': {
-        target: 'http://localhost:8000',
+      // Redirige /api/... al servidor PHP en Apache/XAMPP
+      '^/api': {
+        target: 'http://localhost/PARCE/public/index.php',
         changeOrigin: true,
-        // El PHP ya tiene el prefijo /api en sus rutas, no hace falta rewrite
+        rewrite: (path) => {
+          // /api/auth/login → /api/auth/login
+          // (no reescribir, PHP ya lo maneja)
+          return path;
+        },
         configure: (proxy) => {
           proxy.on('error', (err) => {
             console.error('[proxy] Error conectando al backend PHP:', err.message);

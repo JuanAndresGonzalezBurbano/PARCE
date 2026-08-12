@@ -1,16 +1,41 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Mail, ArrowLeft, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import Logo from '../components/Logo';
+import { authService } from '../../services/authService';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSent(true);
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await authService.forgotPassword(email);
+      
+      if (response.success) {
+        // Guardar el token para el siguiente paso
+        if (response.data?.token) {
+          setToken(response.data.token);
+        }
+        setSent(true);
+      } else {
+        setError(response.error || response.message || 'Error al procesar la solicitud');
+      }
+    } catch (err) {
+      setError('Error de conexión con el servidor');
+      console.error('Error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -40,7 +65,23 @@ export default function ForgotPasswordPage() {
               <CheckCircle className="w-16 h-16 text-green-400 mx-auto" />
               <h2 className="text-2xl font-bold text-white">¡Correo enviado!</h2>
               <p className="text-gray-400 text-sm">Revisa tu bandeja de entrada en <span className="text-white">{email}</span> para restablecer tu contraseña.</p>
-              <Link to="/login" className="block w-full btn-primary text-center mt-4">Volver al login</Link>
+              
+              {token && (
+                <div className="bg-dark-800 p-4 rounded-lg mt-4">
+                  <p className="text-xs text-gray-400 mb-2">Token de recuperación (para desarrollo):</p>
+                  <p className="text-xs text-gold-400 font-mono break-all">{token}</p>
+                  <button
+                    onClick={() => {
+                      navigate(`/reset-password?token=${token}`);
+                    }}
+                    className="w-full btn-primary text-center mt-4"
+                  >
+                    Ir a Restablecer Contraseña
+                  </button>
+                </div>
+              )}
+              
+              <Link to="/login" className="block w-full btn-outline text-center mt-4">Volver al login</Link>
             </motion.div>
           ) : (
             <>
@@ -48,16 +89,48 @@ export default function ForgotPasswordPage() {
                 <h2 className="text-2xl font-bold text-white mb-2">Olvidé mi contraseña</h2>
                 <p className="text-gray-400 text-sm">Ingresa tu correo y te enviaremos un enlace para restablecerla</p>
               </div>
+
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 flex items-start gap-3"
+                >
+                  <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-300">{error}</p>
+                </motion.div>
+              )}
+
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-300">Correo electrónico</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                    <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                      placeholder="example@gmail.com" className="input-field pl-10" required />
+                    <input 
+                      type="email" 
+                      value={email} 
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="example@gmail.com" 
+                      className="input-field pl-10" 
+                      required 
+                      disabled={loading}
+                    />
                   </div>
                 </div>
-                <button type="submit" className="w-full btn-primary">Enviar enlace</button>
+                <button 
+                  type="submit" 
+                  className="w-full btn-primary flex items-center justify-center gap-2"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" />
+                      Procesando...
+                    </>
+                  ) : (
+                    'Enviar enlace'
+                  )}
+                </button>
               </form>
               <Link to="/login" className="block text-center text-gray-500 hover:text-gray-300 transition-colors text-sm">
                 Volver al inicio de sesión

@@ -5,11 +5,13 @@ namespace App\Controllers\Auth;
 use App\Core\Controller;
 use App\Core\Request;
 use App\Core\Response;
+use App\Core\Database;
 use App\Core\DomainException;
 use App\Models\Auth\AuthService;
 use App\Models\Auth\SessionManager;
 use App\Models\Auth\PasswordHasher;
 use App\Models\Auth\RoleValidator;
+use App\Models\Mail\GmailMailService;
 use App\Views\RequestValidator;
 use App\Views\ResponseFormatter;
 use App\Views\RateLimiter;
@@ -665,6 +667,229 @@ class AuthController extends Controller
                 $responseData,
                 503
             );
+        }
+    }
+
+    /**
+     * Solicitar recuperación de contraseña
+     * POST /api/auth/forgot-password
+     * 
+     * Genera un token de recuperación para que el usuario pueda resetear su contraseña.
+     * Por seguridad, siempre responde de forma genérica sin revelar si el email existe.
+     */
+    public function forgotPassword(Request $request): Response
+    {
+        try {
+            $ipAddress = IPValidator::getClientIP($request);
+
+            // Rate limiting para prevenir spam y ataques de fuerza bruta
+            $rateLimitCheck = RateLimiter::check('forgot-password', $ipAddress);
+            if (!$rateLimitCheck['allowed']) {
+                $retryAfter = $rateLimitCheck['reset_at'] - time();
+                return ResponseFormatter::rateLimitExceeded($retryAfter);
+            }
+
+            // Validar que el cuerpo sea JSON válido
+            $jsonValidation = RequestValidator::parseJsonBody($request);
+            if (!$jsonValidation['valid']) {
+                return ResponseFormatter::error(
+                    $jsonValidation['error'],
+                    null,
+                    $jsonValidation['statusCode']
+                );
+            }
+
+            // Obtener y validar email
+            $rawEmail = $request->input('email');
+            if (empty($rawEmail)) {
+                return ResponseFormatter::validationError([
+                    'email' => 'El email es requerido y debe ser válido'
+                ]);
+            }
+            $email = RequestValidator::sanitizeString($rawEmail);
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return ResponseFormatter::validationError([
+                    'email' => 'El email es requerido y debe ser válido'
+                ]);
+            }
+
+            // Buscar usuario activo por email
+            $user = Database::fetchOne(
+                'SELECT id, email, first_name, last_name FROM users WHERE email = ? AND account_status = "active"',
+                [$email]
+            );
+
+            // Respuesta genérica por seguridad (no revelar si el email existe)
+            $genericMessage = 'Si el correo existe en nuestro sistema, recibirás un enlace de recuperación';
+
+            if (!$user) {
+                return ResponseFormatter::success(
+                    null,
+                    $genericMessage,
+                    200
+                );
+            }
+
+            // Generar token aleatorio seguro (32 bytes = 64 caracteres hexadecimales)
+            $token = bin2hex(random_bytes(32));
+            $expiresAt = date('Y-m-d H:i:s', time() + (24 * 60 * 60)); // Válido por 24 horas
+
+            // Guardar token en BD
+            Database::insert('password_reset_tokens', [
+                'user_id' => (int)$user['id'],
+                'token' => $token,
+                'expires_at' => $expiresAt,
+            ]);
+
+            // Enviar correo con enlace de recuperación
+            try {
+                $mailService = new GmailMailService();
+                $firstName = $user['first_name'] ?? 'Usuario';
+                $mailService->sendPasswordResetEmail($email, $firstName, $token);
+            } catch (\Exception $e) {
+                // Log del error pero no fallar la solicitud
+                error_log("Error enviando correo de recuperación: " . $e->getMessage());
+            }
+
+            // En desarrollo/demostración, devolver el token para acceso rápido
+            // En producción, no devolver el token
+            $responseData = null;
+            if ($_ENV['APP_ENV'] === 'local') {
+                $responseData = ['token' => $token];
+            }
+
+            return ResponseFormatter::success(
+                $responseData,
+                $genericMessage,
+                200
+            );
+
+        } catch (\Exception $e) {
+            return ErrorHandler::handleException($e);
+        }
+    }
+
+    /**
+     * Resetear contraseña con token válido
+     * POST /api/auth/reset-password
+     * 
+     * Valida el token y actualiza la contraseña del usuario.
+     * Invalida todas las sesiones activas del usuario para seguridad.
+     */
+    public function resetPassword(Request $request): Response
+    {
+        try {
+            $ipAddress = IPValidator::getClientIP($request);
+
+            // Rate limiting para prevenir ataques de fuerza bruta
+            $rateLimitCheck = RateLimiter::check('reset-password', $ipAddress);
+            if (!$rateLimitCheck['allowed']) {
+                $retryAfter = $rateLimitCheck['reset_at'] - time();
+                return ResponseFormatter::rateLimitExceeded($retryAfter);
+            }
+
+            // Validar JSON
+            $jsonValidation = RequestValidator::parseJsonBody($request);
+            if (!$jsonValidation['valid']) {
+                return ResponseFormatter::error(
+                    $jsonValidation['error'],
+                    null,
+                    $jsonValidation['statusCode']
+                );
+            }
+
+            // Obtener inputs
+            $token = RequestValidator::sanitizeString($request->input('token', ''));
+            $password = $request->input('password', '');
+            $passwordConfirmation = $request->input('password_confirmation', '');
+
+            // Validaciones
+            $errors = [];
+            if (empty($token)) {
+                $errors['token'] = 'El token es requerido';
+            }
+            if (empty($password)) {
+                $errors['password'] = 'La contraseña es requerida';
+            } elseif (strlen($password) < 8) {
+                $errors['password'] = 'La contraseña debe tener al menos 8 caracteres';
+            }
+            if ($password !== $passwordConfirmation) {
+                $errors['password_confirmation'] = 'Las contraseñas no coinciden';
+            }
+
+            if (!empty($errors)) {
+                return ResponseFormatter::validationError($errors);
+            }
+
+            // Validar que el token exista y sea válido
+            $tokenRecord = Database::fetchOne(
+                'SELECT id, user_id, expires_at, used_at 
+                 FROM password_reset_tokens 
+                 WHERE token = ?',
+                [$token]
+            );
+
+            // Token no existe
+            if (!$tokenRecord) {
+                RateLimiter::recordAttempt('reset-password', $ipAddress);
+                throw new DomainException('Token inválido o expirado', 400);
+            }
+
+            // Token ya fue usado
+            if ($tokenRecord['used_at']) {
+                RateLimiter::recordAttempt('reset-password', $ipAddress);
+                throw new DomainException('Token ya fue utilizado', 400);
+            }
+
+            // Token expirado
+            if (strtotime($tokenRecord['expires_at']) < time()) {
+                RateLimiter::recordAttempt('reset-password', $ipAddress);
+                throw new DomainException('Token expirado', 400);
+            }
+
+            $userId = (int)$tokenRecord['user_id'];
+
+            // Hashear la nueva contraseña
+            $passwordHash = password_hash($password, PASSWORD_ARGON2ID);
+
+            // Actualizar contraseña del usuario
+            Database::update(
+                'users',
+                [
+                    'password_hash' => $passwordHash,
+                    'updated_at' => date('Y-m-d H:i:s')
+                ],
+                'id = ?',
+                [$userId]
+            );
+
+            // Marcar el token como usado
+            Database::update(
+                'password_reset_tokens',
+                ['used_at' => date('Y-m-d H:i:s')],
+                'token = ?',
+                [$token]
+            );
+
+            // Invalidar todas las sesiones activas del usuario por seguridad
+            Database::query(
+                'DELETE FROM sessions WHERE user_id = ?',
+                [$userId]
+            );
+
+            // Rate limit reset
+            RateLimiter::reset('reset-password', $ipAddress);
+
+            return ResponseFormatter::success(
+                null,
+                'Contraseña actualizada correctamente. Por favor, inicia sesión con tu nueva contraseña',
+                200
+            );
+
+        } catch (DomainException $e) {
+            return ResponseFormatter::error($e->getMessage(), null, (int)$e->getCode());
+        } catch (\Exception $e) {
+            return ErrorHandler::handleException($e);
         }
     }
 }

@@ -115,6 +115,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setUser(null);
       localStorage.removeItem(STORAGE_KEY);
+      
+      // Limpiar sessionStorage también
+      sessionStorage.clear();
+      
+      // Limpiar indexedDB si existe
+      if (window.indexedDB) {
+        const dbs = await window.indexedDB.databases?.();
+        dbs?.forEach(db => {
+          window.indexedDB.deleteDatabase(db.name);
+        });
+      }
+      
+      // Agregar headers para prevenir caché
+      // Esto hace que los navegadores no guarden datos sensibles
+      if ('caches' in window) {
+        caches.keys().then(cacheNames => {
+          cacheNames.forEach(cacheName => {
+            caches.delete(cacheName);
+          });
+        });
+      }
+      
+      // Prevenir que el navegador vuelva a la página anterior (botón atrás)
+      // Remplazar el historial para que no se pueda volver
+      window.history.pushState(null, '', window.location.href);
+      window.onpopstate = () => {
+        window.history.pushState(null, '', window.location.href);
+      };
     }
   };
 

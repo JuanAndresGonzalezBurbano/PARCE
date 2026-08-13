@@ -3,6 +3,7 @@
 namespace App\Infrastructure\Survey;
 
 use App\Core\Database;
+use App\Core\DatabaseException;
 use App\Core\DomainException;
 
 /**
@@ -52,13 +53,26 @@ class SurveyService
             throw new DomainException('Ya existe una encuesta para esta solicitud de servicio', 409);
         }
 
-        return Database::insert('surveys', [
-            'service_request_id'   => $serviceRequestId,
-            'customer_id'          => $customerId,
-            'overall_satisfaction' => (int)$data['overall_satisfaction'],
-            'would_recommend'      => !empty($data['would_recommend']) ? 1 : 0,
-            'comments'             => $data['comments'] ?? null,
-        ]);
+        // El chequeo anterior (SELECT existing) es "check then insert" — no es
+        // atómico por sí solo, pero surveys.service_request_id tiene un UNIQUE
+        // a nivel de BD que sí garantiza la invariante ante dos peticiones
+        // concurrentes (ej. doble clic). Si la carrera ocurre, MySQL rechaza el
+        // segundo INSERT — se traduce a la misma DomainException amigable en
+        // vez de dejarla propagar como un error 500 genérico.
+        try {
+            return Database::insert('surveys', [
+                'service_request_id'   => $serviceRequestId,
+                'customer_id'          => $customerId,
+                'overall_satisfaction' => (int)$data['overall_satisfaction'],
+                'would_recommend'      => !empty($data['would_recommend']) ? 1 : 0,
+                'comments'             => $data['comments'] ?? null,
+            ]);
+        } catch (DatabaseException $e) {
+            if (str_contains($e->getMessage(), 'Duplicate entry')) {
+                throw new DomainException('Ya existe una encuesta para esta solicitud de servicio', 409);
+            }
+            throw $e;
+        }
     }
 
     /**

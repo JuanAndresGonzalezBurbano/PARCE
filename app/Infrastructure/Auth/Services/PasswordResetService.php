@@ -49,6 +49,17 @@ class PasswordResetService
             return;
         }
 
+        // Invalidar tokens anteriores sin usar antes de emitir uno nuevo — sin
+        // esto, pedir "olvidé mi contraseña" varias veces (ej. el primer correo
+        // no llegó) deja varios enlaces válidos simultáneamente durante su hora
+        // de vida, cualquiera de ellos utilizable de forma independiente.
+        Database::update(
+            'password_reset_tokens',
+            ['used_at' => date('Y-m-d H:i:s')],
+            'user_id = ? AND used_at IS NULL AND expires_at > NOW()',
+            [$user['id']]
+        );
+
         $token = bin2hex(random_bytes(32));
         $tokenHash = hash('sha256', $token);
         $expiresAt = date('Y-m-d H:i:s', time() + self::TOKEN_TTL_SECONDS);
@@ -101,9 +112,15 @@ class PasswordResetService
         try {
             $this->authService->updatePassword($userId, $newHash);
 
-            Database::update('password_reset_tokens', [
-                'used_at' => date('Y-m-d H:i:s'),
-            ], 'id = ?', [$record['id']]);
+            // Invalida el token usado y cualquier otro token vigente del mismo
+            // usuario (defensa en profundidad junto con requestReset(): cierra
+            // la ventana si dos tokens llegaron a coexistir por cualquier motivo).
+            Database::update(
+                'password_reset_tokens',
+                ['used_at' => date('Y-m-d H:i:s')],
+                'user_id = ? AND used_at IS NULL',
+                [$userId]
+            );
 
             Database::commit();
         } catch (\Exception $e) {

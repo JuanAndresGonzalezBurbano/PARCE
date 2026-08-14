@@ -181,17 +181,6 @@ export default function LoginPage() {
           <Link to="/" className="block text-center text-gray-500 hover:text-gray-300 transition-colors text-sm">
             Volver al inicio
           </Link>
-
-          {/* Accesos de prueba */}
-          <div className="p-3 bg-dark-800/60 border border-anthracite-700 rounded-lg">
-            <p className="text-xs text-gray-500 font-medium mb-1.5">Accesos de prueba:</p>
-            <div className="space-y-1 text-xs">
-              <p><span className="text-gold-400">Admin:</span> <span className="text-gray-400">admin@parce.com</span></p>
-              <p><span className="text-gray-300">Usuario:</span> <span className="text-gray-400">usuario@parce.com</span></p>
-              <p><span className="text-green-400">Mecánico:</span> <span className="text-gray-400">mecanico@parce.com</span></p>
-              <p className="text-gray-600 mt-1">Contraseña: cualquiera válida (ej: Parce123)</p>
-            </div>
-          </div>
         </div>
       </motion.div>
     </div>

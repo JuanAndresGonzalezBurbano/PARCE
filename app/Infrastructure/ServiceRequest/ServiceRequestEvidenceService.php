@@ -125,7 +125,32 @@ class ServiceRequestEvidenceService
         }
 
         // 9. Insertar el registro en la base de datos
-        $evidenceId = Database::insert('service_request_evidences', $insertData);
+        // El chequeo de estado (paso 3) y esta inserción no son atómicos por sí
+        // solos: si la solicitud se cancela justo en este intervalo (ej. el
+        // cliente cancela mientras el mecánico sube una foto), la evidencia se
+        // adjuntaría igual a una solicitud que ya no lo permite. Se re-verifica
+        // el estado con un lock de fila dentro de la misma transacción que
+        // hace la inserción.
+        Database::beginTransaction();
+        try {
+            $revalidated = Database::fetchOne(
+                'SELECT status FROM service_requests WHERE id = ? AND deleted_at IS NULL FOR UPDATE',
+                [$serviceRequestId]
+            );
+
+            if ($revalidated === null || !in_array($revalidated['status'], self::VALID_STATUSES, true)) {
+                throw new DomainException(
+                    'Solo se pueden agregar evidencias a solicitudes en estado assigned, in_progress o completed.',
+                    400
+                );
+            }
+
+            $evidenceId = Database::insert('service_request_evidences', $insertData);
+            Database::commit();
+        } catch (\Exception $e) {
+            Database::rollback();
+            throw $e;
+        }
 
         // 10. Recuperar y retornar el registro insertado
         $evidence = Database::fetchOne(

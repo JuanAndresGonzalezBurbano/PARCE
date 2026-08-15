@@ -432,10 +432,18 @@ class AuthController extends Controller
             $updates = [];
             $now     = date('Y-m-d H:i:s');
 
-            // Número de licencia
+            // Número de licencia (users.driver_license_number VARCHAR(50))
             $licenseNumber = $request->input('driver_license_number');
             if ($licenseNumber !== null) {
-                $updates['driver_license_number'] = RequestValidator::sanitizeString($licenseNumber);
+                $licenseNumber = RequestValidator::sanitizeString($licenseNumber);
+
+                if (strlen($licenseNumber) > 50) {
+                    return ResponseFormatter::validationError([
+                        'driver_license_number' => 'El número de licencia no debe superar los 50 caracteres'
+                    ]);
+                }
+
+                $updates['driver_license_number'] = $licenseNumber;
                 $updates['driver_license_uploaded_at'] = $now;
             }
 
@@ -468,10 +476,18 @@ class AuthController extends Controller
                 $updates['driver_license_uploaded_at'] = $now;
             }
 
-            // URL del documento
+            // URL del documento (users.driver_license_document_url VARCHAR(500))
             $documentUrl = $request->input('driver_license_document_url');
             if ($documentUrl !== null) {
-                $updates['driver_license_document_url'] = RequestValidator::sanitizeString($documentUrl);
+                $documentUrl = RequestValidator::sanitizeString($documentUrl);
+
+                if (strlen($documentUrl) > 500 || !filter_var($documentUrl, FILTER_VALIDATE_URL)) {
+                    return ResponseFormatter::validationError([
+                        'driver_license_document_url' => 'La URL del documento debe ser válida y no superar los 500 caracteres'
+                    ]);
+                }
+
+                $updates['driver_license_document_url'] = $documentUrl;
             }
 
             // Si no hay nada que actualizar, retornar el perfil actual

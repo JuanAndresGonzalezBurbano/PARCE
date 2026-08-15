@@ -324,6 +324,23 @@ class RequestValidator
             $errors['password_confirmation'] = ['Password confirmation does not match'];
         }
 
+        // Longitud de nombre/apellido (users.first_name/last_name VARCHAR(100)) — sin
+        // este límite, un valor más largo pasa la validación y falla más abajo con un
+        // error de BD genérico en vez de un 400 claro.
+        if (strlen($request->input('first_name')) > 100) {
+            $errors['first_name'] = ['First name must not exceed 100 characters'];
+        }
+
+        if (strlen($request->input('last_name')) > 100) {
+            $errors['last_name'] = ['Last name must not exceed 100 characters'];
+        }
+
+        // Teléfono (opcional, users.phone VARCHAR(20))
+        $phone = $request->input('phone');
+        if ($phone !== null && strlen($phone) > 20) {
+            $errors['phone'] = ['Phone must not exceed 20 characters'];
+        }
+
         // Validar el rol solicitado (opcional, por defecto 'customer')
         // Solo se permite auto-registro como customer o mechanic — nunca administrator/super_admin
         $role = $request->input('role');

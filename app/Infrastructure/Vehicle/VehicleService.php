@@ -130,7 +130,7 @@ class VehicleService
     {
         // Verificar que el vehículo existe y pertenece al usuario
         $vehicle = Database::fetchOne(
-            'SELECT id, user_id, license_plate, vin FROM vehicles WHERE id = ? AND deleted_at IS NULL',
+            'SELECT id, user_id, license_plate, vin, is_primary FROM vehicles WHERE id = ? AND deleted_at IS NULL',
             [$vehicleId]
         );
 
@@ -200,7 +200,7 @@ class VehicleService
                 $updateData['vin'] = $normalizedVin;
             }
 
-            return $this->applyUpdate($vehicleId, $userId, $updateData, $data);
+            return $this->applyUpdate($vehicleId, $userId, $updateData, $data, (bool)$vehicle['is_primary']);
         } finally {
             $this->releaseLocks($lockKeys);
         }
@@ -210,7 +210,7 @@ class VehicleService
      * Aplica los campos de actualización de un vehículo (fuera del bloque de
      * unicidad de placa/VIN, que ya liberó sus locks para este punto).
      */
-    private function applyUpdate(int $vehicleId, int $userId, array $updateData, array $data): bool
+    private function applyUpdate(int $vehicleId, int $userId, array $updateData, array $data, bool $wasPrimary): bool
     {
         // Campos simples
         if (isset($data['make']))             $updateData['make']              = $data['make'];
@@ -233,21 +233,47 @@ class VehicleService
             return true;
         }
 
-        if (empty($data['is_primary'])) {
+        // Si esta actualización desactiva (status=inactive) un vehículo que era
+        // el principal, hay que reasignar el principal a otro vehículo activo
+        // del usuario — mismo invariante que delete() ya aplica cuando el
+        // vehículo eliminado era el principal: un usuario con vehículos activos
+        // no debería quedar sin ninguno marcado como principal. update() es la
+        // otra vía por la que un vehículo puede dejar de estar activo (además
+        // de delete()), así que necesita el mismo fallback.
+        $deactivatesPrimary = $wasPrimary
+            && isset($updateData['status'])
+            && $updateData['status'] === 'inactive';
+
+        if (empty($data['is_primary']) && !$deactivatesPrimary) {
             $rowCount = Database::update('vehicles', $updateData, 'id = ?', [$vehicleId]);
             return $rowCount > 0;
         }
 
-        // Quitar el principal actual y aplicar el resto de la actualización
-        // (incluido is_primary = true) deben ser atómicas — misma razón que
-        // en create()/setPrimary(): una falla a mitad de camino dejaría al
-        // usuario sin ningún vehículo principal.
-        $updateData['is_primary'] = true;
-
+        // Todas las escrituras relacionadas con is_primary deben ser atómicas —
+        // misma razón que en create()/setPrimary()/delete(): una falla a mitad
+        // de camino dejaría al usuario sin ningún vehículo principal.
         Database::beginTransaction();
         try {
-            Database::update('vehicles', ['is_primary' => false], 'user_id = ? AND id != ?', [$userId, $vehicleId]);
+            if (!empty($data['is_primary'])) {
+                Database::update('vehicles', ['is_primary' => false], 'user_id = ? AND id != ?', [$userId, $vehicleId]);
+                $updateData['is_primary'] = true;
+            }
+
             $rowCount = Database::update('vehicles', $updateData, 'id = ?', [$vehicleId]);
+
+            if ($deactivatesPrimary) {
+                $anotherVehicle = Database::fetchOne(
+                    'SELECT id FROM vehicles
+                     WHERE user_id = ? AND deleted_at IS NULL AND status = ? AND id != ?
+                     ORDER BY created_at ASC LIMIT 1',
+                    [$userId, 'active', $vehicleId]
+                );
+
+                if ($anotherVehicle !== null) {
+                    Database::update('vehicles', ['is_primary' => true], 'id = ?', [$anotherVehicle['id']]);
+                }
+            }
+
             Database::commit();
             return $rowCount > 0;
         } catch (\Exception $e) {

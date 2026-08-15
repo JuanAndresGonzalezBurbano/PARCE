@@ -98,6 +98,16 @@ que se programe esta tarea:
 0,5,10,15,20,25,30,35,40,45,50,55 * * * * php /ruta/a/parce/scripts/maintenance/expire_pending_requests.php 30 >> /ruta/a/parce/storage/logs/expire_requests.log 2>&1
 ```
 
+## 5.2. Limpieza de sesiones expiradas
+
+`SessionManager::cleanup()` existía pero nada lo invocaba — la tabla `sessions`
+acumula una fila por login para siempre si no se programa esta tarea:
+
+```bash
+# Cada hora — borra sesiones cuya última actividad supera el timeout de inactividad
+0 * * * * php /ruta/a/parce/scripts/maintenance/cleanup_sessions.php >> /ruta/a/parce/storage/logs/cleanup_sessions.log 2>&1
+```
+
 ## 6. Verificación post-despliegue
 
 ```bash

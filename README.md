@@ -84,6 +84,9 @@ php scripts/maintenance/cleanup_logs.php [dias]
 # Expirar solicitudes pending sin atender (por defecto: 30 minutos)
 php scripts/maintenance/expire_pending_requests.php [minutos]
 
+# Limpiar sesiones expiradas (sin esto, la tabla `sessions` crece sin límite)
+php scripts/maintenance/cleanup_sessions.php
+
 # Tests del backend (PHPUnit)
 composer test
 

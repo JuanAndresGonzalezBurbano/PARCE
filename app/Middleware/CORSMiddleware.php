@@ -84,13 +84,14 @@ class CORSMiddleware
         $response->setStatusCode(204); // Sin contenido
 
         // Agregar cabeceras CORS
-        $response->setHeader('Access-Control-Allow-Origin', $origin);
+        $response->setHeader('Access-Control-Allow-Origin', $this->resolveAllowOriginHeader($origin));
         $response->setHeader('Access-Control-Allow-Methods', self::ALLOWED_METHODS);
         $response->setHeader('Access-Control-Allow-Headers', self::ALLOWED_HEADERS);
         $response->setHeader('Access-Control-Max-Age', $this->getMaxAge());
 
-        // Habilitar credenciales si está configurado
-        if ($this->allowCredentials()) {
+        // Habilitar credenciales si está configurado — nunca junto con comodín (ver
+        // resolveAllowOriginHeader())
+        if ($this->allowCredentials() && !$this->isWildcardConfigured()) {
             $response->setHeader('Access-Control-Allow-Credentials', 'true');
         }
 
@@ -107,10 +108,11 @@ class CORSMiddleware
     private function addCORSHeaders(Response $response, string $origin): Response
     {
         // Establecer el origen permitido (debe ser específico cuando se usan credenciales)
-        $response->setHeader('Access-Control-Allow-Origin', $origin);
+        $response->setHeader('Access-Control-Allow-Origin', $this->resolveAllowOriginHeader($origin));
 
-        // Habilitar credenciales (necesario para cookies de sesión)
-        if ($this->allowCredentials()) {
+        // Habilitar credenciales (necesario para cookies de sesión) — nunca junto con
+        // comodín (ver resolveAllowOriginHeader())
+        if ($this->allowCredentials() && !$this->isWildcardConfigured()) {
             $response->setHeader('Access-Control-Allow-Credentials', 'true');
         }
 
@@ -140,6 +142,35 @@ class CORSMiddleware
 
         // Verificar si el origen está en la lista permitida
         return in_array($origin, $allowedOrigins, true);
+    }
+
+    /**
+     * Verifica si CORS_ALLOWED_ORIGINS está configurado como comodín ("*").
+     *
+     * @return bool
+     */
+    private function isWildcardConfigured(): bool
+    {
+        return in_array('*', $this->getAllowedOrigins(), true);
+    }
+
+    /**
+     * Resuelve el valor de Access-Control-Allow-Origin a enviar.
+     *
+     * Si CORS_ALLOWED_ORIGINS incluye "*", se responde con el literal "*" en vez
+     * de reflejar el Origin de la solicitud. Reflejar el origen exacto junto con
+     * Access-Control-Allow-Credentials: true (habilitado por defecto) permitiría
+     * a cualquier sitio hacer solicitudes autenticadas con las cookies de sesión
+     * del usuario — el navegador sí lo permite porque desde su perspectiva es un
+     * origen específico, no un comodín real. Devolver el "*" literal hace que el
+     * navegador rechace la combinación con credenciales, tal como especifica CORS.
+     *
+     * @param string $origin Origen de la solicitud
+     * @return string
+     */
+    private function resolveAllowOriginHeader(string $origin): string
+    {
+        return $this->isWildcardConfigured() ? '*' : $origin;
     }
 
     /**

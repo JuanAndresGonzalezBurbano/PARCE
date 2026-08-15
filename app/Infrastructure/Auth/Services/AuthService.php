@@ -3,6 +3,8 @@
 namespace App\Infrastructure\Auth\Services;
 
 use App\Core\Database;
+use App\Core\DatabaseException;
+use App\Core\DomainException;
 use App\Infrastructure\Auth\DTO\AuthResult;
 use App\Infrastructure\Auth\DTO\SessionData;
 use App\Infrastructure\Auth\Exceptions\AuthenticationException;
@@ -294,16 +296,28 @@ class AuthService
         Database::beginTransaction();
 
         try {
-            $userId = Database::insert('users', [
-                'email' => $email,
-                'password_hash' => $passwordHash,
-                'first_name' => $firstName,
-                'last_name' => $lastName,
-                'phone' => $phone,
-                'account_status' => 'active',
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s')
-            ]);
+            // AuthController::register() ya pre-verifica el email con emailExists()
+            // antes de llegar aquí, pero eso es "check then insert" — no es atómico
+            // por sí solo. users.email tiene un UNIQUE a nivel de BD que sí cierra la
+            // carrera ante dos registros concurrentes con el mismo email; se traduce
+            // a la misma respuesta 409 amigable en vez de dejarla propagar como 500.
+            try {
+                $userId = Database::insert('users', [
+                    'email' => $email,
+                    'password_hash' => $passwordHash,
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
+                    'phone' => $phone,
+                    'account_status' => 'active',
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s')
+                ]);
+            } catch (DatabaseException $e) {
+                if (str_contains($e->getMessage(), 'Duplicate entry')) {
+                    throw new DomainException('Email already exists', 409);
+                }
+                throw $e;
+            }
 
             // Obtener el ID del rol solicitado ('customer' o 'mechanic')
             $role = Database::fetchOne(

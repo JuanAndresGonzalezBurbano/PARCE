@@ -19,22 +19,34 @@ export const adminService = {
     return apiClient.get<DashboardResponse>(API_ENDPOINTS.ADMIN.DASHBOARD);
   },
 
-  async getRatings(filters: RatingFilters = {}): Promise<ApiResponse<AdminRatingListResponse>> {
+  async getRatings(
+    filters: RatingFilters = {},
+    page?: number,
+    perPage?: number
+  ): Promise<ApiResponse<AdminRatingListResponse>> {
     const qs = buildQuery({
       mechanic_id: filters.mechanicId,
       customer_id: filters.customerId,
       min_rating: filters.minRating,
       date_from: filters.dateFrom,
       date_to: filters.dateTo,
+      page,
+      per_page: perPage,
     });
     return apiClient.get<AdminRatingListResponse>(API_ENDPOINTS.ADMIN.RATINGS + qs);
   },
 
-  async getPqrList(filters: PQRFilters = {}): Promise<ApiResponse<PQRListResponse>> {
+  async getPqrList(
+    filters: PQRFilters = {},
+    page?: number,
+    perPage?: number
+  ): Promise<ApiResponse<PQRListResponse>> {
     const qs = buildQuery({
       status: filters.status,
       type: filters.type,
       q: filters.q,
+      page,
+      per_page: perPage,
     });
     return apiClient.get<PQRListResponse>(API_ENDPOINTS.ADMIN.PQR_LIST + qs);
   },
@@ -49,7 +61,8 @@ export const adminService = {
     });
   },
 
-  async getSurveys(): Promise<ApiResponse<SurveyListResponse>> {
-    return apiClient.get<SurveyListResponse>(API_ENDPOINTS.ADMIN.SURVEYS);
+  async getSurveys(page?: number, perPage?: number): Promise<ApiResponse<SurveyListResponse>> {
+    const qs = buildQuery({ page, per_page: perPage });
+    return apiClient.get<SurveyListResponse>(API_ENDPOINTS.ADMIN.SURVEYS + qs);
   },
 };

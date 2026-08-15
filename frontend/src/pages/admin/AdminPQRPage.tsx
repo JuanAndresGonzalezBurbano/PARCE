@@ -1,15 +1,21 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAdmin } from '@/hooks/useAdmin';
-import type { PQRStatus, PQRType } from '@/types/pqr';
+import type { PQRStatus, PQRType, PQRFilters } from '@/types/pqr';
 import { PQR_TYPE_LABELS as TYPE_LABELS, PQR_STATUS_CONFIG as STATUS_CONFIG } from '@/constants/pqr';
+import Pagination from '@/components/common/Pagination';
 
 export default function AdminPQRPage() {
-  const { pqrTickets, isLoading, error, loadPqr, updatePqrStatus, respondPqr, clearError } = useAdmin();
+  const { pqrTickets, pqrPagination, isLoading, error, loadPqr, updatePqrStatus, respondPqr, clearError } = useAdmin();
 
   const [statusFilter, setStatusFilter] = useState<PQRStatus | ''>('');
   const [typeFilter, setTypeFilter] = useState<PQRType | ''>('');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Filtros realmente aplicados (los que ya se enviaron al backend) — separados
+  // del estado de los inputs para que cambiar de página no reenvíe por error
+  // un filtro editado pero aún no confirmado con el botón "Filtrar".
+  const [appliedFilters, setAppliedFilters] = useState<PQRFilters>({});
 
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [responseText, setResponseText] = useState('');
@@ -19,11 +25,19 @@ export default function AdminPQRPage() {
 
   function applyFilters() {
     clearError();
-    loadPqr({
+    const filters: PQRFilters = {
       status: statusFilter || undefined,
       type: typeFilter || undefined,
       q: searchQuery.trim() || undefined,
-    });
+    };
+    setAppliedFilters(filters);
+    // Un cambio de filtro/búsqueda siempre vuelve a la página 1 — la página
+    // actual puede no existir más bajo el nuevo filtro.
+    loadPqr(filters, 1);
+  }
+
+  function goToPage(page: number) {
+    loadPqr(appliedFilters, page);
   }
 
   function handleToggleExpand(id: number) {
@@ -223,6 +237,14 @@ export default function AdminPQRPage() {
             );
           })}
         </div>
+
+        <Pagination
+          page={pqrPagination.page}
+          totalPages={pqrPagination.totalPages}
+          total={pqrPagination.total}
+          onPageChange={goToPage}
+          disabled={isLoading}
+        />
       </div>
     </div>
   );

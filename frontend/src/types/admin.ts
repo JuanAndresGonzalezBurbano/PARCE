@@ -1,3 +1,5 @@
+import type { PaginationMeta } from './pagination';
+
 // Resumen del dashboard de administración
 export interface DashboardStats {
   totalUsers: number;
@@ -31,7 +33,7 @@ export interface AdminRating {
   mechanicLastName: string | null;
 }
 
-export interface AdminRatingListResponse {
+export interface AdminRatingListResponse extends PaginationMeta {
   ratings: AdminRating[];
   count: number;
 }

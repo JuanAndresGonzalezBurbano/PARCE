@@ -3,6 +3,9 @@ import { adminService } from '@/services/adminService';
 import type { DashboardStats, AdminRating, RatingFilters } from '@/types/admin';
 import type { PQRTicket, PQRFilters } from '@/types/pqr';
 import type { Survey } from '@/types/survey';
+import type { PaginationMeta } from '@/types/pagination';
+
+const EMPTY_PAGINATION: PaginationMeta = { total: 0, page: 1, perPage: 50, totalPages: 0 };
 
 interface AdminContextType {
   // Dashboard
@@ -11,17 +14,20 @@ interface AdminContextType {
 
   // Calificaciones
   ratings: AdminRating[];
-  loadRatings: (filters?: RatingFilters) => Promise<void>;
+  ratingsPagination: PaginationMeta;
+  loadRatings: (filters?: RatingFilters, page?: number) => Promise<void>;
 
   // PQR
   pqrTickets: PQRTicket[];
-  loadPqr: (filters?: PQRFilters) => Promise<void>;
+  pqrPagination: PaginationMeta;
+  loadPqr: (filters?: PQRFilters, page?: number) => Promise<void>;
   updatePqrStatus: (id: number, status: string) => Promise<boolean>;
   respondPqr: (id: number, adminResponse: string) => Promise<boolean>;
 
   // Encuestas
   surveys: Survey[];
-  loadSurveys: () => Promise<void>;
+  surveysPagination: PaginationMeta;
+  loadSurveys: (page?: number) => Promise<void>;
 
   isLoading: boolean;
   error: string | null;
@@ -37,8 +43,11 @@ interface AdminProviderProps {
 export function AdminProvider({ children }: AdminProviderProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [ratings, setRatings] = useState<AdminRating[]>([]);
+  const [ratingsPagination, setRatingsPagination] = useState<PaginationMeta>(EMPTY_PAGINATION);
   const [pqrTickets, setPqrTickets] = useState<PQRTicket[]>([]);
+  const [pqrPagination, setPqrPagination] = useState<PaginationMeta>(EMPTY_PAGINATION);
   const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [surveysPagination, setSurveysPagination] = useState<PaginationMeta>(EMPTY_PAGINATION);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,13 +68,19 @@ export function AdminProvider({ children }: AdminProviderProps) {
     }
   }
 
-  async function loadRatings(filters: RatingFilters = {}) {
+  async function loadRatings(filters: RatingFilters = {}, page: number = 1) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await adminService.getRatings(filters);
+      const response = await adminService.getRatings(filters, page);
       if (response.success) {
         setRatings(response.data.ratings);
+        setRatingsPagination({
+          total: response.data.total,
+          page: response.data.page,
+          perPage: response.data.perPage,
+          totalPages: response.data.totalPages,
+        });
       } else {
         setError(response.error);
       }
@@ -76,13 +91,19 @@ export function AdminProvider({ children }: AdminProviderProps) {
     }
   }
 
-  async function loadPqr(filters: PQRFilters = {}) {
+  async function loadPqr(filters: PQRFilters = {}, page: number = 1) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await adminService.getPqrList(filters);
+      const response = await adminService.getPqrList(filters, page);
       if (response.success) {
         setPqrTickets(response.data.pqr);
+        setPqrPagination({
+          total: response.data.total,
+          page: response.data.page,
+          perPage: response.data.perPage,
+          totalPages: response.data.totalPages,
+        });
       } else {
         setError(response.error);
       }
@@ -133,13 +154,19 @@ export function AdminProvider({ children }: AdminProviderProps) {
     }
   }
 
-  async function loadSurveys() {
+  async function loadSurveys(page: number = 1) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await adminService.getSurveys();
+      const response = await adminService.getSurveys(page);
       if (response.success) {
         setSurveys(response.data.surveys);
+        setSurveysPagination({
+          total: response.data.total,
+          page: response.data.page,
+          perPage: response.data.perPage,
+          totalPages: response.data.totalPages,
+        });
       } else {
         setError(response.error);
       }
@@ -158,12 +185,15 @@ export function AdminProvider({ children }: AdminProviderProps) {
     stats,
     loadDashboard,
     ratings,
+    ratingsPagination,
     loadRatings,
     pqrTickets,
+    pqrPagination,
     loadPqr,
     updatePqrStatus,
     respondPqr,
     surveys,
+    surveysPagination,
     loadSurveys,
     isLoading,
     error,

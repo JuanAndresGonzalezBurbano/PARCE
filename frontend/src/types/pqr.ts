@@ -1,3 +1,5 @@
+import type { PaginationMeta } from './pagination';
+
 export type PQRType = 'peticion' | 'queja' | 'reclamo' | 'sugerencia';
 export type PQRStatus = 'pending' | 'in_review' | 'resolved' | 'rejected';
 
@@ -20,7 +22,7 @@ export interface PQRTicket {
   reporterEmail?: string;
 }
 
-export interface PQRListResponse {
+export interface PQRListResponse extends PaginationMeta {
   pqr: PQRTicket[];
   count: number;
 }

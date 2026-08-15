@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAdmin } from '@/hooks/useAdmin';
+import type { RatingFilters } from '@/types/admin';
+import Pagination from '@/components/common/Pagination';
 
 const EMERGENCY_LABELS: Record<string, string> = {
   tire: 'Llanta pinchada', battery: 'Batería descargada', fuel: 'Sin combustible',
@@ -8,27 +10,39 @@ const EMERGENCY_LABELS: Record<string, string> = {
 };
 
 export default function AdminRatingsPage() {
-  const { ratings, isLoading, error, loadRatings } = useAdmin();
+  const { ratings, ratingsPagination, isLoading, error, loadRatings } = useAdmin();
 
   const [minRating, setMinRating] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
+  // Filtros realmente aplicados — separados del estado de los inputs para que
+  // cambiar de página no reenvíe un filtro editado pero no confirmado.
+  const [appliedFilters, setAppliedFilters] = useState<RatingFilters>({});
+
   useEffect(() => { loadRatings(); }, []);
 
   function applyFilters() {
-    loadRatings({
+    const filters: RatingFilters = {
       minRating: minRating ? Number(minRating) : undefined,
       dateFrom: dateFrom || undefined,
       dateTo: dateTo || undefined,
-    });
+    };
+    setAppliedFilters(filters);
+    // Un cambio de filtro siempre vuelve a la página 1.
+    loadRatings(filters, 1);
   }
 
   function clearFilters() {
     setMinRating('');
     setDateFrom('');
     setDateTo('');
-    loadRatings();
+    setAppliedFilters({});
+    loadRatings({}, 1);
+  }
+
+  function goToPage(page: number) {
+    loadRatings(appliedFilters, page);
   }
 
   return (
@@ -157,6 +171,14 @@ export default function AdminRatingsPage() {
             </div>
           ))}
         </div>
+
+        <Pagination
+          page={ratingsPagination.page}
+          totalPages={ratingsPagination.totalPages}
+          total={ratingsPagination.total}
+          onPageChange={goToPage}
+          disabled={isLoading}
+        />
       </div>
     </div>
   );

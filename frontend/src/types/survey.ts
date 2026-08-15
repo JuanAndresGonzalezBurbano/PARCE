@@ -1,3 +1,5 @@
+import type { PaginationMeta } from './pagination';
+
 // Encuesta de satisfacción (vista administrador — solo lectura)
 export interface Survey {
   id: number;
@@ -17,7 +19,7 @@ export interface Survey {
   mechanicLastName?: string;
 }
 
-export interface SurveyListResponse {
+export interface SurveyListResponse extends PaginationMeta {
   surveys: Survey[];
   count: number;
 }

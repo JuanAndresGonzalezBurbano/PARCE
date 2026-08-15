@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAdmin } from '@/hooks/useAdmin';
+import Pagination from '@/components/common/Pagination';
 
 export default function AdminSurveysPage() {
-  const { surveys, isLoading, error, loadSurveys } = useAdmin();
+  const { surveys, surveysPagination, isLoading, error, loadSurveys } = useAdmin();
 
   useEffect(() => { loadSurveys(); }, []);
 
@@ -73,6 +74,14 @@ export default function AdminSurveysPage() {
             </div>
           ))}
         </div>
+
+        <Pagination
+          page={surveysPagination.page}
+          totalPages={surveysPagination.totalPages}
+          total={surveysPagination.total}
+          onPageChange={loadSurveys}
+          disabled={isLoading}
+        />
       </div>
     </div>
   );

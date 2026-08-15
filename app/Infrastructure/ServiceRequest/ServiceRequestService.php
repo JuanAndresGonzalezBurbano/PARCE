@@ -50,62 +50,75 @@ class ServiceRequestService
             throw new DomainException('El vehículo no está activo', 400);
         }
 
-        // Verificar si el cliente ya tiene una solicitud activa
-        $activeCustomerRequest = Database::fetchOne(
-            'SELECT id, service_code FROM service_requests
-             WHERE customer_id = ?
-             AND status IN (?, ?, ?)
-             AND deleted_at IS NULL',
-            [$customerId, 'pending', 'assigned', 'in_progress']
-        );
-
-        if ($activeCustomerRequest !== null) {
-            throw new DomainException(
-                'Ya tienes una solicitud de servicio activa (' .
-                $activeCustomerRequest['service_code'] .
-                '). Por favor, complétala o cancélala antes de crear una nueva.',
-                409
-            );
-        }
-
-        // Verificar si el vehículo ya tiene una solicitud activa
-        $activeVehicleRequest = Database::fetchOne(
-            'SELECT id, service_code FROM service_requests
-             WHERE vehicle_id = ?
-             AND status IN (?, ?, ?)
-             AND deleted_at IS NULL',
-            [(int)$data['vehicle_id'], 'pending', 'assigned', 'in_progress']
-        );
-
-        if ($activeVehicleRequest !== null) {
-            throw new DomainException(
-                'Este vehículo ya tiene una solicitud de servicio activa (' .
-                $activeVehicleRequest['service_code'] .
-                '). Por favor, complétala o cancélala antes de crear una nueva.',
-                409
-            );
-        }
-
-        // Preparar datos para la inserción
-        $insertData = [
-            'customer_id'    => $customerId,
-            'vehicle_id'     => (int)$data['vehicle_id'],
-            'emergency_type' => strtolower($data['emergency_type']),
-            'description'    => $data['description'],
-            'latitude'       => (float)$data['latitude'],
-            'longitude'      => (float)$data['longitude'],
-            'priority'       => strtolower($data['priority'] ?? 'normal'),
-            'status'         => 'pending',
-            'requested_at'   => date('Y-m-d H:i:s')
-        ];
-
-        // El código de servicio depende del ID recién insertado, así que requiere
-        // una segunda escritura — ambas deben ser atómicas: si la segunda falla,
-        // la solicitud quedaría permanentemente sin service_code.
+        // "Una solicitud activa por cliente/vehículo" es un SELECT-then-INSERT:
+        // sin protección adicional, dos peticiones concurrentes del mismo
+        // cliente (doble clic, reintento de red) podrían pasar ambas el chequeo
+        // antes de que cualquiera inserte, dejando dos solicitudes activas a la
+        // vez — a diferencia de PQR/encuestas, aquí no hay un UNIQUE de BD que
+        // lo evite (el estado "activo" son 3 valores posibles, no admite un
+        // índice único simple). Se cierra adquiriendo un lock pesimista sobre
+        // la fila del propio cliente en `users` (SELECT ... FOR UPDATE) antes
+        // de los chequeos: como esa fila siempre existe, cualquier otra
+        // create() concurrente del MISMO cliente queda bloqueada hasta que esta
+        // transacción termine. Clientes distintos no se bloquean entre sí.
         Database::beginTransaction();
         try {
+            Database::fetchOne('SELECT id FROM users WHERE id = ? FOR UPDATE', [$customerId]);
+
+            $activeCustomerRequest = Database::fetchOne(
+                'SELECT id, service_code FROM service_requests
+                 WHERE customer_id = ?
+                 AND status IN (?, ?, ?)
+                 AND deleted_at IS NULL',
+                [$customerId, 'pending', 'assigned', 'in_progress']
+            );
+
+            if ($activeCustomerRequest !== null) {
+                throw new DomainException(
+                    'Ya tienes una solicitud de servicio activa (' .
+                    $activeCustomerRequest['service_code'] .
+                    '). Por favor, complétala o cancélala antes de crear una nueva.',
+                    409
+                );
+            }
+
+            // Verificar si el vehículo ya tiene una solicitud activa (el
+            // vehículo ya se confirmó de propiedad del mismo cliente arriba,
+            // así que el lock sobre el cliente también protege este chequeo)
+            $activeVehicleRequest = Database::fetchOne(
+                'SELECT id, service_code FROM service_requests
+                 WHERE vehicle_id = ?
+                 AND status IN (?, ?, ?)
+                 AND deleted_at IS NULL',
+                [(int)$data['vehicle_id'], 'pending', 'assigned', 'in_progress']
+            );
+
+            if ($activeVehicleRequest !== null) {
+                throw new DomainException(
+                    'Este vehículo ya tiene una solicitud de servicio activa (' .
+                    $activeVehicleRequest['service_code'] .
+                    '). Por favor, complétala o cancélala antes de crear una nueva.',
+                    409
+                );
+            }
+
+            $insertData = [
+                'customer_id'    => $customerId,
+                'vehicle_id'     => (int)$data['vehicle_id'],
+                'emergency_type' => strtolower($data['emergency_type']),
+                'description'    => $data['description'],
+                'latitude'       => (float)$data['latitude'],
+                'longitude'      => (float)$data['longitude'],
+                'priority'       => strtolower($data['priority'] ?? 'normal'),
+                'status'         => 'pending',
+                'requested_at'   => date('Y-m-d H:i:s')
+            ];
+
             $requestId = Database::insert('service_requests', $insertData);
 
+            // El código de servicio depende del ID recién insertado, así que
+            // requiere una segunda escritura — misma transacción: si esta
+            // falla, la solicitud no debe quedar sin service_code.
             $serviceCode = ServiceRequestValidator::generateServiceCode($requestId);
             Database::update('service_requests', [
                 'service_code' => $serviceCode

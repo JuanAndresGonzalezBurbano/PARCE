@@ -32,6 +32,25 @@ class PQRValidator
     ];
 
     /**
+     * Estados terminales: un ticket en uno de estos estados ya fue cerrado por
+     * el administrador y no admite más transiciones de estado.
+     */
+    private const TERMINAL_STATUSES = ['resolved', 'rejected'];
+
+    /**
+     * Transiciones de estado válidas para updateStatus() (acción administrativa
+     * de solo-estado). Derivado del flujo ya implementado en
+     * AdminPQRPage.tsx: desde 'pending' el admin puede marcar 'in_review' o
+     * 'rejected' (o resolver, vía respond()); desde 'in_review' solo puede
+     * rechazar (o resolver, vía respond()) — la UI nunca ofrece "marcar en
+     * revisión" para un ticket que ya está en revisión.
+     */
+    private const VALID_TRANSITIONS = [
+        'pending'   => ['in_review', 'rejected', 'resolved'],
+        'in_review' => ['rejected', 'resolved'],
+    ];
+
+    /**
      * Valida los datos para la creación de un PQR.
      *
      * @param Request $request Solicitud HTTP
@@ -108,6 +127,39 @@ class PQRValidator
             'valid'  => empty($errors),
             'errors' => $errors,
         ];
+    }
+
+    /**
+     * Valida si una transición de estado es permitida.
+     *
+     * @param string $currentStatus Estado actual del ticket
+     * @param string $newStatus     Estado destino solicitado
+     * @return array                ['valid' => bool, 'error' => string|null]
+     */
+    public static function validateStatusTransition(string $currentStatus, string $newStatus): array
+    {
+        if (in_array($currentStatus, self::TERMINAL_STATUSES, true)) {
+            return [
+                'valid' => false,
+                'error' => "No se puede transicionar desde el estado terminal '{$currentStatus}'"
+            ];
+        }
+
+        if (!isset(self::VALID_TRANSITIONS[$currentStatus])) {
+            return [
+                'valid' => false,
+                'error' => "Estado actual inválido '{$currentStatus}'"
+            ];
+        }
+
+        if (!in_array($newStatus, self::VALID_TRANSITIONS[$currentStatus], true)) {
+            return [
+                'valid' => false,
+                'error' => "No se puede transicionar de '{$currentStatus}' a '{$newStatus}'"
+            ];
+        }
+
+        return ['valid' => true, 'error' => null];
     }
 
     /**

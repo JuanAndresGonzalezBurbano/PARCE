@@ -105,6 +105,51 @@ class PQRValidatorTest extends TestCase
         $this->assertTrue($result['valid']);
     }
 
+    public function testStatusTransitionAllowsPendingToInReview(): void
+    {
+        $result = PQRValidator::validateStatusTransition('pending', 'in_review');
+        $this->assertTrue($result['valid']);
+    }
+
+    public function testStatusTransitionAllowsPendingToRejected(): void
+    {
+        $result = PQRValidator::validateStatusTransition('pending', 'rejected');
+        $this->assertTrue($result['valid']);
+    }
+
+    public function testStatusTransitionAllowsPendingToResolved(): void
+    {
+        $result = PQRValidator::validateStatusTransition('pending', 'resolved');
+        $this->assertTrue($result['valid']);
+    }
+
+    public function testStatusTransitionAllowsInReviewToRejected(): void
+    {
+        $result = PQRValidator::validateStatusTransition('in_review', 'rejected');
+        $this->assertTrue($result['valid']);
+    }
+
+    public function testStatusTransitionRejectsInReviewBackToInReview(): void
+    {
+        // La UI nunca ofrece "marcar en revisión" para un ticket ya en revisión
+        $result = PQRValidator::validateStatusTransition('in_review', 'in_review');
+        $this->assertFalse($result['valid']);
+    }
+
+    public function testStatusTransitionRejectsFromResolvedTerminalState(): void
+    {
+        $result = PQRValidator::validateStatusTransition('resolved', 'in_review');
+        $this->assertFalse($result['valid']);
+        $this->assertStringContainsString('terminal', $result['error']);
+    }
+
+    public function testStatusTransitionRejectsFromRejectedTerminalState(): void
+    {
+        $result = PQRValidator::validateStatusTransition('rejected', 'pending');
+        $this->assertFalse($result['valid']);
+        $this->assertStringContainsString('terminal', $result['error']);
+    }
+
     public function testGenerateTicketCodeFormatsWithCurrentYearAndPaddedId(): void
     {
         $code = PQRValidator::generateTicketCode(5);

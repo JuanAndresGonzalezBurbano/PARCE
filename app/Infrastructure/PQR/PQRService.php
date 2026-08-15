@@ -162,20 +162,50 @@ class PQRService
     /**
      * Actualiza el estado de un ticket PQR.
      *
+     * Solo se permiten las transiciones definidas en
+     * PQRValidator::validateStatusTransition() (derivadas del flujo ya
+     * implementado en el panel de administrador): un ticket resuelto o
+     * rechazado es terminal y no puede reabrirse por esta vía.
+     *
      * @param int    $ticketId ID del PQR
      * @param string $status   Nuevo estado
      * @return bool            Verdadero si se actualizó correctamente
+     * @throws DomainException Si el ticket no existe o la transición no es válida
      */
     public function updateStatus(int $ticketId, string $status): bool
     {
-        $affected = Database::update(
-            'pqr',
-            ['status' => $status],
-            'id = ? AND deleted_at IS NULL',
+        $ticket = Database::fetchOne(
+            'SELECT status FROM pqr WHERE id = ? AND deleted_at IS NULL',
             [$ticketId]
         );
 
-        return $affected > 0;
+        if ($ticket === null) {
+            throw new DomainException('Ticket PQR no encontrado', 404);
+        }
+
+        $validation = PQRValidator::validateStatusTransition($ticket['status'], $status);
+        if (!$validation['valid']) {
+            throw new DomainException($validation['error'], 400);
+        }
+
+        // El WHERE repite el estado actual para que la actualización sea atómica
+        // frente a una transición concurrente (ej. dos administradores actuando
+        // sobre el mismo ticket a la vez) — mismo patrón usado en ServiceRequestService.
+        $affected = Database::update(
+            'pqr',
+            ['status' => $status],
+            'id = ? AND status = ? AND deleted_at IS NULL',
+            [$ticketId, $ticket['status']]
+        );
+
+        if ($affected === 0) {
+            throw new DomainException(
+                'El estado del ticket cambió antes de poder actualizarlo. Actualiza la página e inténtalo de nuevo.',
+                409
+            );
+        }
+
+        return true;
     }
 
     /**
@@ -185,9 +215,13 @@ class PQRService
      * @param int    $adminUserId   ID del administrador que responde
      * @param string $responseText Texto de la respuesta
      * @return bool                Verdadero si se actualizó correctamente
+     * @throws DomainException     Si el ticket ya fue respondido
      */
     public function respond(int $ticketId, int $adminUserId, string $responseText): bool
     {
+        // El WHERE exige que aún no tenga respuesta, para que sea atómico frente a
+        // un doble envío concurrente (ej. dos pestañas del mismo admin) — sin esto,
+        // el segundo envío sobrescribiría silenciosamente la respuesta del primero.
         $affected = Database::update(
             'pqr',
             [
@@ -196,10 +230,14 @@ class PQRService
                 'responded_at'   => date('Y-m-d H:i:s'),
                 'status'         => 'resolved',
             ],
-            'id = ? AND deleted_at IS NULL',
+            'id = ? AND deleted_at IS NULL AND admin_response IS NULL',
             [$ticketId]
         );
 
-        return $affected > 0;
+        if ($affected === 0) {
+            throw new DomainException('Este ticket ya fue respondido', 409);
+        }
+
+        return true;
     }
 }

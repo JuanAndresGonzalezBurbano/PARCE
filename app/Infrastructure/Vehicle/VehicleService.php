@@ -14,6 +14,9 @@ use App\Infrastructure\Vehicle\VehicleValidator;
  */
 class VehicleService
 {
+    /** Tiempo máximo de espera (segundos) para adquirir un lock de placa/VIN */
+    private const UNIQUENESS_LOCK_TIMEOUT = 5;
+
     /**
      * Crear un nuevo vehículo
      *
@@ -32,71 +35,85 @@ class VehicleService
             $data['vin'] = VehicleValidator::normalizeVIN($data['vin']);
         }
 
-        // Verificar que la placa no exista (entre vehículos activos; una placa liberada
-        // por un vehículo eliminado debe poder reutilizarse)
-        $existing = Database::fetchOne(
-            'SELECT id FROM vehicles WHERE license_plate = ? AND deleted_at IS NULL',
-            [$data['license_plate']]
-        );
+        // license_plate/vin no tienen UNIQUE a nivel de BD (se quitó intencionalmente
+        // para permitir reutilizar una placa liberada por un vehículo eliminado —
+        // ver migración 2026_07_16_000016), así que el chequeo de unicidad de abajo
+        // es un SELECT-then-write sin respaldo de la BD: dos solicitudes concurrentes
+        // con la misma placa/VIN (de cualquier usuario) podrían pasar ambas el
+        // chequeo. Se cierra con un lock nombrado de MySQL por placa/VIN — no hay
+        // una fila propia que bloquear como en otros casos ya corregidos, porque el
+        // registro aún no existe.
+        $lockKeys = $this->acquireUniquenessLocks($data['license_plate'], $data['vin'] ?? null);
 
-        if ($existing !== null) {
-            throw new DomainException('Ya existe un vehículo con esta placa', 409);
-        }
-
-        // Verificar que el VIN no exista (si se proporcionó)
-        if (!empty($data['vin'])) {
-            $existingVin = Database::fetchOne(
-                'SELECT id FROM vehicles WHERE vin = ? AND deleted_at IS NULL',
-                [$data['vin']]
+        try {
+            // Verificar que la placa no exista (entre vehículos activos; una placa liberada
+            // por un vehículo eliminado debe poder reutilizarse)
+            $existing = Database::fetchOne(
+                'SELECT id FROM vehicles WHERE license_plate = ? AND deleted_at IS NULL',
+                [$data['license_plate']]
             );
 
-            if ($existingVin !== null) {
-                throw new DomainException('Ya existe un vehículo con este VIN', 409);
+            if ($existing !== null) {
+                throw new DomainException('Ya existe un vehículo con esta placa', 409);
             }
-        }
 
-        // Preparar datos de inserción
-        $insertData = [
-            'user_id'      => $userId,
-            'license_plate'=> $data['license_plate'],
-            'make'         => $data['make'],
-            'model'        => $data['model'],
-            'year'         => (int)$data['year'],
-            'vehicle_type' => $data['vehicle_type'],
-            'fuel_type'    => $data['fuel_type'],
-            'is_primary'   => !empty($data['is_primary']) ? 1 : 0,
-            'status'       => 'active',
-        ];
+            // Verificar que el VIN no exista (si se proporcionó)
+            if (!empty($data['vin'])) {
+                $existingVin = Database::fetchOne(
+                    'SELECT id FROM vehicles WHERE vin = ? AND deleted_at IS NULL',
+                    [$data['vin']]
+                );
 
-        // Campos opcionales
-        if (!empty($data['color']))             $insertData['color']             = $data['color'];
-        if (!empty($data['vin']))               $insertData['vin']               = $data['vin'];
-        if (!empty($data['nickname']))          $insertData['nickname']          = $data['nickname'];
-        if (!empty($data['primary_photo_url'])) $insertData['primary_photo_url'] = $data['primary_photo_url'];
+                if ($existingVin !== null) {
+                    throw new DomainException('Ya existe un vehículo con este VIN', 409);
+                }
+            }
 
-        // Documentos colombianos (SOAT y Tecnomecánica)
-        if (!empty($data['soat_expiration_date']))
-            $insertData['soat_expiration_date'] = $data['soat_expiration_date'];
-        if (!empty($data['tecnomecanica_expiration_date']))
-            $insertData['tecnomecanica_expiration_date'] = $data['tecnomecanica_expiration_date'];
+            // Preparar datos de inserción
+            $insertData = [
+                'user_id'      => $userId,
+                'license_plate'=> $data['license_plate'],
+                'make'         => $data['make'],
+                'model'        => $data['model'],
+                'year'         => (int)$data['year'],
+                'vehicle_type' => $data['vehicle_type'],
+                'fuel_type'    => $data['fuel_type'],
+                'is_primary'   => !empty($data['is_primary']) ? 1 : 0,
+                'status'       => 'active',
+            ];
 
-        if (empty($data['is_primary'])) {
-            return Database::insert('vehicles', $insertData);
-        }
+            // Campos opcionales
+            if (!empty($data['color']))             $insertData['color']             = $data['color'];
+            if (!empty($data['vin']))               $insertData['vin']               = $data['vin'];
+            if (!empty($data['nickname']))          $insertData['nickname']          = $data['nickname'];
+            if (!empty($data['primary_photo_url'])) $insertData['primary_photo_url'] = $data['primary_photo_url'];
 
-        // Si es_principal es true, quitar el principal actual del usuario e
-        // insertar el nuevo deben ser atómicas — igual que en setPrimary(), si
-        // la inserción falla después de quitar el principal anterior, el
-        // usuario quedaría sin ningún vehículo principal.
-        Database::beginTransaction();
-        try {
-            Database::update('vehicles', ['is_primary' => false], 'user_id = ?', [$userId]);
-            $vehicleId = Database::insert('vehicles', $insertData);
-            Database::commit();
-            return $vehicleId;
-        } catch (\Exception $e) {
-            Database::rollback();
-            throw $e;
+            // Documentos colombianos (SOAT y Tecnomecánica)
+            if (!empty($data['soat_expiration_date']))
+                $insertData['soat_expiration_date'] = $data['soat_expiration_date'];
+            if (!empty($data['tecnomecanica_expiration_date']))
+                $insertData['tecnomecanica_expiration_date'] = $data['tecnomecanica_expiration_date'];
+
+            if (empty($data['is_primary'])) {
+                return Database::insert('vehicles', $insertData);
+            }
+
+            // Si es_principal es true, quitar el principal actual del usuario e
+            // insertar el nuevo deben ser atómicas — igual que en setPrimary(), si
+            // la inserción falla después de quitar el principal anterior, el
+            // usuario quedaría sin ningún vehículo principal.
+            Database::beginTransaction();
+            try {
+                Database::update('vehicles', ['is_primary' => false], 'user_id = ?', [$userId]);
+                $vehicleId = Database::insert('vehicles', $insertData);
+                Database::commit();
+                return $vehicleId;
+            } catch (\Exception $e) {
+                Database::rollback();
+                throw $e;
+            }
+        } finally {
+            $this->releaseLocks($lockKeys);
         }
     }
 
@@ -127,42 +144,74 @@ class VehicleService
 
         $updateData = [];
 
-        // Placa
+        // Igual que en create(): sin UNIQUE de BD para placa/VIN, el chequeo de
+        // unicidad necesita un lock nombrado propio cuando el valor realmente
+        // cambia (si no cambia, no hay nada que proteger).
+        $lockKeys = [];
+        $normalizedPlate = null;
+        $normalizedVin = null;
+
         if (isset($data['license_plate'])) {
             $normalizedPlate = VehicleValidator::normalizeLicensePlate($data['license_plate']);
-
             if ($normalizedPlate !== $vehicle['license_plate']) {
-                $existing = Database::fetchOne(
-                    'SELECT id FROM vehicles WHERE license_plate = ? AND id != ? AND deleted_at IS NULL',
-                    [$normalizedPlate, $vehicleId]
-                );
-
-                if ($existing !== null) {
-                    throw new DomainException('Ya existe un vehículo con esta placa', 409);
-                }
+                $lockKeys[] = 'vehicle_plate:' . $normalizedPlate;
             }
-
-            $updateData['license_plate'] = $normalizedPlate;
         }
 
-        // VIN
         if (isset($data['vin'])) {
             $normalizedVin = VehicleValidator::normalizeVIN($data['vin']);
-
             if ($normalizedVin !== null && $normalizedVin !== $vehicle['vin']) {
-                $existingVin = Database::fetchOne(
-                    'SELECT id FROM vehicles WHERE vin = ? AND id != ? AND deleted_at IS NULL',
-                    [$normalizedVin, $vehicleId]
-                );
-
-                if ($existingVin !== null) {
-                    throw new DomainException('Ya existe un vehículo con este VIN', 409);
-                }
+                $lockKeys[] = 'vehicle_vin:' . $normalizedVin;
             }
-
-            $updateData['vin'] = $normalizedVin;
         }
 
+        $lockKeys = $this->acquireLocks($lockKeys);
+
+        try {
+            // Placa
+            if ($normalizedPlate !== null) {
+                if ($normalizedPlate !== $vehicle['license_plate']) {
+                    $existing = Database::fetchOne(
+                        'SELECT id FROM vehicles WHERE license_plate = ? AND id != ? AND deleted_at IS NULL',
+                        [$normalizedPlate, $vehicleId]
+                    );
+
+                    if ($existing !== null) {
+                        throw new DomainException('Ya existe un vehículo con esta placa', 409);
+                    }
+                }
+
+                $updateData['license_plate'] = $normalizedPlate;
+            }
+
+            // VIN
+            if (isset($data['vin'])) {
+                if ($normalizedVin !== null && $normalizedVin !== $vehicle['vin']) {
+                    $existingVin = Database::fetchOne(
+                        'SELECT id FROM vehicles WHERE vin = ? AND id != ? AND deleted_at IS NULL',
+                        [$normalizedVin, $vehicleId]
+                    );
+
+                    if ($existingVin !== null) {
+                        throw new DomainException('Ya existe un vehículo con este VIN', 409);
+                    }
+                }
+
+                $updateData['vin'] = $normalizedVin;
+            }
+
+            return $this->applyUpdate($vehicleId, $userId, $updateData, $data);
+        } finally {
+            $this->releaseLocks($lockKeys);
+        }
+    }
+
+    /**
+     * Aplica los campos de actualización de un vehículo (fuera del bloque de
+     * unicidad de placa/VIN, que ya liberó sus locks para este punto).
+     */
+    private function applyUpdate(int $vehicleId, int $userId, array $updateData, array $data): bool
+    {
         // Campos simples
         if (isset($data['make']))             $updateData['make']              = $data['make'];
         if (isset($data['model']))            $updateData['model']             = $data['model'];
@@ -346,5 +395,64 @@ class VehicleService
             'SELECT * FROM vehicles WHERE user_id = ? AND is_primary = TRUE AND deleted_at IS NULL AND status = ?',
             [$userId, 'active']
         );
+    }
+
+    /**
+     * Arma y adquiere los locks nombrados de MySQL para la placa (y VIN, si se
+     * proporciona) que create() está a punto de verificar/insertar.
+     *
+     * @return string[] Claves de lock efectivamente adquiridas (para liberar después)
+     */
+    private function acquireUniquenessLocks(string $licensePlate, ?string $vin): array
+    {
+        $keys = ['vehicle_plate:' . $licensePlate];
+        if (!empty($vin)) {
+            $keys[] = 'vehicle_vin:' . $vin;
+        }
+
+        return $this->acquireLocks($keys);
+    }
+
+    /**
+     * Adquiere una serie de locks nombrados de MySQL (GET_LOCK), en orden, para
+     * serializar el chequeo de unicidad de placa/VIN entre solicitudes
+     * concurrentes — license_plate/vin no tienen UNIQUE a nivel de BD (ver
+     * comentario en create()), así que no hay una fila propia que bloquear.
+     *
+     * @param string[] $keys
+     * @return string[] Claves efectivamente adquiridas
+     * @throws DomainException Si no se pudo adquirir algún lock a tiempo
+     */
+    private function acquireLocks(array $keys): array
+    {
+        $acquired = [];
+
+        foreach ($keys as $key) {
+            $result = Database::fetchOne('SELECT GET_LOCK(?, ?) AS acquired', [$key, self::UNIQUENESS_LOCK_TIMEOUT]);
+
+            if ($result === null || (int)$result['acquired'] !== 1) {
+                $this->releaseLocks($acquired);
+                throw new DomainException(
+                    'No se pudo procesar la solicitud en este momento. Inténtalo de nuevo.',
+                    503
+                );
+            }
+
+            $acquired[] = $key;
+        }
+
+        return $acquired;
+    }
+
+    /**
+     * Libera los locks nombrados adquiridos por acquireLocks()/acquireUniquenessLocks().
+     *
+     * @param string[] $keys
+     */
+    private function releaseLocks(array $keys): void
+    {
+        foreach ($keys as $key) {
+            Database::query('SELECT RELEASE_LOCK(?)', [$key]);
+        }
     }
 }

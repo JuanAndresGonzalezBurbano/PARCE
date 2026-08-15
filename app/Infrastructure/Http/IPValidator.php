@@ -26,8 +26,14 @@ class IPValidator
     /**
      * Obtiene la dirección IP del cliente desde la solicitud
      *
-     * Verifica primero el encabezado X-Forwarded-For (para solicitudes con proxy),
-     * luego recurre a REMOTE_ADDR (conexiones directas).
+     * X-Forwarded-For es un encabezado enviado por el cliente y falsificable a
+     * voluntad — solo debe honrarse cuando la conexión TCP real (REMOTE_ADDR)
+     * proviene de un proxy en el que confiamos (ej. el reverse proxy de
+     * producción). Sin esta verificación, cualquiera podría enviar un valor
+     * distinto de X-Forwarded-For en cada solicitud para evadir el rate
+     * limiting de login/reseteo de contraseña (que usa esta IP como clave) y
+     * la detección de cambio de IP de sesión. Por defecto (sin
+     * TRUSTED_PROXIES configurado) nunca se confía en el encabezado.
      *
      * Requisitos: 20.1, 20.2, 20.3
      *
@@ -36,30 +42,96 @@ class IPValidator
      */
     public static function getClientIP(Request $request): string
     {
-        // Requisito 20.1: Verificar primero el encabezado X-Forwarded-For
-        $forwardedFor = $request->header('X-Forwarded-For');
+        $remoteAddr = $request->ip();
 
-        if ($forwardedFor !== null && $forwardedFor !== '') {
-            // Requisito 20.3: Manejar múltiples IPs (usar la primera IP de la cadena)
-            $ips = explode(',', $forwardedFor);
-            $ip = trim($ips[0]);
+        if (self::isFromTrustedProxy($remoteAddr)) {
+            // Requisito 20.1: Verificar el encabezado X-Forwarded-For
+            $forwardedFor = $request->header('X-Forwarded-For');
 
-            // Validar la IP extraída
-            if (self::isValidIP($ip)) {
-                return $ip;
+            if ($forwardedFor !== null && $forwardedFor !== '') {
+                // Requisito 20.3: Manejar múltiples IPs (usar la primera IP de la cadena)
+                $ips = explode(',', $forwardedFor);
+                $ip = trim($ips[0]);
+
+                // Validar la IP extraída
+                if (self::isValidIP($ip)) {
+                    return $ip;
+                }
             }
         }
 
         // Requisito 20.2: Recurrir a REMOTE_ADDR
-        $remoteAddr = $request->ip();
-
-        // Validar REMOTE_ADDR
         if (self::isValidIP($remoteAddr)) {
             return $remoteAddr;
         }
 
         // Requisito 20.4: Retornar el valor de respaldo para IP inválida
         return self::FALLBACK_IP;
+    }
+
+    /**
+     * Verifica si una IP de conexión directa pertenece a un proxy de confianza
+     * configurado en TRUSTED_PROXIES (lista separada por comas de IPs exactas
+     * o rangos CIDR IPv4, ej. "10.0.0.1,172.16.0.0/12"). Sin configurar, no se
+     * confía en ningún proxy y X-Forwarded-For nunca se usa.
+     *
+     * @param string $remoteAddr IP de la conexión TCP real (REMOTE_ADDR)
+     * @return bool
+     */
+    private static function isFromTrustedProxy(string $remoteAddr): bool
+    {
+        $configured = trim($_ENV['TRUSTED_PROXIES'] ?? '');
+
+        if ($configured === '' || !self::isValidIP($remoteAddr)) {
+            return false;
+        }
+
+        foreach (explode(',', $configured) as $entry) {
+            $entry = trim($entry);
+
+            if ($entry === '') {
+                continue;
+            }
+
+            if (str_contains($entry, '/')) {
+                if (self::ipInCidr($remoteAddr, $entry)) {
+                    return true;
+                }
+            } elseif ($entry === $remoteAddr) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Verifica si una IPv4 pertenece a un rango CIDR (ej. "172.16.0.0/12").
+     *
+     * @param string $ip   Dirección IPv4 a verificar
+     * @param string $cidr Rango CIDR
+     * @return bool
+     */
+    private static function ipInCidr(string $ip, string $cidr): bool
+    {
+        [$subnet, $maskBits] = array_pad(explode('/', $cidr, 2), 2, null);
+
+        if ($maskBits === null || !ctype_digit($maskBits)) {
+            return false;
+        }
+
+        $maskBits = (int)$maskBits;
+        $ipLong = ip2long($ip);
+        $subnetLong = ip2long($subnet);
+
+        // Solo IPv4 — ip2long() retorna false para IPv6 o entradas inválidas
+        if ($ipLong === false || $subnetLong === false || $maskBits < 0 || $maskBits > 32) {
+            return false;
+        }
+
+        $mask = $maskBits === 0 ? 0 : (~0 << (32 - $maskBits));
+
+        return ($ipLong & $mask) === ($subnetLong & $mask);
     }
 
     /**

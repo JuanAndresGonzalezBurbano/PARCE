@@ -9,15 +9,19 @@ use PHPUnit\Framework\TestCase;
 class IPValidatorTest extends TestCase
 {
     private array $serverBackup;
+    private array $envBackup;
 
     protected function setUp(): void
     {
         $this->serverBackup = $_SERVER;
+        $this->envBackup = $_ENV;
+        unset($_ENV['TRUSTED_PROXIES']);
     }
 
     protected function tearDown(): void
     {
         $_SERVER = $this->serverBackup;
+        $_ENV = $this->envBackup;
     }
 
     private function makeRequest(?string $forwardedFor, string $remoteAddr): Request
@@ -51,15 +55,43 @@ class IPValidatorTest extends TestCase
         $this->assertFalse(IPValidator::isValidIP('not-an-ip'));
     }
 
-    public function testGetClientIPPrefersXForwardedForOverRemoteAddr(): void
+    public function testGetClientIPIgnoresXForwardedForByDefault(): void
     {
+        // Sin TRUSTED_PROXIES configurado, X-Forwarded-For (falsificable por el
+        // cliente) nunca debe usarse — de lo contrario cualquiera podría rotar
+        // su IP declarada para evadir el rate limiting de login.
+        $request = $this->makeRequest('203.0.113.5', '10.0.0.1');
+
+        $this->assertSame('10.0.0.1', IPValidator::getClientIP($request));
+    }
+
+    public function testGetClientIPIgnoresXForwardedForFromAnUntrustedRemoteAddr(): void
+    {
+        $_ENV['TRUSTED_PROXIES'] = '192.0.2.10';
+        $request = $this->makeRequest('203.0.113.5', '10.0.0.1');
+
+        $this->assertSame('10.0.0.1', IPValidator::getClientIP($request));
+    }
+
+    public function testGetClientIPHonorsXForwardedForFromATrustedExactProxyIp(): void
+    {
+        $_ENV['TRUSTED_PROXIES'] = '10.0.0.1';
         $request = $this->makeRequest('203.0.113.5', '10.0.0.1');
 
         $this->assertSame('203.0.113.5', IPValidator::getClientIP($request));
     }
 
-    public function testGetClientIPUsesTheFirstIpInAForwardedChain(): void
+    public function testGetClientIPHonorsXForwardedForFromATrustedCidrRange(): void
     {
+        $_ENV['TRUSTED_PROXIES'] = '172.16.0.0/12';
+        $request = $this->makeRequest('203.0.113.5', '172.20.5.9');
+
+        $this->assertSame('203.0.113.5', IPValidator::getClientIP($request));
+    }
+
+    public function testGetClientIPUsesTheFirstIpInAForwardedChainFromATrustedProxy(): void
+    {
+        $_ENV['TRUSTED_PROXIES'] = '10.0.0.1';
         $request = $this->makeRequest('203.0.113.5, 10.0.0.2, 10.0.0.3', '10.0.0.1');
 
         $this->assertSame('203.0.113.5', IPValidator::getClientIP($request));

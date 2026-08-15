@@ -186,10 +186,26 @@ class ServiceRequestService
             return true;
         }
 
-        // Ejecutar la actualización en la base de datos
-        $rowCount = Database::update('service_requests', $updateData, 'id = ?', [$requestId]);
+        // El WHERE repite la condición de estado (igual que cancel()) para que la
+        // actualización sea atómica frente a una transición concurrente — sin esto,
+        // el mecánico podría aceptar la solicitud justo entre el chequeo de arriba
+        // y este UPDATE, y la edición del cliente se aplicaría igual sobre una
+        // solicitud que ya no está pendiente.
+        $rowCount = Database::update(
+            'service_requests',
+            $updateData,
+            'id = ? AND status = ?',
+            [$requestId, 'pending']
+        );
 
-        return $rowCount > 0;
+        if ($rowCount === 0) {
+            throw new DomainException(
+                'El estado de la solicitud cambió antes de poder actualizarla. Actualiza la página e inténtalo de nuevo.',
+                409
+            );
+        }
+
+        return true;
     }
 
     /**
@@ -484,9 +500,23 @@ class ServiceRequestService
             $updateData['service_quality_rating'] = $serviceQualityRating;
         }
 
-        $rowCount = Database::update('service_requests', $updateData, 'id = ?', [$requestId]);
+        // El WHERE repite "aún sin calificar" para que sea atómico frente a un
+        // doble envío concurrente (ej. doble clic) — sin esto, el segundo
+        // request pasaría el chequeo de arriba antes de que el primero
+        // confirmara su UPDATE, y sobrescribiría la calificación en vez de
+        // ser rechazado con el 409 ya definido para este caso.
+        $rowCount = Database::update(
+            'service_requests',
+            $updateData,
+            'id = ? AND customer_rating IS NULL',
+            [$requestId]
+        );
 
-        return $rowCount > 0;
+        if ($rowCount === 0) {
+            throw new DomainException('Esta solicitud de servicio ya fue calificada', 409);
+        }
+
+        return true;
     }
 
     /**

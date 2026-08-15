@@ -55,11 +55,6 @@ class VehicleService
             }
         }
 
-        // Si es_principal es true, quitar el principal actual del usuario
-        if (!empty($data['is_primary'])) {
-            Database::update('vehicles', ['is_primary' => false], 'user_id = ?', [$userId]);
-        }
-
         // Preparar datos de inserción
         $insertData = [
             'user_id'      => $userId,
@@ -85,7 +80,24 @@ class VehicleService
         if (!empty($data['tecnomecanica_expiration_date']))
             $insertData['tecnomecanica_expiration_date'] = $data['tecnomecanica_expiration_date'];
 
-        return Database::insert('vehicles', $insertData);
+        if (empty($data['is_primary'])) {
+            return Database::insert('vehicles', $insertData);
+        }
+
+        // Si es_principal es true, quitar el principal actual del usuario e
+        // insertar el nuevo deben ser atómicas — igual que en setPrimary(), si
+        // la inserción falla después de quitar el principal anterior, el
+        // usuario quedaría sin ningún vehículo principal.
+        Database::beginTransaction();
+        try {
+            Database::update('vehicles', ['is_primary' => false], 'user_id = ?', [$userId]);
+            $vehicleId = Database::insert('vehicles', $insertData);
+            Database::commit();
+            return $vehicleId;
+        } catch (\Exception $e) {
+            Database::rollback();
+            throw $e;
+        }
     }
 
     /**
@@ -168,19 +180,31 @@ class VehicleService
         if (isset($data['tecnomecanica_expiration_date']))
             $updateData['tecnomecanica_expiration_date'] = $data['tecnomecanica_expiration_date'];
 
-        // Flag de vehículo principal
-        if (isset($data['is_primary']) && $data['is_primary']) {
-            Database::update('vehicles', ['is_primary' => false], 'user_id = ? AND id != ?', [$userId, $vehicleId]);
-            $updateData['is_primary'] = true;
-        }
-
-        if (empty($updateData)) {
+        if (empty($updateData) && empty($data['is_primary'])) {
             return true;
         }
 
-        $rowCount = Database::update('vehicles', $updateData, 'id = ?', [$vehicleId]);
+        if (empty($data['is_primary'])) {
+            $rowCount = Database::update('vehicles', $updateData, 'id = ?', [$vehicleId]);
+            return $rowCount > 0;
+        }
 
-        return $rowCount > 0;
+        // Quitar el principal actual y aplicar el resto de la actualización
+        // (incluido is_primary = true) deben ser atómicas — misma razón que
+        // en create()/setPrimary(): una falla a mitad de camino dejaría al
+        // usuario sin ningún vehículo principal.
+        $updateData['is_primary'] = true;
+
+        Database::beginTransaction();
+        try {
+            Database::update('vehicles', ['is_primary' => false], 'user_id = ? AND id != ?', [$userId, $vehicleId]);
+            $rowCount = Database::update('vehicles', $updateData, 'id = ?', [$vehicleId]);
+            Database::commit();
+            return $rowCount > 0;
+        } catch (\Exception $e) {
+            Database::rollback();
+            throw $e;
+        }
     }
 
     /**
@@ -206,24 +230,34 @@ class VehicleService
             throw new DomainException('No eres propietario de este vehículo', 403);
         }
 
-        $rowCount = Database::update('vehicles', [
-            'status'     => 'inactive',
-            'deleted_at' => date('Y-m-d H:i:s'),
-        ], 'id = ?', [$vehicleId]);
+        // El soft-delete y la reasignación del vehículo principal deben ser
+        // atómicos — una falla entre ambas escrituras dejaría al usuario sin
+        // vehículo principal pese a tener otros vehículos activos disponibles.
+        Database::beginTransaction();
+        try {
+            $rowCount = Database::update('vehicles', [
+                'status'     => 'inactive',
+                'deleted_at' => date('Y-m-d H:i:s'),
+            ], 'id = ?', [$vehicleId]);
 
-        // Si era el principal, designar otro vehículo como principal
-        if ($vehicle['is_primary']) {
-            $anotherVehicle = Database::fetchOne(
-                'SELECT id FROM vehicles WHERE user_id = ? AND deleted_at IS NULL AND id != ? ORDER BY created_at ASC LIMIT 1',
-                [$userId, $vehicleId]
-            );
+            // Si era el principal, designar otro vehículo como principal
+            if ($vehicle['is_primary']) {
+                $anotherVehicle = Database::fetchOne(
+                    'SELECT id FROM vehicles WHERE user_id = ? AND deleted_at IS NULL AND id != ? ORDER BY created_at ASC LIMIT 1',
+                    [$userId, $vehicleId]
+                );
 
-            if ($anotherVehicle !== null) {
-                Database::update('vehicles', ['is_primary' => true], 'id = ?', [$anotherVehicle['id']]);
+                if ($anotherVehicle !== null) {
+                    Database::update('vehicles', ['is_primary' => true], 'id = ?', [$anotherVehicle['id']]);
+                }
             }
-        }
 
-        return $rowCount > 0;
+            Database::commit();
+            return $rowCount > 0;
+        } catch (\Exception $e) {
+            Database::rollback();
+            throw $e;
+        }
     }
 
     /**

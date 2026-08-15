@@ -49,27 +49,43 @@ class PasswordResetService
             return;
         }
 
-        // Invalidar tokens anteriores sin usar antes de emitir uno nuevo — sin
-        // esto, pedir "olvidé mi contraseña" varias veces (ej. el primer correo
-        // no llegó) deja varios enlaces válidos simultáneamente durante su hora
-        // de vida, cualquiera de ellos utilizable de forma independiente.
-        Database::update(
-            'password_reset_tokens',
-            ['used_at' => date('Y-m-d H:i:s')],
-            'user_id = ? AND used_at IS NULL AND expires_at > NOW()',
-            [$user['id']]
-        );
+        // Invalidar tokens anteriores y emitir el nuevo deben ser atómicos: el
+        // UPDATE de invalidación no adquiere ningún lock útil por sí solo
+        // cuando no hay filas que afectar (ej. primera solicitud, o dos
+        // solicitudes concurrentes que ambas ven "nada que invalidar"), así que
+        // "envolver en una transacción" no basta para cerrar la carrera. Se
+        // adquiere un lock pesimista sobre la fila del propio usuario (mismo
+        // patrón que ServiceRequestService::create()) para serializar cualquier
+        // solicitud de reseteo concurrente del mismo usuario — sin esto, dos
+        // clics en "olvidé mi contraseña" casi simultáneos podrían dejar dos
+        // tokens válidos coexistiendo, justo lo que este método intenta evitar.
+        Database::beginTransaction();
+        try {
+            Database::fetchOne('SELECT id FROM users WHERE id = ? FOR UPDATE', [$user['id']]);
 
-        $token = bin2hex(random_bytes(32));
-        $tokenHash = hash('sha256', $token);
-        $expiresAt = date('Y-m-d H:i:s', time() + self::TOKEN_TTL_SECONDS);
+            Database::update(
+                'password_reset_tokens',
+                ['used_at' => date('Y-m-d H:i:s')],
+                'user_id = ? AND used_at IS NULL AND expires_at > NOW()',
+                [$user['id']]
+            );
 
-        Database::insert('password_reset_tokens', [
-            'user_id'    => $user['id'],
-            'token_hash' => $tokenHash,
-            'ip_address' => $ipAddress,
-            'expires_at' => $expiresAt,
-        ]);
+            $token = bin2hex(random_bytes(32));
+            $tokenHash = hash('sha256', $token);
+            $expiresAt = date('Y-m-d H:i:s', time() + self::TOKEN_TTL_SECONDS);
+
+            Database::insert('password_reset_tokens', [
+                'user_id'    => $user['id'],
+                'token_hash' => $tokenHash,
+                'ip_address' => $ipAddress,
+                'expires_at' => $expiresAt,
+            ]);
+
+            Database::commit();
+        } catch (\Exception $e) {
+            Database::rollback();
+            throw $e;
+        }
 
         $frontendUrl = rtrim($_ENV['APP_FRONTEND_URL'] ?? 'http://localhost:5173', '/');
         $resetUrl = "{$frontendUrl}/reset-password?token={$token}";

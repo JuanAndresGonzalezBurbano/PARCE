@@ -147,23 +147,21 @@ Implementado: `EvidenceUpload` ahora soporta `readOnly`, y `RequestsPage.tsx`
   `scripts/testing/test_auth_integration.php` y `scripts/testing/test_cors.php`
   no tienen este problema (no dependen del autoloader, hablan por HTTP/curl
   contra un servidor ya corriendo).
-- **Paginación** — Backend resuelto 2026-08-15: los tres listados admin-wide sin
-  acotar por usuario (`GET /api/admin/ratings`, `GET /api/admin/pqr`,
-  `GET /api/admin/surveys` — los que de verdad crecen sin límite con el uso de
-  la plataforma, a diferencia de los listados por-usuario como
-  `getCustomerRequests`/`getUserPqrs`, naturalmente acotados a la actividad de
-  una sola persona) ahora aceptan `?page=&per_page=` (por defecto 50, máx 200)
-  vía `RequestValidator::parsePagination()`, y sus respuestas agregan
-  `total`/`page`/`perPage`/`totalPages` junto a las claves existentes
-  (`ratings`/`pqr`/`surveys`, `count`) sin quitar ni renombrar nada — cambio de
-  contrato puramente aditivo, compatible con el frontend actual sin
-  modificarlo. **Pendiente**: el frontend (`AdminPQRPage`, panel de
-  calificaciones, panel de encuestas) todavía no tiene controles de UI para
-  navegar páginas — hoy simplemente recibe la primera página (50 registros) en
-  vez de la lista completa. No es un problema mientras los volúmenes sigan
-  bajos (los tres listados tienen ahora mismo entre 3 y 22 registros), pero
-  antes de un uso con datos reales hace falta agregar la UI de paginación en el
-  frontend.
+- ~~**Paginación**~~ — Resuelto 2026-08-15 (backend + frontend). Los tres
+  listados admin-wide sin acotar por usuario (`GET /api/admin/ratings`,
+  `GET /api/admin/pqr`, `GET /api/admin/surveys` — los que de verdad crecen sin
+  límite con el uso de la plataforma, a diferencia de los listados por-usuario
+  como `getCustomerRequests`/`getUserPqrs`, naturalmente acotados a la
+  actividad de una sola persona) aceptan `?page=&per_page=` (por defecto 50,
+  máx 200) vía `RequestValidator::parsePagination()`, con
+  `total`/`page`/`perPage`/`totalPages` en la respuesta (cambio de contrato
+  aditivo). El frontend (`AdminPQRPage`, panel de calificaciones, panel de
+  encuestas) ya integra un componente `Pagination` compartido
+  (Anterior/Siguiente, indicador de página, total) vía `AdminContext`, con
+  filtros/búsqueda conservados al cambiar de página y reseteo automático a
+  página 1 al aplicar un filtro nuevo. Verificado en navegador real con 61
+  tickets PQR (2 páginas). Ver commit `feat(admin): integrate backend
+  pagination into ratings/PQR/surveys pages`.
 
 - ~~`node_modules` está trackeado en git~~ — Resuelto 2026-07-16. También se
   encontró y corrigió el mismo problema en `frontend/dist/` (build output) y

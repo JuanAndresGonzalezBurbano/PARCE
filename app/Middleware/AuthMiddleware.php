@@ -52,6 +52,13 @@ class AuthMiddleware
             return ResponseFormatter::unauthorized('Authentication required');
         }
 
+        // Verificar si la sesión debe regenerarse por seguridad (anti-fijación) ANTES
+        // de validar: validate() actualiza last_activity a "ahora" en cada llamada, así
+        // que si este chequeo se hiciera después, el intervalo transcurrido medido
+        // sería siempre ~0 y la regeneración periódica nunca se dispararía bajo uso
+        // continuo — dejando la protección anti-fijación efectivamente inactiva.
+        $shouldRegenerate = $this->sessionManager->shouldRegenerate($sessionId);
+
         // Requisito 10.3, 20.7: Validar sesión mediante SessionManager con detección de cambio de IP
         $currentIP = IPValidator::getClientIP($request);
         $sessionData = $this->sessionManager->validate($sessionId, $currentIP);
@@ -60,9 +67,6 @@ class AuthMiddleware
         if ($sessionData === null) {
             return ResponseFormatter::unauthorized('Invalid or expired session');
         }
-
-        // Verificar si la sesión debe regenerarse por seguridad (anti-fijación)
-        $shouldRegenerate = $this->sessionManager->shouldRegenerate($sessionId);
 
         if ($shouldRegenerate) {
             // Regenerar el ID de sesión

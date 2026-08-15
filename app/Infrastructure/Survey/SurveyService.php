@@ -96,11 +96,24 @@ class SurveyService
     /**
      * Obtiene todas las encuestas para el administrador.
      *
-     * @return array Lista de encuestas con datos del cliente y de la solicitud de servicio
+     * Paginado (LIMIT/OFFSET) — este listado admin-wide (no acotado por
+     * usuario) crece sin límite con el uso de la plataforma. $limit/$offset
+     * ya vienen validados como enteros por
+     * RequestValidator::parsePagination(), así que se interpolan
+     * directamente: MySQL con PDO::ATTR_EMULATE_PREPARES=false no acepta
+     * LIMIT/OFFSET como parámetros preparados nativos.
+     *
+     * @param int $limit  Máximo de filas a retornar
+     * @param int $offset Filas a saltar
+     * @return array       ['items' => array, 'total' => int]
      */
-    public function adminList(): array
+    public function adminList(int $limit = 50, int $offset = 0): array
     {
-        return Database::fetchAll(
+        $total = (int)(Database::fetchOne(
+            'SELECT COUNT(*) AS total FROM surveys WHERE deleted_at IS NULL'
+        )['total'] ?? 0);
+
+        $items = Database::fetchAll(
             'SELECT s.*,
                     sr.service_code, sr.emergency_type, sr.mechanic_id,
                     u.first_name AS customer_first_name, u.last_name AS customer_last_name,
@@ -110,7 +123,10 @@ class SurveyService
              JOIN users u ON u.id = s.customer_id
              LEFT JOIN users m ON m.id = sr.mechanic_id
              WHERE s.deleted_at IS NULL
-             ORDER BY s.created_at DESC'
+             ORDER BY s.created_at DESC
+             LIMIT ' . max(0, $limit) . ' OFFSET ' . max(0, $offset)
         );
+
+        return ['items' => $items, 'total' => $total];
     }
 }

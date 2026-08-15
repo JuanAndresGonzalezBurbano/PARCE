@@ -66,10 +66,18 @@ class AdminService
     /**
      * Obtiene todas las solicitudes de servicio calificadas, con filtros opcionales.
      *
+     * Paginado (LIMIT/OFFSET) — sin esto, este listado admin-wide crece sin
+     * límite con el uso de la plataforma. $limit/$offset ya vienen validados
+     * como enteros por RequestValidator::parsePagination(), así que se
+     * interpolan directamente: MySQL con PDO::ATTR_EMULATE_PREPARES=false no
+     * acepta LIMIT/OFFSET como parámetros preparados nativos.
+     *
      * @param array $filters Filtros opcionales: mechanicId, customerId, minRating, dateFrom, dateTo
-     * @return array         Lista de solicitudes de servicio calificadas
+     * @param int   $limit   Máximo de filas a retornar
+     * @param int   $offset  Filas a saltar
+     * @return array         ['items' => array, 'total' => int]
      */
-    public function ratings(array $filters = []): array
+    public function ratings(array $filters = [], int $limit = 50, int $offset = 0): array
     {
         $sql = "SELECT sr.id, sr.service_code, sr.emergency_type, sr.status,
                        sr.customer_rating, sr.punctuality_rating, sr.service_quality_rating,
@@ -108,8 +116,16 @@ class AdminService
             $params[] = $filters['dateTo'] . ' 23:59:59';
         }
 
-        $sql .= ' ORDER BY sr.completed_at DESC';
+        $total = (int)(Database::fetchOne(
+            "SELECT COUNT(*) AS total FROM ({$sql}) AS filtered",
+            $params
+        )['total'] ?? 0);
 
-        return Database::fetchAll($sql, $params);
+        $sql .= ' ORDER BY sr.completed_at DESC LIMIT ' . max(0, $limit) . ' OFFSET ' . max(0, $offset);
+
+        return [
+            'items' => Database::fetchAll($sql, $params),
+            'total' => $total,
+        ];
     }
 }

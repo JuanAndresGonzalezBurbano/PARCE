@@ -469,4 +469,36 @@ class RequestValidator
 
         return ['valid' => true];
     }
+
+    /**
+     * Extrae y normaliza los parámetros de paginación (page/per_page) de una
+     * solicitud. Valores inválidos o ausentes usan los valores por defecto en
+     * vez de fallar — la paginación es un refinamiento opcional del listado,
+     * no un dato requerido.
+     *
+     * @param Request $request
+     * @param int     $defaultPerPage Tamaño de página por defecto si no se especifica
+     * @param int     $maxPerPage     Límite superior para evitar páginas arbitrariamente grandes
+     * @return array ['page' => int, 'perPage' => int, 'offset' => int]
+     */
+    public static function parsePagination(Request $request, int $defaultPerPage = 50, int $maxPerPage = 200): array
+    {
+        $page = (int)($request->query('page') ?? 1);
+        if ($page < 1) {
+            $page = 1;
+        }
+
+        $perPage = (int)($request->query('per_page') ?? $defaultPerPage);
+        if ($perPage < 1) {
+            $perPage = $defaultPerPage;
+        } elseif ($perPage > $maxPerPage) {
+            $perPage = $maxPerPage;
+        }
+
+        return [
+            'page'    => $page,
+            'perPage' => $perPage,
+            'offset'  => ($page - 1) * $perPage,
+        ];
+    }
 }

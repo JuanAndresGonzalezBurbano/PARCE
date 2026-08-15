@@ -104,11 +104,16 @@ class SurveyController extends Controller
     public function adminIndex(Request $request): Response
     {
         try {
-            $surveys = $this->surveyService->adminList();
+            $pagination = RequestValidator::parsePagination($request);
+            $result = $this->surveyService->adminList($pagination['perPage'], $pagination['offset']);
 
             return ResponseFormatter::success([
-                'surveys' => $surveys,
-                'count'   => count($surveys),
+                'surveys'    => $result['items'],
+                'count'      => count($result['items']),
+                'total'      => $result['total'],
+                'page'       => $pagination['page'],
+                'perPage'    => $pagination['perPage'],
+                'totalPages' => (int)ceil($result['total'] / $pagination['perPage']),
             ], 'Encuestas obtenidas correctamente', 200);
 
         } catch (\Exception $e) {

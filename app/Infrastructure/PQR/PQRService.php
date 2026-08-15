@@ -122,10 +122,19 @@ class PQRService
     /**
      * Obtiene todos los tickets PQR con filtros para el administrador.
      *
+     * Paginado (LIMIT/OFFSET) — este listado admin-wide (no acotado por
+     * usuario) crece sin límite con el uso de la plataforma. $limit/$offset
+     * ya vienen validados como enteros por
+     * RequestValidator::parsePagination(), así que se interpolan
+     * directamente: MySQL con PDO::ATTR_EMULATE_PREPARES=false no acepta
+     * LIMIT/OFFSET como parámetros preparados nativos.
+     *
      * @param array $filters Filtros opcionales: status, type, q (busca en subject/description)
-     * @return array         Lista de tickets PQR con datos del usuario que los creó
+     * @param int   $limit   Máximo de filas a retornar
+     * @param int   $offset  Filas a saltar
+     * @return array         ['items' => array, 'total' => int]
      */
-    public function adminList(array $filters = []): array
+    public function adminList(array $filters = [], int $limit = 50, int $offset = 0): array
     {
         $sql = 'SELECT p.*,
                        u.first_name AS reporter_first_name,
@@ -154,9 +163,17 @@ class PQRService
             $params[] = $like;
         }
 
-        $sql .= ' ORDER BY p.created_at DESC';
+        $total = (int)(Database::fetchOne(
+            "SELECT COUNT(*) AS total FROM ({$sql}) AS filtered",
+            $params
+        )['total'] ?? 0);
 
-        return Database::fetchAll($sql, $params);
+        $sql .= ' ORDER BY p.created_at DESC LIMIT ' . max(0, $limit) . ' OFFSET ' . max(0, $offset);
+
+        return [
+            'items' => Database::fetchAll($sql, $params),
+            'total' => $total,
+        ];
     }
 
     /**

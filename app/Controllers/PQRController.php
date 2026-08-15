@@ -135,11 +135,16 @@ class PQRController extends Controller
                 'q'      => $request->query('q'),
             ];
 
-            $tickets = $this->pqrService->adminList($filters);
+            $pagination = RequestValidator::parsePagination($request);
+            $result = $this->pqrService->adminList($filters, $pagination['perPage'], $pagination['offset']);
 
             return ResponseFormatter::success([
-                'pqr'   => $tickets,
-                'count' => count($tickets),
+                'pqr'        => $result['items'],
+                'count'      => count($result['items']),
+                'total'      => $result['total'],
+                'page'       => $pagination['page'],
+                'perPage'    => $pagination['perPage'],
+                'totalPages' => (int)ceil($result['total'] / $pagination['perPage']),
             ], 'Tickets PQR obtenidos correctamente', 200);
 
         } catch (\Exception $e) {

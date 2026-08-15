@@ -6,6 +6,7 @@ use App\Core\Controller;
 use App\Core\Request;
 use App\Core\Response;
 use App\Infrastructure\Admin\AdminService;
+use App\Infrastructure\Http\RequestValidator;
 use App\Infrastructure\Http\ResponseFormatter;
 use App\Infrastructure\Http\ErrorHandler;
 
@@ -61,11 +62,16 @@ class AdminController extends Controller
                 'dateTo'     => $request->query('date_to'),
             ];
 
-            $ratings = $this->adminService->ratings($filters);
+            $pagination = RequestValidator::parsePagination($request);
+            $result = $this->adminService->ratings($filters, $pagination['perPage'], $pagination['offset']);
 
             return ResponseFormatter::success([
-                'ratings' => $ratings,
-                'count'   => count($ratings),
+                'ratings'    => $result['items'],
+                'count'      => count($result['items']),
+                'total'      => $result['total'],
+                'page'       => $pagination['page'],
+                'perPage'    => $pagination['perPage'],
+                'totalPages' => (int)ceil($result['total'] / $pagination['perPage']),
             ], 'Calificaciones obtenidas correctamente', 200);
 
         } catch (\Exception $e) {

@@ -413,11 +413,24 @@ class ServiceRequestController extends Controller
                 ]);
             }
 
+            // Validar y acotar el radio (1-200 km): un radio inválido o
+            // desmedido no cambia el resultado de negocio esperado (solicitudes
+            // pendientes cercanas), pero sin límite un valor negativo, cero o
+            // arbitrariamente grande es un parámetro de consulta sin sentido
+            // que igual llega intacto hasta la fórmula de Haversine.
+            if (!is_numeric($radius)) {
+                return ResponseFormatter::validationError([
+                    'radius' => 'El radio debe ser un número'
+                ]);
+            }
+
+            $radius = max(1, min(200, (int)$radius));
+
             // Obtener las solicitudes pendientes cercanas
             $requests = $this->serviceRequestService->getNearbyPendingRequests(
                 (float)$latitude,
                 (float)$longitude,
-                (int)$radius
+                $radius
             );
 
             return ResponseFormatter::success([

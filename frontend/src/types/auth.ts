@@ -7,7 +7,7 @@ export interface DriverLicense {
   expirationDate: string | null;   // YYYY-MM-DD
   documentUrl: string | null;
   status: LicenseStatus;
-  uploadedAt: string | null;       // ISO 8601
+  uploadedAt: string | null;       // 'YYYY-MM-DD HH:MM:SS' (formato MySQL, no ISO 8601 — igual que el resto de timestamps de la API)
 }
 
 // Usuario autenticado

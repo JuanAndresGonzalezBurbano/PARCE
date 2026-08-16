@@ -30,6 +30,14 @@ class VehicleController extends Controller
      * Convierte una fila de la base de datos (snake_case) al formato camelCase
      * esperado por el frontend.
      *
+     * ResponseFormatter::success() ya convierte claves a camelCase
+     * automáticamente y de forma recursiva — este método existe además para
+     * hacer el *type casting* explícito que ese conversor genérico no hace
+     * (ej. `is_primary` es un TINYINT de MySQL; sin el `(bool)` de abajo
+     * llegaría al frontend como `0`/`1` en vez de `false`/`true`, rompiendo
+     * el tipo `isPrimary: boolean` silenciosamente). No eliminar asumiendo
+     * que es redundante con el conversor genérico.
+     *
      * @param array $vehicle Fila de la tabla vehicles
      * @return array Vehículo formateado
      */

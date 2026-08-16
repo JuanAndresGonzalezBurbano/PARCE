@@ -8,6 +8,13 @@ interface EvidenceUploadProps {
   isLoading?: boolean;
   /** Cuando es true, solo muestra las evidencias registradas (sin formulario de carga). Vista del cliente. */
   readOnly?: boolean;
+  /**
+   * Mensaje de error real devuelto por el backend en el último intento
+   * fallido (URL/extensión inválida, estado de la solicitud no permite
+   * evidencias, no asignado, etc. — ver ServiceRequestEvidenceService). El
+   * llamador es responsable de limpiarlo antes de cada nuevo intento.
+   */
+  serverError?: string | null;
 }
 
 const EVIDENCE_TYPE_LABELS: Record<string, string> = {
@@ -37,6 +44,7 @@ export default function EvidenceUpload({
   onAdd,
   isLoading = false,
   readOnly = false,
+  serverError = null,
 }: EvidenceUploadProps) {
   const [formData, setFormData] = useState<AddEvidenceRequest>({
     evidence_type: 'before',
@@ -44,16 +52,19 @@ export default function EvidenceUpload({
     original_filename: '',
     file_size: undefined,
   });
-  const [error, setError] = useState<string | null>(null);
+  // Validación local (antes de llamar al backend). El error del backend
+  // llega por separado vía `serverError` — se muestra el que aplique.
+  const [clientError, setClientError] = useState<string | null>(null);
+  const error = clientError ?? serverError;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setError(null);
+    setClientError(null);
 
     if (!onAdd) return;
 
     if (!formData.image_url.trim()) {
-      setError('La URL de la imagen es requerida');
+      setClientError('La URL de la imagen es requerida');
       return;
     }
 

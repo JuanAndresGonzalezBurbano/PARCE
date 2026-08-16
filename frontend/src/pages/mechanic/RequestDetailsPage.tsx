@@ -27,6 +27,7 @@ export default function RequestDetailsPage() {
   const [evidences, setEvidences] = useState<ServiceRequestEvidence[]>([]);
   const [evidenceLoading, setEvidenceLoading] = useState(false);
   const [evidenceUploading, setEvidenceUploading] = useState(false);
+  const [evidenceError, setEvidenceError] = useState<string | null>(null);
 
   const requestId = id ? parseInt(id) : null;
 
@@ -56,14 +57,20 @@ export default function RequestDetailsPage() {
     if (!requestId) return false;
 
     setEvidenceUploading(true);
+    setEvidenceError(null);
     try {
       const response = await serviceRequestService.addEvidence(requestId, data);
       if (response.success) {
         await loadEvidences(requestId);
         return true;
       }
+      // ServiceRequestEvidenceService devuelve el mensaje real en `error`
+      // (URL/extensión inválida, estado no permite evidencias, no asignado,
+      // etc.) — sin fields por campo, así que se muestra tal cual.
+      setEvidenceError(response.error);
       return false;
     } catch {
+      setEvidenceError('No se pudo subir la evidencia. Verifica tu conexión e inténtalo de nuevo.');
       return false;
     } finally {
       setEvidenceUploading(false);
@@ -102,6 +109,7 @@ export default function RequestDetailsPage() {
       in_progress: 'En progreso',
       completed: 'Completada',
       cancelled: 'Cancelada',
+      expired: 'Expirada',
     };
     return labels[status] ?? status;
   }
@@ -112,6 +120,8 @@ export default function RequestDetailsPage() {
       case 'assigned': return 'bg-blue-900/50 border-blue-700 text-blue-200';
       case 'in_progress': return 'bg-purple-900/50 border-purple-700 text-purple-200';
       case 'completed': return 'bg-green-900/50 border-green-700 text-green-200';
+      case 'cancelled': return 'bg-red-900/50 border-red-700 text-red-200';
+      case 'expired': return 'bg-gray-700/60 border-gray-600 text-gray-300';
       default: return 'bg-gray-900/50 border-gray-700 text-gray-200';
     }
   }
@@ -433,6 +443,7 @@ export default function RequestDetailsPage() {
                 existingEvidences={evidences}
                 onAdd={handleAddEvidence}
                 isLoading={evidenceUploading}
+                serverError={evidenceError}
               />
             )}
           </div>

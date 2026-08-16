@@ -73,10 +73,15 @@ export interface ApiSuccessResponse<T> {
 }
 
 // API Error Response
+// `fields` casi siempre es string por campo, salvo los validadores de Auth
+// (RequestValidator::validateRegistrationRequest/validateLoginRequest/
+// validateChangePasswordRequest en el backend), que devuelven un array de
+// strings por campo — ver utils/apiErrors.ts::fieldErrorFor() para el
+// normalizador que usa la UI.
 export interface ApiErrorResponse {
   success: false;
   error: string;
-  fields?: Record<string, string>;
+  fields?: Record<string, string | string[]>;
 }
 
 // API Response union type

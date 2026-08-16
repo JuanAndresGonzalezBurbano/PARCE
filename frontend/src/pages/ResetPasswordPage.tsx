@@ -1,10 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { authService } from '@/services/authService';
-
-function toCamelCase(snakeKey: string): string {
-  return snakeKey.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-}
+import { fieldErrorFor as sharedFieldErrorFor } from '@/utils/apiErrors';
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -15,11 +12,11 @@ export default function ResetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string> | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | string[]> | null>(null);
   const [success, setSuccess] = useState(false);
 
   function fieldErrorFor(snakeKey: string): string | undefined {
-    return fieldErrors?.[toCamelCase(snakeKey)];
+    return sharedFieldErrorFor(fieldErrors, snakeKey);
   }
 
   async function handleSubmit(e: FormEvent) {

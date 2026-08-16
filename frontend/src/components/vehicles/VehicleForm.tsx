@@ -1,5 +1,6 @@
 import { useState, FormEvent } from 'react';
 import type { Vehicle, CreateVehicleRequest, UpdateVehicleRequest } from '@/types/vehicle';
+import { fieldErrorFor as sharedFieldErrorFor } from '@/utils/apiErrors';
 
 interface VehicleFormProps {
   vehicle?: Vehicle;
@@ -7,16 +8,11 @@ interface VehicleFormProps {
   onCancel: () => void;
   isLoading: boolean;
   error?: string | null;
-  fieldErrors?: Record<string, string> | null;
+  fieldErrors?: Record<string, string | string[]> | null;
 }
 
 const inputCls = 'w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors';
 const inputErrorCls = 'w-full px-4 py-2 bg-gray-700 border border-red-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-colors';
-
-// El backend convierte las claves de error a camelCase (ver ResponseFormatter::convertToCamelCase)
-function toCamelCase(snakeKey: string): string {
-  return snakeKey.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-}
 
 export default function VehicleForm({ vehicle, onSubmit, onCancel, isLoading, error, fieldErrors }: VehicleFormProps) {
   const [formData, setFormData] = useState({
@@ -47,7 +43,7 @@ export default function VehicleForm({ vehicle, onSubmit, onCancel, isLoading, er
   }
 
   function fieldErrorFor(key: keyof typeof formData): string | undefined {
-    return fieldErrors?.[toCamelCase(key)];
+    return sharedFieldErrorFor(fieldErrors, key);
   }
 
   const field = (key: keyof typeof formData) => ({

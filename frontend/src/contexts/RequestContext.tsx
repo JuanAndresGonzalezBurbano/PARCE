@@ -11,7 +11,7 @@ interface RequestContextType {
   currentRequest: ServiceRequest | null;
   isLoading: boolean;
   error: string | null;
-  fieldErrors: Record<string, string> | null;
+  fieldErrors: Record<string, string | string[]> | null;
   loadRequests: (status?: string) => Promise<void>;
   refreshRequestsSilently: () => Promise<ServiceRequest[] | null>;
   loadMechanicRequests: (status?: string) => Promise<void>;
@@ -44,7 +44,7 @@ export function RequestProvider({ children }: RequestProviderProps) {
   const [currentRequest, setCurrentRequest] = useState<ServiceRequest | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string> | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | string[]> | null>(null);
   const [surveyedRequestIds, setSurveyedRequestIds] = useState<Set<number>>(new Set());
 
   async function loadRequests(status?: string) {

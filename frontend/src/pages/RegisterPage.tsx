@@ -1,10 +1,11 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { fieldErrorFor } from '@/utils/apiErrors';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
-  const { register, error, clearError, isLoading, isAuthenticated, user } = useAuth();
+  const { register, error, fieldErrors, clearError, isLoading, isAuthenticated, user } = useAuth();
 
   const [formData, setFormData] = useState({
     email: '',
@@ -31,6 +32,18 @@ export default function RegisterPage() {
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  }
+
+  const baseInputCls = 'w-full px-4 py-2.5 bg-gray-700 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-colors';
+  function inputCls(field: string): string {
+    return fieldErrorFor(fieldErrors, field)
+      ? `${baseInputCls} border-red-600 focus:ring-red-500`
+      : `${baseInputCls} border-gray-600 focus:ring-blue-500`;
+  }
+  function FieldError({ name }: { name: string }) {
+    const message = fieldErrorFor(fieldErrors, name);
+    if (!message) return null;
+    return <p className="mt-1 text-xs text-red-400">{message}</p>;
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -106,10 +119,11 @@ export default function RegisterPage() {
                   required
                   value={formData.first_name}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  className={inputCls('first_name')}
                   placeholder="Juan"
                   disabled={isLoading}
                 />
+                <FieldError name="first_name" />
               </div>
               <div>
                 <label htmlFor="last_name" className="block text-sm font-medium text-gray-300 mb-1">
@@ -122,10 +136,11 @@ export default function RegisterPage() {
                   required
                   value={formData.last_name}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  className={inputCls('last_name')}
                   placeholder="García"
                   disabled={isLoading}
                 />
+                <FieldError name="last_name" />
               </div>
             </div>
 
@@ -140,10 +155,11 @@ export default function RegisterPage() {
                 required
                 value={formData.email}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                className={inputCls('email')}
                 placeholder="tu@correo.com"
                 disabled={isLoading}
               />
+              <FieldError name="email" />
             </div>
 
             <div>
@@ -156,10 +172,11 @@ export default function RegisterPage() {
                 type="tel"
                 value={formData.phone}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                className={inputCls('phone')}
                 placeholder="+57 300 000 0000"
                 disabled={isLoading}
               />
+              <FieldError name="phone" />
             </div>
 
             <div>
@@ -174,11 +191,15 @@ export default function RegisterPage() {
                 minLength={8}
                 value={formData.password}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                className={inputCls('password')}
                 placeholder="••••••••"
                 disabled={isLoading}
               />
-              <p className="mt-1 text-xs text-gray-500">Mínimo 8 caracteres</p>
+              {fieldErrorFor(fieldErrors, 'password') ? (
+                <FieldError name="password" />
+              ) : (
+                <p className="mt-1 text-xs text-gray-500">Mínimo 8 caracteres</p>
+              )}
             </div>
 
             <div>
@@ -193,10 +214,11 @@ export default function RegisterPage() {
                 minLength={8}
                 value={formData.password_confirmation}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                className={inputCls('password_confirmation')}
                 placeholder="••••••••"
                 disabled={isLoading}
               />
+              <FieldError name="password_confirmation" />
               {confirmMismatch && (
                 <p className="mt-1 text-xs text-red-400">Las contraseñas no coinciden</p>
               )}

@@ -6,7 +6,7 @@ interface PQRContextType {
   tickets: PQRTicket[];
   isLoading: boolean;
   error: string | null;
-  fieldErrors: Record<string, string> | null;
+  fieldErrors: Record<string, string | string[]> | null;
   loadTickets: (filters?: PQRFilters) => Promise<void>;
   createTicket: (data: CreatePQRRequest) => Promise<boolean>;
   clearError: () => void;
@@ -22,7 +22,7 @@ export function PQRProvider({ children }: PQRProviderProps) {
   const [tickets, setTickets] = useState<PQRTicket[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string> | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | string[]> | null>(null);
 
   async function loadTickets(filters: PQRFilters = {}) {
     setIsLoading(true);

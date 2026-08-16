@@ -5,6 +5,7 @@ import { useVehicles } from '@/hooks/useVehicles';
 import { serviceRequestService } from '@/services/serviceRequestService';
 import EvidenceUpload from '@/components/vehicles/EvidenceUpload';
 import type { ServiceRequestEvidence } from '@/types/serviceRequest';
+import { fieldErrorFor as sharedFieldErrorFor } from '@/utils/apiErrors';
 
 const POLL_INTERVAL_MS = 20000;
 
@@ -34,11 +35,6 @@ const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
 const inputCls = 'w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500';
 const inputErrorCls = 'w-full px-3 py-2 bg-gray-700 border border-red-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-red-500';
 
-// El backend convierte las claves de error a camelCase (ver ResponseFormatter::convertToCamelCase)
-function toCamelCase(snakeKey: string): string {
-  return snakeKey.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-}
-
 export default function RequestsPage() {
   const {
     requests, isLoading, error, fieldErrors, loadRequests, refreshRequestsSilently,
@@ -48,7 +44,7 @@ export default function RequestsPage() {
   const { vehicles, loadVehicles } = useVehicles();
 
   function fieldErrorFor(snakeKey: string): string | undefined {
-    return fieldErrors?.[toCamelCase(snakeKey)];
+    return sharedFieldErrorFor(fieldErrors, snakeKey);
   }
 
   const FieldError = ({ name }: { name: string }) => {

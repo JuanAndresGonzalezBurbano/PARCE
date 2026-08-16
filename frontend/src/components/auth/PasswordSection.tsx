@@ -1,11 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { authService } from '@/services/authService';
 import type { ChangePasswordRequest } from '@/types/auth';
-
-// El backend convierte las claves de error a camelCase (ver ResponseFormatter::convertToCamelCase)
-function toCamelCase(snakeKey: string): string {
-  return snakeKey.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-}
+import { fieldErrorFor as sharedFieldErrorFor } from '@/utils/apiErrors';
 
 const EMPTY_FORM: ChangePasswordRequest = {
   current_password: '',
@@ -24,13 +20,12 @@ export default function PasswordSection() {
   const [editing, setEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string> | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | string[]> | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [formData, setFormData] = useState<ChangePasswordRequest>(EMPTY_FORM);
 
   function fieldErrorFor(field: string): string | undefined {
-    if (!fieldErrors) return undefined;
-    return fieldErrors[toCamelCase(field)];
+    return sharedFieldErrorFor(fieldErrors, field);
   }
 
   function resetForm() {

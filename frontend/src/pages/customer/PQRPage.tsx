@@ -3,19 +3,16 @@ import { Link } from 'react-router-dom';
 import { usePqr } from '@/hooks/usePqr';
 import type { PQRStatus, PQRType } from '@/types/pqr';
 import { PQR_TYPE_LABELS, PQR_STATUS_CONFIG } from '@/constants/pqr';
+import { fieldErrorFor as sharedFieldErrorFor } from '@/utils/apiErrors';
 
 const inputCls = 'w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500';
 const inputErrorCls = 'w-full px-3 py-2 bg-gray-700 border border-red-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-red-500';
-
-function toCamelCase(snakeKey: string): string {
-  return snakeKey.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-}
 
 export default function PQRPage() {
   const { tickets, isLoading, error, fieldErrors, loadTickets, createTicket, clearError } = usePqr();
 
   function fieldErrorFor(snakeKey: string): string | undefined {
-    return fieldErrors?.[toCamelCase(snakeKey)];
+    return sharedFieldErrorFor(fieldErrors, snakeKey);
   }
 
   const FieldError = ({ name }: { name: string }) => {

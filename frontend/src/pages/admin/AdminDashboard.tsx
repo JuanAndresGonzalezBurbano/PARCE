@@ -9,6 +9,7 @@ const STATUS_LABELS: Record<string, string> = {
   in_progress: 'En progreso',
   completed: 'Completadas',
   cancelled: 'Canceladas',
+  expired: 'Expiradas',
 };
 
 export default function AdminDashboard() {

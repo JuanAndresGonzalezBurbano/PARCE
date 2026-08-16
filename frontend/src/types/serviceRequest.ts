@@ -11,7 +11,7 @@ export interface ServiceRequest {
   priority: 'normal' | 'urgent' | 'critical';
   latitude: number;
   longitude: number;
-  status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'cancelled' | 'expired';
   requestedAt: string;
   assignedAt: string | null;
   startedAt: string | null;

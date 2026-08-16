@@ -16,7 +16,10 @@ export interface Vehicle {
   nickname: string | null;
   primaryPhotoUrl: string | null;
   isPrimary: boolean;
-  status: 'active' | 'inactive' | 'deleted';
+  // El backend usa soft-delete (status='inactive' + deleted_at) — nunca
+  // produce status='deleted' (ver VehicleValidator::VALID_STATUSES y la
+  // migración de `vehicles`, que documentan solo active/inactive).
+  status: 'active' | 'inactive';
   soatExpirationDate: string | null;           // YYYY-MM-DD
   tecnomecanicaExpirationDate: string | null;  // YYYY-MM-DD
   createdAt: string;

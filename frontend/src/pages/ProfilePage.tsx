@@ -19,7 +19,7 @@ function formatDate(dateStr: string | null | undefined): string {
 }
 
 export default function ProfilePage() {
-  const { user, isLoading, updateProfile } = useAuth();
+  const { user, isLoading, error, fieldErrors, clearError, updateProfile } = useAuth();
   const navigate = useNavigate();
 
   if (!user) return null;
@@ -132,6 +132,9 @@ export default function ProfilePage() {
             license={user.driverLicense}
             onSave={updateProfile}
             isLoading={isLoading}
+            error={error}
+            fieldErrors={fieldErrors}
+            clearError={clearError}
           />
         )}
 

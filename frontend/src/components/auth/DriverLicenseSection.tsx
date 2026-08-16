@@ -1,10 +1,16 @@
 import { useState, FormEvent } from 'react';
 import type { DriverLicense, UpdateProfileRequest, LicenseStatus } from '@/types/auth';
+import { fieldErrorFor as sharedFieldErrorFor } from '@/utils/apiErrors';
 
 interface DriverLicenseSectionProps {
   license: DriverLicense | undefined;
   onSave: (data: UpdateProfileRequest) => Promise<boolean>;
   isLoading: boolean;
+  // Error real de la última actualización de perfil (compartido con el resto
+  // de AuthContext) — reemplaza el mensaje genérico que se mostraba antes.
+  error: string | null;
+  fieldErrors: Record<string, string | string[]> | null;
+  clearError: () => void;
 }
 
 /** Etiqueta y color por estado de la licencia */
@@ -25,9 +31,8 @@ const STATUS_CONFIG: Record<LicenseStatus, { label: string; className: string }>
  * Muestra el estado calculado por el backend ('valid', 'expiring_soon', 'expired')
  * y permite actualizar el número, fecha de vencimiento y URL del documento.
  */
-export default function DriverLicenseSection({ license, onSave, isLoading }: DriverLicenseSectionProps) {
+export default function DriverLicenseSection({ license, onSave, isLoading, error, fieldErrors, clearError }: DriverLicenseSectionProps) {
   const [editing, setEditing]       = useState(false);
-  const [saveError, setSaveError]   = useState<string | null>(null);
   const [formData, setFormData]     = useState({
     driver_license_number:           license?.number           ?? '',
     driver_license_expiration_date:  license?.expirationDate   ?? '',
@@ -37,9 +42,12 @@ export default function DriverLicenseSection({ license, onSave, isLoading }: Dri
   const status        = license?.status ?? 'not_set';
   const statusConfig  = STATUS_CONFIG[status];
 
+  function fieldErrorFor(field: string): string | undefined {
+    return sharedFieldErrorFor(fieldErrors, field);
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setSaveError(null);
 
     const payload: UpdateProfileRequest = {};
     if (formData.driver_license_number.trim())
@@ -52,17 +60,18 @@ export default function DriverLicenseSection({ license, onSave, isLoading }: Dri
     const success = await onSave(payload);
     if (success) {
       setEditing(false);
-    } else {
-      setSaveError('No se pudo actualizar la licencia. Inténtalo de nuevo.');
     }
   }
 
-  const inputClass =
-    'w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50';
+  const inputClass = (field: string) =>
+    `w-full px-3 py-2 bg-gray-700 border rounded-lg text-white text-sm focus:outline-none focus:ring-2 disabled:opacity-50 ${
+      fieldErrorFor(field)
+        ? 'border-red-600 focus:ring-red-500'
+        : 'border-gray-600 focus:ring-blue-500'
+    }`;
 
   return (
     <div className="bg-gray-800 border border-gray-700 rounded-lg p-5">
-
       {/* Cabecera */}
       <div className="flex items-center justify-between mb-4">
         <div>
@@ -136,9 +145,9 @@ export default function DriverLicenseSection({ license, onSave, isLoading }: Dri
       {/* Formulario de edición */}
       {editing && (
         <form onSubmit={handleSubmit} className="space-y-3 mb-4">
-          {saveError && (
+          {error && (
             <p className="text-xs text-red-400 bg-red-900/30 border border-red-700 rounded px-3 py-2">
-              {saveError}
+              {error}
             </p>
           )}
 
@@ -150,10 +159,13 @@ export default function DriverLicenseSection({ license, onSave, isLoading }: Dri
               type="text"
               value={formData.driver_license_number}
               onChange={(e) => setFormData({ ...formData, driver_license_number: e.target.value })}
-              className={inputClass}
+              className={inputClass('driver_license_number')}
               disabled={isLoading}
               placeholder="ej. 12345678"
             />
+            {fieldErrorFor('driver_license_number') && (
+              <p className="text-xs text-red-400 mt-1">{fieldErrorFor('driver_license_number')}</p>
+            )}
           </div>
 
           <div>
@@ -164,9 +176,12 @@ export default function DriverLicenseSection({ license, onSave, isLoading }: Dri
               type="date"
               value={formData.driver_license_expiration_date}
               onChange={(e) => setFormData({ ...formData, driver_license_expiration_date: e.target.value })}
-              className={inputClass}
+              className={inputClass('driver_license_expiration_date')}
               disabled={isLoading}
             />
+            {fieldErrorFor('driver_license_expiration_date') && (
+              <p className="text-xs text-red-400 mt-1">{fieldErrorFor('driver_license_expiration_date')}</p>
+            )}
           </div>
 
           <div>
@@ -177,13 +192,17 @@ export default function DriverLicenseSection({ license, onSave, isLoading }: Dri
               type="url"
               value={formData.driver_license_document_url}
               onChange={(e) => setFormData({ ...formData, driver_license_document_url: e.target.value })}
-              className={inputClass}
+              className={inputClass('driver_license_document_url')}
               disabled={isLoading}
               placeholder="https://..."
             />
-            <p className="text-xs text-gray-500 mt-1">
-              Suba el documento a S3/Cloudinary y pegue la URL aquí.
-            </p>
+            {fieldErrorFor('driver_license_document_url') ? (
+              <p className="text-xs text-red-400 mt-1">{fieldErrorFor('driver_license_document_url')}</p>
+            ) : (
+              <p className="text-xs text-gray-500 mt-1">
+                Suba el documento a S3/Cloudinary y pegue la URL aquí.
+              </p>
+            )}
           </div>
 
           <div className="flex gap-2 pt-1">
@@ -196,7 +215,7 @@ export default function DriverLicenseSection({ license, onSave, isLoading }: Dri
             </button>
             <button
               type="button"
-              onClick={() => { setEditing(false); setSaveError(null); }}
+              onClick={() => { setEditing(false); clearError(); }}
               disabled={isLoading}
               className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors"
             >
@@ -209,7 +228,7 @@ export default function DriverLicenseSection({ license, onSave, isLoading }: Dri
       {/* Botón de edición */}
       {!editing && (
         <button
-          onClick={() => setEditing(true)}
+          onClick={() => { clearError(); setEditing(true); }}
           className="w-full py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors"
         >
           {license?.number ? 'Actualizar licencia' : 'Registrar licencia'}

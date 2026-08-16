@@ -10,6 +10,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
 
+  // Limpiar cualquier error heredado de un flujo distinto (ej. el mensaje de
+  // una sesión expirada en otra página que redirigió aquí) — este formulario
+  // solo debe mostrar errores de un intento de login real en él mismo.
+  useEffect(() => {
+    clearError();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Redirigir si ya está autenticado o justo después del login
   useEffect(() => {
     if (isAuthenticated && user) {

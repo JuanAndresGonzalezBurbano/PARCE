@@ -2,6 +2,31 @@
 
 **P**lataforma de **A**sistencia **R**ápida para **C**onductores en **E**mergencia — plataforma de asistencia vial que conecta clientes con mecánicos cercanos en tiempo real.
 
+## Qué problema resuelve
+
+Un conductor con una emergencia vial (batería, llanta, combustible, avería mecánica, cerrajería, remolque) hoy depende de contactos informales o de esperar en el lugar sin visibilidad de cuándo llegará ayuda. P.A.R.C.E conecta a ese cliente con mecánicos disponibles cercanos a través de una solicitud de servicio con seguimiento de estado, evidencia fotográfica del trabajo realizado y calificación posterior — reemplazando el proceso informal por un flujo estructurado y auditable.
+
+## Funcionalidades actuales (verificadas en código, no aspiracionales)
+
+- **Autenticación y perfiles**: registro (cliente o mecánico), login por sesión, recuperación de contraseña por email, gestión de perfil y licencia de conducción.
+- **Vehículos**: alta/edición/baja, vehículo principal, campos informativos de SOAT y Tecnomecánica.
+- **Solicitudes de servicio**: creación por el cliente, aceptación/inicio/finalización por el mecánico, cancelación, calificación (general y detallada por puntualidad/calidad), evidencia fotográfica antes/durante/después.
+- **PQR**: peticiones, quejas, reclamos y sugerencias con flujo de revisión administrativa.
+- **Encuestas de satisfacción** posteriores al servicio.
+- **Panel de administración**: métricas agregadas, gestión de PQR y encuestas, listado de calificaciones (todo paginado y filtrable).
+
+**Lo que P.A.R.C.E NO hace hoy** (para no vender de más): sin notificaciones push/email de eventos, sin tracking GPS en tiempo real (solo una captura puntual de ubicación), sin pasarela de pagos, sin aprobación administrativa de mecánicos (el rol se autodeclara al registrarse), sin infraestructura propia de almacenamiento de archivos (las URLs de documentos/evidencia se pegan manualmente). Detalle completo en [Estado actual y limitaciones](#estado-actual-y-limitaciones-conocidas) más abajo.
+
+## Arquitectura
+
+MVC en capas simple, sin framework: `Frontend React → Contexts → Services → config/routes.php → Middleware (CORS/Seguridad/Logging/Auth/RBAC) → Controllers → Infrastructure Services → Validators → Database (PDO) → MySQL`. Sin capa Repository/DAO, sin `app/Modules/`. Documentación completa, generada y verificada directamente contra el código:
+
+- **[`docs/architecture/PARCE_AS_BUILT_ARCHITECTURE.md`](docs/architecture/PARCE_AS_BUILT_ARCHITECTURE.md)** — arquitectura completa (empezar aquí).
+- **[`docs/architecture/ERD_AS_BUILT.md`](docs/architecture/ERD_AS_BUILT.md)** — modelo de datos real (11 tablas).
+- **[`docs/architecture/uml/`](docs/architecture/uml/)** — 10 diagramas Mermaid por dominio.
+- **[`docs/api/API_REFERENCE.md`](docs/api/API_REFERENCE.md)** — las 46 rutas reales, con auth/roles/body/errores.
+- **[`docs/architecture/AS_DESIGNED_VS_AS_BUILT.md`](docs/architecture/AS_DESIGNED_VS_AS_BUILT.md)** — qué se diseñó originalmente vs. qué existe hoy.
+
 ## Stack
 
 - **Backend**: PHP 8.2, MVC propio (sin framework), MySQL/MariaDB, sesiones por cookie httpOnly.
@@ -97,9 +122,37 @@ cd frontend && npm run lint
 cd frontend && npm run build
 ```
 
+## Estado actual y limitaciones conocidas
+
+P.A.R.C.E es un **MVP funcional y documentado**, no un producto listo para operación comercial. Estado verificado en la auditoría más reciente (branch `Angel`):
+
+- ✅ 134 tests PHPUnit, 0 fallos — pero cobertura exclusiva de validadores/DTOs, **0% en Services/Controllers/Middleware**.
+- ✅ Build de frontend limpio; CI (GitHub Actions) corriendo tests + build en cada push.
+- ✅ Seguridad de sesión/auth/RBAC/rate-limiting endurecida (ver sección Seguridad abajo).
+- ❌ Sin backups automatizados de base de datos.
+- ❌ Sin pentesting, sin revisión legal de privacidad, sin política de privacidad ni términos y condiciones visibles al usuario.
+- ❌ Sin aprobación administrativa de mecánicos, sin notificaciones, sin tracking en tiempo real, sin pagos.
+
+Checklist completo con evidencia punto por punto: **[`docs/release/RELEASE_READINESS.md`](docs/release/RELEASE_READINESS.md)**.
+
+## Seguridad
+
+- Sesión de servidor + cookie httpOnly (sin JWT); contraseñas con Argon2id; tokens de reseteo de contraseña de un solo uso, hasheados (SHA-256), expiran en 1 hora.
+- RBAC por middleware en toda ruta que expone datos de otro usuario; verificación de propiedad (ownership) en cada Service.
+- CORS restrictivo (sin wildcard + credenciales), cabeceras de seguridad (CSP, X-Frame-Options, HSTS condicional), rate limiting en endpoints de autenticación.
+- Condiciones de carrera cerradas en operaciones concurrentes críticas (aceptar/cancelar/completar solicitud, registro, reseteo de contraseña, unicidad de placa/VIN).
+- Sin secretos versionados en Git (verificado); `.env` ignorado, `.env.example` documentado sin credenciales reales.
+- Detalle completo: [`docs/security/OPERATIONAL_SECURITY.md`](docs/security/OPERATIONAL_SECURITY.md) y [`docs/security/PRIVACY_AND_DATA_PROTECTION.md`](docs/security/PRIVACY_AND_DATA_PROTECTION.md) (esta última incluye consideraciones sobre la Ley 1581 de 2012 de Colombia — **pendientes de validación jurídica**, no una certificación de cumplimiento).
+
+## Roadmap
+
+Ver [`docs/roadmap/PARCE_ROADMAP_AS_BUILT.md`](docs/roadmap/PARCE_ROADMAP_AS_BUILT.md) — separa explícitamente decisiones de producto pendientes, deuda técnica, funcionalidades pendientes y diseños obsoletos, sin convertir nada en tarea aprobada automáticamente.
+
 ## Documentación adicional
 
-La carpeta [`docs/`](docs/) contiene documentación histórica de arquitectura, API, seguridad y auditorías generada durante el desarrollo del proyecto (organizada por tema: `api/`, `architecture/`, `security/`, `testing/`, etc.). Es útil como referencia de contexto y decisiones pasadas, pero **no se mantiene activamente** — para el estado actual del proyecto, confía primero en el código y en este README.
+La carpeta [`docs/`](docs/) mezcla documentación **AS-BUILT** (fuente de verdad actual — `docs/architecture/`, `docs/roadmap/`, `docs/api/`, `docs/security/`, `docs/release/`) con documentación **histórica** de arquitectura, API y auditorías generada durante el desarrollo del proyecto. La histórica es útil como referencia de contexto y decisiones pasadas, pero **no se mantiene activamente** y en varios puntos ya no corresponde al código real — ver [`docs/architecture/README.md`](docs/architecture/README.md) para el mapa completo de qué documento es cuál.
+
+Otros documentos relevantes en la raíz: [`THIRD_PARTY.md`](THIRD_PARTY.md) (dependencias y licencias, verificadas desde los metadatos reales de los paquetes instalados), [`CHANGELOG.md`](CHANGELOG.md), [`SECURITY.md`](SECURITY.md) (política de reporte de vulnerabilidades).
 
 Para preparar un despliegue de producción, ver [`DEPLOYMENT.md`](DEPLOYMENT.md).
 

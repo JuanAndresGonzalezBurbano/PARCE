@@ -17,6 +17,7 @@
 | ADR-11 | Unicidad de placa/VIN aplicada en capa de aplicación (locks nombrados MySQL), no por `UNIQUE` de BD | Vigente — decisión explícita para permitir reutilizar placas de vehículos borrados | Migración `2026_07_16_000016` |
 | ADR-12 | Sesión de servidor + cookie httpOnly; sin JWT | Vigente | `SessionManager`, tabla `sessions` |
 | ADR-13 | `.env` deja de estar trackeado en `main`/`Soto` tras la exposición de una API key real; el historial de git de ambas ramas **no** se reescribió | **Parcial — remediación de tracking hecha, purga de historial pendiente de decisión de equipo** | Ver "Registro de incidentes de seguridad" abajo |
+| ADR-14 | La migración `2026_07_10_000015_restore_document_fields_to_vehicles` colisiona (`Column already exists`) sobre una BD completamente fresca; se instala marcándola como ya aplicada en la tabla `migrations`, sin ejecutar su `up()` — nunca editando el archivo de migración | Vigente — deuda técnica documentada, no un bug a corregir en el código de la migración | Ver "Migración `2026_07_10_000015` sobre una BD fresca" abajo |
 
 **Regla de uso:** cualquier decisión futura que contradiga una fila de esta tabla debe documentarse explícitamente como una nueva decisión (con su propio ADR-N), no como una corrección silenciosa — para no repetir el problema que motivó la reconstrucción AS-BUILT de esta misma carpeta.
 
@@ -68,3 +69,88 @@ neutraliza que el `.env` siga circulando en nuevos clones/PRs a partir de ahora,
 borra la exposición histórica ya ocurrida (mitigada porque la key fue rotada, no porque
 el historial esté limpio). No debe reportarse este punto como "resuelto al 100%" en
 ningún roadmap o resumen de estado sin esa distinción.
+
+---
+
+## Migración `2026_07_10_000015` sobre una BD fresca (ADR-14)
+
+**Causa raíz.** `database/migrations/2026_01_01_000005_add_document_fields_to_vehicles.php`
+crea `soat_number`/`soat_expiration_date`/`soat_document_url`/`soat_uploaded_at` y sus 4
+equivalentes `tecnomecanica_*` en `vehicles`. En algún momento no documentado, esas 8
+columnas desaparecieron de la base de datos real de desarrollo (`parce`) — el propio
+docblock de `2026_07_10_000015_restore_document_fields_to_vehicles.php` registra que
+fueron aparentemente eliminadas por una migración de batch 9
+(`2026_01_01_000009_add_technical_fields_to_vehicles`) cuyo archivo ya no existe en
+disco, mientras esa misma migración agregaba otras columnas técnicas que sí siguen
+presentes (`engine_displacement_cc`, `transmission_type`, etc.). La migración `000015`
+existe para *restaurar* esas 8 columnas en `parce` — y de hecho es la migración
+responsable de que existan hoy en la base de datos real de desarrollo, porque las
+originales de `000005` fueron borradas.
+
+**El conflicto.** Sobre una base de datos que **nunca pasó** por ese evento de borrado
+(cualquier instalación nueva, incluida `parce_test`, la BD aislada de
+`tests/Integration/` — ver `docs/testing/INTEGRATION_TESTING.md` §11), las 17
+migraciones corren en orden: `000005` ya crea las 8 columnas con normalidad, y cuando
+le toca el turno a `000015`, su `ALTER TABLE ... ADD COLUMN soat_number ...` intenta
+crear columnas que ya existen → `SQLSTATE[42S21]: Column already exists`.
+
+**Cuál migración es la fuente de verdad real — depende de qué base de datos.** No hay
+una respuesta única de "esta migración es la buena, la otra se descarta":
+- Sobre la **BD real `parce`** (la que efectivamente ha estado en uso), `000015` es la
+  migración que realmente puso esas columnas donde están hoy — `000005` originalmente
+  las creó, pero ese estado ya no existe; fue sobrescrito por el borrado no documentado
+  y la posterior restauración. Quitar `000015` del historial de `parce` sería falsificar
+  cómo llegó su esquema al estado actual.
+- Sobre una **BD nueva sin ese historial**, `000005` es autosuficiente y `000015` es
+  pura colisión redundante.
+
+Por eso el archivo de migración `000015` **no se edita** (cambiar su `up()` alteraría
+retroactivamente lo que documenta sobre `parce`) — el problema se resuelve en el
+**procedimiento de instalación**, no en el código de la migración.
+
+**Workaround exacto para instalar el proyecto desde una BD completamente fresca:**
+
+```sql
+-- 1. Crear la base de datos
+CREATE DATABASE IF NOT EXISTS parce CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE parce;
+
+-- 2. Crear la tabla de seguimiento de migraciones (mismo esquema exacto que
+--    App\Core\MigrationRunner::ensureMigrationsTableExists() crea automáticamente
+--    — se crea aquí a mano solo para poder insertar el marcador ANTES del primer
+--    `migrate`, en el mismo paso):
+CREATE TABLE IF NOT EXISTS `migrations` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `migration` VARCHAR(255) NOT NULL,
+    `batch` INT NOT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY `unique_migration` (`migration`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 3. Marcar 000015 como ya aplicada, SIN ejecutar su up() — su efecto (las 8
+--    columnas SOAT/Tecnomecánica) ya lo satisface la migración 000005, que
+--    todavía no corrió en este punto:
+INSERT INTO `migrations` (`migration`, `batch`)
+VALUES ('2026_07_10_000015_restore_document_fields_to_vehicles', 0);
+```
+
+```bash
+# 4. Ahora sí, correr las migraciones normalmente — MigrationRunner ve que
+#    "2026_07_10_000015_restore_document_fields_to_vehicles" ya está en la
+#    tabla `migrations` y la salta; las otras 16 corren sin tocar (incluida
+#    000005, que crea las 8 columnas con normalidad):
+php scripts/maintenance/migrate.php migrate
+```
+
+El esquema resultante es **idéntico** al que se obtendría si `000015` hubiera podido
+ejecutar sin colisión — su `up()` es un `ADD COLUMN` puro de las mismas 8 columnas que
+`000005` ya crea, sin ningún otro efecto secundario (confirmado leyendo el archivo
+completo). El `batch => 0` es arbitrario (nunca se usó para un `migrate()` real) y no
+interfiere con el conteo de `rollback`/`status` del resto de migraciones, que siguen
+recibiendo sus propios números de batch normalmente a partir de 1.
+
+**Ya aplicado en la práctica:** este es exactamente el procedimiento usado para crear
+`parce_test` (la base de datos de `tests/Integration/`), documentado también en
+`docs/testing/INTEGRATION_TESTING.md` §11. No se documenta aquí un comando distinto —
+es el mismo workaround, generalizado como procedimiento estándar de instalación desde
+cero.

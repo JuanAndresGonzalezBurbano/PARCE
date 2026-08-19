@@ -4,46 +4,18 @@
 un módulo nuevo, o un cambio de arquitectura que debe decidir el usuario antes de
 construirse. No bloquean el trabajo en curso.
 
-## 🔴 ACCIÓN URGENTE — Secreto expuesto en GitHub (2026-07-16)
+## 🟡 Secreto expuesto en GitHub — PARCIALMENTE RESUELTO (2026-07-16, remediado 2026-08-18)
 
-**Una API key real está actualmente activa (no solo en historial) en `origin/main`**,
-la rama por defecto del repositorio en GitHub (`github.com/JuanAndresGonzalezBurbano/PARCE`):
-
-```
-VITE_GROQ_API_KEY=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
-```
-
-Introducida en el commit `16b2a07` ("Add .env with API key", autor juanalba,
-2026-06-02), que además removió `.env` de `.gitignore` momentáneamente.
-
-**Dónde está confirmado presente ahora mismo** (archivo `.env` trackeado, no solo
-en un commit viejo):
-- `main` (local)
-- `origin/main` — **la rama por defecto que ve cualquiera que visite el repo**
-- `origin/Soto`
-
-**Dónde NO está** (confirmado limpio): `Angel` (esta rama), `origin/Angel`,
-`refactor/modular-architecture`, `origin/Duvan`, `origin/Juan`, `origin/sebastian`.
-
-No se encontró ninguna referencia a `VITE_GROQ_API_KEY` en el código actual —
-parece una integración abandonada, no algo que la app use hoy.
-
-**Acciones recomendadas, en orden:**
-1. **Revoca/rota la clave en tu cuenta de Groq ahora mismo** — es la única acción
-   que realmente neutraliza el riesgo, sin importar qué se haga después con git.
-   Ningún cambio en el historial deshace una exposición que ya ocurrió si el repo
-   fue clonado, forkeado, o indexado por algún bot de escaneo de secretos de GitHub.
-2. Elimina `.env` de `main` con un commit normal (`git rm .env`, luego push).
-3. Decide si necesitas reescribir el historial de `main`/`origin/Soto` para
-   purgar el secreto de commits viejos también — esto requiere `force-push` a
-   `origin/main`, lo cual **romperá los clones locales de Duvan/Juan/Soto/sebastian**
-   si tienen `main` descargado. Coordina con ellos antes de hacerlo.
-4. Verifica que `.env` esté en `.gitignore` en todas las ramas (ya lo está en
-   `Angel`).
-
-No se tocó `main` ni ninguna rama de otro colaborador ni se hizo ningún push —
-se dejó esta decisión completamente en tus manos por el impacto que tiene sobre
-el trabajo del resto del equipo.
+~~Una API key real estaba activa en `origin/main`~~ **La key ya fue rotada por el
+humano (2026-08-18) y `.env` fue destrackeado + agregado a `.gitignore` en `main`
+(commit `5431c23`) y `Soto` (commit `ba5fd88`), ambos pusheados.** Detalle completo,
+incluido lo que sigue **sin resolver** (el historial de git de `main`/`Soto` no se
+reescribió — el valor ya inválido de la key sigue siendo recuperable en commits viejos
+—, y un hallazgo nuevo: `origin/frontend+backend`, fuera del equipo, expone su propio
+`.env` completo con `DB_PASSWORD` incluido, sin remediar por decisión explícita de no
+tocar esa rama) está en `docs/architecture/DECISIONS.md` (ADR-13, sección "Registro de
+incidentes de seguridad") — **no reportar este punto como resuelto al 100% sin leer esa
+distinción primero.**
 
 ## Decisiones pendientes del usuario
 
@@ -82,16 +54,14 @@ endpoints multipart) es un módulo nuevo con implicaciones de infraestructura
 (¿dónde se guardan los archivos?, ¿límites de tamaño?, ¿CDN?) — requiere decisión
 del usuario sobre la estrategia de almacenamiento antes de implementarse.
 
-### 4. Recuperación de contraseña ("olvidé mi contraseña")
-No existe ningún flujo de reseteo de contraseña — ni endpoint backend, ni
-página frontend. Es una funcionalidad estándar esperada en cualquier sistema
-de autenticación de producción, pero implementarla de forma real (generar
-token, invalidar tras uso/expiración, enviar el enlace) requiere enviar un
-correo — y el proyecto **no tiene ninguna infraestructura de email**
-(sin PHPMailer/Symfony Mailer, sin configuración SMTP, sin proveedor
-transaccional tipo SES/SendGrid/Mailgun en `.env.example`). Requiere decisión
-del usuario sobre el proveedor/estrategia de envío de correo antes de
-construirse — mismo tipo de dependencia de infraestructura que el ítem 3.
+### 4. ~~Recuperación de contraseña ("olvidé mi contraseña")~~ — Resuelto
+Implementado por completo: `PasswordResetService` + `MailerService` (Resend HTTP API),
+endpoints `POST /api/auth/forgot-password` y `POST /api/auth/reset-password`, token
+aleatorio de 32 bytes con solo su hash SHA-256 persistido (`password_reset_tokens.token_hash`),
+TTL de 1 hora, destrucción de todas las sesiones del usuario al completar el reset, y
+respuesta anti-enumeración genérica cuando el email no existe. Cobertura: `PasswordResetServiceTest`
+(4 tests unitarios, PDO mockeado, ver commit `fea948d`). Ver
+`docs/architecture/PARCE_AS_BUILT_ARCHITECTURE.md` §1.8 (puntos 5-7) para el detalle completo.
 
 ### 6. ~~Expiración automática de solicitudes pendientes~~ — Resuelto 2026-07-25
 Decisión de negocio ya tomada: 30 minutos, procesada por cron job dedicado
@@ -119,34 +89,57 @@ Implementado: `EvidenceUpload` ahora soporta `readOnly`, y `RequestsPage.tsx`
   tablas ya existen y están correctamente creadas en la BD real). Si en algún
   momento se necesita levantar el proyecto desde cero en otra máquina, ejecutar
   un dump de esquema (`mysqldump --no-data`) como respaldo adicional a las
-  migraciones.
-- **Nada está commiteado a git** desde `a52cf6b` (2026-06-27). Todo el módulo
-  PQR/Survey/Admin, todos los fixes de E2E, y todo lo de esta sesión de
-  "modo producción" son cambios sin commitear en el working tree. Recomendado
-  organizar en commits lógicos antes de seguir acumulando cambios.
-- **PHPUnit**: sin tests automatizados para `AuthService`/`ServiceRequestService`/
-  `VehicleService`. Cuanto más crece el backend, más valioso se vuelve tener
-  cobertura de los flujos de estado (pending→assigned→in_progress→completed) y
-  las reglas de negocio (una solicitud activa por cliente/vehículo, transiciones
-  inválidas, etc.) que ya se rompieron una vez silenciosamente.
+  migraciones. **Relacionado:** `2026_07_10_000015` además colisiona (`Column
+  already exists`) sobre una BD *completamente fresca* — causa raíz y workaround
+  exacto documentados en `docs/architecture/DECISIONS.md` (ADR-14).
+- ~~**PHPUnit**: sin tests automatizados para `AuthService`/`ServiceRequestService`/`VehicleService`~~
+  — Resuelto 2026-08-19 (commit `fea948d`). Los 4 servicios de mayor riesgo
+  (`AuthService`, `ServiceRequestService`, `VehicleService`, `PasswordResetService`)
+  ahora tienen 45 tests unitarios con PDO mockeado (`App\Core\Database::setConnection()`,
+  seam aditivo nuevo), enfocados en invariantes de negocio: doble asignación de mecánico
+  perdiendo la carrera, guards de transición de estado, unicidad de placa/VIN vía locks
+  nombrados de MySQL, SOAT/Tecnomecánica vencidos confirmados como no bloqueantes, hash
+  SHA-256 del token de reset, destrucción de sesiones al resetear. **Sigue sin cobertura**
+  (no reclamado como resuelto): ningún Controller, ningún Middleware, ni `SessionManager`/
+  `AdminService`/`PQRService`/`SurveyService`/`ServiceRequestEvidenceService` directamente.
 - **Notificaciones en tiempo real**: mecánicos ven solicitudes nuevas solo al
   recargar/hacer polling manual. Un WebSocket o polling automático es una mejora
   de UX significativa pero es una pieza de infraestructura nueva (alcance propio).
-- **15 scripts en `scripts/{debugging,maintenance,testing,validation}/` están
-  rotos por la misma causa que tenía `scripts/maintenance/migrate.php` (ya
-  corregido, ver commit `fix(scripts): correct BASE_PATH...`)**: usan
-  `require_once __DIR__ . '/vendor/autoload.php'` con `__DIR__` apuntando a su
-  propia carpeta anidada en vez de la raíz del proyecto — fallan de inmediato
-  al ejecutarse. Afecta a todo `scripts/debugging/*.php`, la mayoría de
-  `scripts/maintenance/*.php` (excepto `migrate.php`, ya arreglado) y
-  `scripts/validation/*.php`. No se corrigieron individualmente porque son
-  ayudas de depuración/validación puntuales de sesiones anteriores, no parte
-  del flujo de instalación/despliegue documentado en `README.md` — pero si
-  alguno resulta útil, el fix es el mismo de una línea (`define('BASE_PATH',
-  dirname(__DIR__, 2));` en vez de `__DIR__` directo en el `require_once`).
-  `scripts/testing/test_auth_integration.php` y `scripts/testing/test_cors.php`
-  no tienen este problema (no dependen del autoloader, hablan por HTTP/curl
-  contra un servidor ya corriendo).
+- ~~**15 scripts en `scripts/{debugging,maintenance,testing,validation}/` rotos por BASE_PATH**~~
+  — La causa original (`__DIR__` apuntando a la carpeta anidada en vez de la raíz)
+  **ya no existe**: verificado el 2026-08-19 leyendo los 22 scripts no-HTTP uno por uno —
+  los 22 ya usan `define('BASE_PATH', dirname(__DIR__, 2))` (o el equivalente inline)
+  correctamente. Este ítem estaba desactualizado, probablemente arreglado en una sesión
+  anterior sin actualizar este archivo.
+  **Hallazgo nuevo real, sin relación con BASE_PATH**: varios de esos mismos scripts
+  (`scripts/debugging/*`, `scripts/maintenance/automated_validation.php`,
+  `scripts/validation/validate_database_structure.php`, `validate_service_requests.php`,
+  `validate_vehicles.php`, `verify_final_status.php`, `scripts/testing/test_session_hardening.php`)
+  fallan igualmente al ejecutarse hoy, pero por una causa distinta: el `.env` real en disco
+  (`Angel`, sin trackear) solo contiene la línea `VITE_GROQ_API_KEY` — ninguna variable
+  `DB_*`/`SESSION_*`/`APP_ENV` — y estos scripts parsean `.env` a mano con `$env['DB_DATABASE'] ?? ''`
+  (cadena vacía, no `'parce'`) o leen `$_ENV[...]` directamente sin *fallback*, a diferencia de
+  `App\Core\App.php` (que sí sigue funcionando porque cada `env()` tiene su propio valor por
+  defecto correcto para XAMPP local). Resultado: `SQLSTATE[3D000]: No database selected` o
+  `Undefined array key`. **No corregido** — mezclar esto con el fix de BASE_PATH habría sido
+  exactamente el tipo de mezcla de hallazgos que no se debe hacer sin preguntar primero.
+  Además, `scripts/validation/validate_vehicle_domain.php` no usa el patrón `BASE_PATH` en
+  absoluto — tiene su propio autoloader `App\` casero apuntando a `__DIR__ . '/app/'` (una
+  ruta que no existe desde `scripts/validation/`) y su propia carga de `.env` vía
+  `__DIR__ . '/.env'` — un bug distinto y más grande que un fix de una línea, tampoco corregido.
+  Sí confirmados corriendo limpio contra la BD real: `cleanup_logs.php` (borró 12 logs viejos),
+  `cleanup_sessions.php` (borró 8 sesiones expiradas), `expire_pending_requests.php` (0 solicitudes
+  que expirar), `migrate.php` (comando `help`), `validate_dtos.php`, `validate_password_hasher.php`.
+  No se ejecutaron contra la BD real (mutan datos reales sin limpieza garantizada, o ya tenían
+  un bug propio) — verificados solo por lectura de código + `php -l`: `seed_service_requests_only.php`
+  (inserta filas de servicio sin limpieza), `validate_session_manager.php` (crea 5 usuarios
+  `testuser1-5@example.com` permanentes sin limpieza), `test_database_integrity.php` (crea y
+  borra un usuario de prueba dentro de una transacción — más cauteloso no arriesgar), y
+  `fix_assign_customer_roles.php`, que además tiene un bug real separado: llama a
+  `Database::update('user_roles', ['is_active' => 1], ['id' => $existingRole['id']])` pasando
+  un **array** como tercer argumento (`$where`) cuando la firma real exige un **string** — el
+  mismo patrón de bug ya encontrado y corregido antes en `AuthController::profile()`. No corregido
+  aquí, reportado aparte.
 - ~~**Paginación**~~ — Resuelto 2026-08-15 (backend + frontend). Los tres
   listados admin-wide sin acotar por usuario (`GET /api/admin/ratings`,
   `GET /api/admin/pqr`, `GET /api/admin/surveys` — los que de verdad crecen sin

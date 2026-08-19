@@ -84,8 +84,11 @@ foreach ($vehicleOwners as $owner) {
     
     if ($existingRole) {
         if ($existingRole['is_active'] == 0) {
-            // Activate existing role
-            Database::update('user_roles', ['is_active' => 1], ['id' => $existingRole['id']]);
+            // Activate existing role — $where debe ser un string ('id = ?'), no un
+            // array; Database::update()'s firma real es (table, data, string $where,
+            // array $whereParams) — mismo bug ya corregido en AuthService::updateProfile()
+            // (usado por AuthController::profile()).
+            Database::update('user_roles', ['is_active' => 1], 'id = ?', [$existingRole['id']]);
             echo "  ✓ Activated customer role for User {$userId} ({$email})\n";
         } else {
             echo "  → User {$userId} ({$email}) already has active customer role\n";

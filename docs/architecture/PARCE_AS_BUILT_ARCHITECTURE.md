@@ -442,20 +442,26 @@ Actores reales: **Cliente** (create, update, cancel, rate — sobre sus propias 
 
 ## 1.14 Ratings
 
-**No existe una tabla `ratings` independiente.** Las calificaciones viven como columnas dentro de `service_requests`:
+**Dos mecanismos de almacenamiento distintos, uno por sentido — actualizado 2026-08-19.**
+
+**Cliente → Mecánico** (el original, ADR-7 vigente): vive como columnas dentro de `service_requests`, no en una tabla dedicada:
 
 - `customer_rating` (TINYINT 1-5, calificación general)
 - `punctuality_rating` (TINYINT 1-5, calificación detallada de puntualidad — migración `2026_01_01_000007`)
 - `service_quality_rating` (TINYINT 1-5, calificación detallada de calidad — misma migración)
 - `customer_feedback` (TEXT libre)
 
-Se escriben en una única llamada `POST /api/service-requests/{id}/rate` → `ServiceRequestService::rate()`, condicionado a `status='completed'` y `customer_rating IS NULL` (una sola calificación permitida por solicitud).
+Se escriben en una única llamada `POST /api/service-requests/{id}/rate` → `ServiceRequestService::rate()`, condicionado a `status='completed'` y `customer_rating IS NULL` (una sola calificación permitida por solicitud, sin `UNIQUE` de BD — el `UPDATE` atómico condicionado es la única protección contra doble envío).
 
-**Dirección del flujo confirmada por el esquema:** **actualmente solo existe Cliente → Mecánico.** No hay ninguna columna, endpoint ni tabla que permita al mecánico calificar al cliente — esta es una decisión de producto pendiente, no una omisión técnica (ver `docs/roadmap/PARCE_ROADMAP_AS_BUILT.md`, sección A).
+**Mecánico → Cliente** (implementado 2026-08-19, ADR-15): usa la tabla `ratings`, que existe desde antes de esta sesión —sin ningún código que la usara hasta ahora, ver `AS_DESIGNED_VS_AS_BUILT.md`— y que ya soportaba ambos sentidos de fábrica: `rater_id`/`ratee_id` genéricos (FK a `users`), `rating_type` ENUM(`customer_to_mechanic`,`mechanic_to_customer`), `score`/`punctuality_score`/`quality_score`/`comment`, y **`UNIQUE(service_request_id, rating_type)`** real a nivel de BD (a diferencia del lado cliente→mecánico, aquí la unicidad sí la garantiza la base de datos, no solo el `WHERE` del `UPDATE`). Se escribe vía `POST /api/mechanic/requests/{id}/rate-customer` → `MechanicRatingService::rateCustomer()` (patrón satélite, mismo que `ServiceRequestEvidenceService`), con las mismas condiciones: solo el mecánico asignado, solo `status='completed'`, una sola vez. `ServiceRequestService::getById()` expone el resultado (`mechanicRatingScore`/`PunctualityScore`/`QualityScore`/`Comment`/`CreatedAt`) cuando existe.
 
-El frontend consume estos datos vía `getMechanicStats()` (promedios para el mecánico) y `GET /api/admin/ratings` (listado paginado y filtrable para el admin, filtros: `mechanic_id`, `customer_id`, `min_rating`, `date_from`, `date_to`).
+**Nota:** `ratings` ya tenía 5 filas de datos (3 `customer_to_mechanic`, 2 `mechanic_to_customer`) antes de esta implementación, sin ningún seeder ni migración en el repositorio que las explique — mismo patrón de deriva de esquema no documentada que otras tablas (`vehicle_documents`, `vehicle_maintenance_records` — ver `docs/roadmap/PARCE_ROADMAP_AS_BUILT.md`, deuda técnica ítem 1).
 
-**Fuente:** `database/migrations/2024_01_01_000004`, `2026_01_01_000007`, `2026_07_10_000011`; `app/Infrastructure/ServiceRequest/ServiceRequestService.php::rate()`.
+El frontend consume el lado cliente→mecánico vía `getMechanicStats()` (promedios para el mecánico) y `GET /api/admin/ratings` (listado paginado y filtrable para el admin, filtros: `mechanic_id`, `customer_id`, `min_rating`, `date_from`, `date_to` — sigue leyendo únicamente las columnas de `service_requests`, **no** la tabla `ratings`; agregar el lado mecánico→cliente a ese panel no se hizo en esta implementación, ver limitación abajo).
+
+**Limitación conocida, no resuelta en esta implementación:** `AdminService::ratings()` y el dashboard admin no incluyen el rating mecánico→cliente — siguen siendo una vista exclusiva del lado cliente→mecánico. Extender el panel admin para mostrar ambos sentidos, y/o construir una vista de frontend para que el mecánico envíe su calificación (hoy solo existe el endpoint backend, consumible directamente), quedan fuera del alcance de esta tarea.
+
+**Fuente:** `database/migrations/2024_01_01_000004`, `2026_01_01_000007`, `2026_07_10_000011` (columnas de `service_requests`); tabla `ratings` (sin migración propia en el repositorio); `app/Infrastructure/ServiceRequest/ServiceRequestService.php::rate()` y `::getById()`; `app/Infrastructure/ServiceRequest/MechanicRatingService.php::rateCustomer()`.
 
 ---
 

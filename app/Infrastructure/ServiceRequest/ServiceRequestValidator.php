@@ -276,6 +276,57 @@ class ServiceRequestValidator
     }
 
     /**
+     * Valida los datos para que un mecánico califique al cliente de una
+     * solicitud completada (tabla `ratings`, rating_type='mechanic_to_customer').
+     * Nombres de campo distintos a validateRatingRequest() a propósito: mapean
+     * 1:1 a las columnas reales de `ratings` (score/comment/punctuality_score/
+     * quality_score), no a las de `service_requests`.
+     *
+     * @param Request $request Solicitud HTTP
+     * @return array           ['valid' => bool, 'errors' => array]
+     */
+    public static function validateMechanicRatingRequest(Request $request): array
+    {
+        $errors = [];
+
+        $score = $request->input('score');
+        if ($score === null || $score === '') {
+            $errors['score'] = 'La calificación es requerida';
+        } elseif (!is_numeric($score)) {
+            $errors['score'] = 'La calificación debe ser un número';
+        } else {
+            $scoreInt = (int)$score;
+            if ($scoreInt < 1 || $scoreInt > 5) {
+                $errors['score'] = 'La calificación debe estar entre 1 y 5';
+            }
+        }
+
+        $comment = $request->input('comment');
+        if ($comment !== null && strlen($comment) > 2000) {
+            $errors['comment'] = 'El comentario no debe superar los 2000 caracteres';
+        }
+
+        $punctualityScore = $request->input('punctuality_score');
+        if ($punctualityScore !== null) {
+            if (!is_numeric($punctualityScore) || (int)$punctualityScore < 1 || (int)$punctualityScore > 5) {
+                $errors['punctuality_score'] = 'La calificación de puntualidad debe ser un entero entre 1 y 5';
+            }
+        }
+
+        $qualityScore = $request->input('quality_score');
+        if ($qualityScore !== null) {
+            if (!is_numeric($qualityScore) || (int)$qualityScore < 1 || (int)$qualityScore > 5) {
+                $errors['quality_score'] = 'La calificación de calidad debe ser un entero entre 1 y 5';
+            }
+        }
+
+        return [
+            'valid'  => empty($errors),
+            'errors' => $errors
+        ];
+    }
+
+    /**
      * Valida si una transición de estado es permitida según las reglas del ciclo de vida.
      *
      * @param string $currentStatus Estado actual de la solicitud

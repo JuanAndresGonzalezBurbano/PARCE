@@ -216,6 +216,13 @@ $router->put('/api/mechanic/requests/{id}/complete', [\App\Controllers\ServiceRe
     ])
     ->name('api.mechanic.requests.complete');
 
+$router->post('/api/mechanic/requests/{id}/rate-customer', [\App\Controllers\ServiceRequestController::class, 'rateCustomer'])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['mechanic']]
+    ])
+    ->name('api.mechanic.requests.rateCustomer');
+
 $router->post('/api/mechanic/requests/{id}/evidence', [\App\Controllers\ServiceRequestController::class, 'addEvidence'])
     ->middleware([
         \App\Middleware\AuthMiddleware::class,

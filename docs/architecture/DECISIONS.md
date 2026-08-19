@@ -18,7 +18,7 @@
 | ADR-12 | Sesión de servidor + cookie httpOnly; sin JWT | Vigente | `SessionManager`, tabla `sessions` |
 | ADR-13 | `.env` deja de estar trackeado en `main`/`Soto` tras la exposición de una API key real; el historial de git de ambas ramas **no** se reescribió | **Parcial — remediación de tracking hecha, purga de historial pendiente de decisión de equipo** | Ver "Registro de incidentes de seguridad" abajo |
 | ADR-14 | La migración `2026_07_10_000015_restore_document_fields_to_vehicles` colisiona (`Column already exists`) sobre una BD completamente fresca; se instala marcándola como ya aplicada en la tabla `migrations`, sin ejecutar su `up()` — nunca editando el archivo de migración | Vigente — deuda técnica documentada, no un bug a corregir en el código de la migración | Ver "Migración `2026_07_10_000015` sobre una BD fresca" abajo |
-| ADR-15 | Rating bidireccional (mecánico → cliente): la tabla `ratings` existe pero no se activa en esta entrega | **Diferido, no implementado** | Ver "Decisiones de producto diferidas" abajo |
+| ADR-15 | Rating bidireccional (mecánico → cliente): la tabla `ratings` existe y ahora se usa vía `MechanicRatingService` | **Implementado** (antes "Diferido") | Ver "Decisiones de producto diferidas" abajo |
 | ADR-16 | `vehicle_documents`/`vehicle_maintenance_records`: no se migra `VehicleController` a estas tablas en esta entrega | **Diferido, no se migra** | Ver "Decisiones de producto diferidas" abajo |
 | ADR-17 | Upload real de archivos (S3/Cloudinary/disco): se mantiene el diseño actual de URLs pegadas a mano | **Se mantiene como está** | Ver "Decisiones de producto diferidas" abajo |
 | ADR-18 | SOAT/Tecnomecánica vencidos no bloquean el uso del vehículo: se mantiene el comportamiento actual | **Se mantiene como está** | Ver "Decisiones de producto diferidas" abajo |
@@ -177,10 +177,33 @@ razón, para que quede como decisión tomada y no como pendiente sin resolver.
   `app/Controllers/*`. El sistema de calificación real sigue siendo exclusivamente
   Cliente → Mecánico, vía las columnas `customer_rating`/`punctuality_rating`/
   `service_quality_rating` de `service_requests` (ADR-7, ya vigente).
-- **Decisión:** diferido, no implementado en esta entrega.
-- **Razón:** prioridad de tiempo hacia estabilidad de lo ya implementado (seguridad y
+- **Decisión (histórica, al momento de diferir):** diferido, no implementado en esa entrega.
+- **Razón (histórica):** prioridad de tiempo hacia estabilidad de lo ya implementado (seguridad y
   cobertura de tests) sobre features nuevas antes de la sustentación; riesgo de
   introducir bugs nuevos cerca de la fecha de entrega.
+
+**Actualización 2026-08-19 — Implementado.** Se revirtió la decisión de diferir:
+`MechanicRatingService` (`app/Infrastructure/ServiceRequest/MechanicRatingService.php`,
+mismo patrón satélite que `ServiceRequestEvidenceService`) usa la tabla `ratings` ya
+existente para el sentido mecánico→cliente (`rating_type='mechanic_to_customer'`), sin
+ninguna migración nueva — la tabla ya soportaba ambos sentidos de fábrica
+(`rater_id`/`ratee_id` genéricos, `UNIQUE(service_request_id, rating_type)`). Nuevo
+endpoint `POST /api/mechanic/requests/{id}/rate-customer` (RBAC `mechanic`), con las
+mismas reglas de negocio que el rating cliente→mecánico existente: solo el mecánico
+asignado (403), solo si `status='completed'` (400), solo una vez (409, respaldado por el
+`UNIQUE` de la tabla además del chequeo previo). `ServiceRequestService::getById()` —el
+único lugar donde se construye la entidad "solicitud de servicio", reutilizado por todos
+los endpoints— se extendió con un `LEFT JOIN` a `ratings` para incluir
+`mechanicRatingScore`/`PunctualityScore`/`QualityScore`/`Comment`/`CreatedAt` cuando
+exista, sin tocar ninguna otra consulta. Cobertura: 6 tests unitarios nuevos
+(`MechanicRatingServiceTest`, PDO mockeado) + verificación E2E real en navegador
+(fixture desechable: mecánico completa → califica al cliente → cliente ve el rating
+recibido en su propia consulta de la solicitud — verificado, y el fixture completo
+eliminado después, incluida la fila de `ratings` creada). Hallazgo durante la
+investigación previa: la tabla `ratings` ya tenía 5 filas de datos (3
+`customer_to_mechanic`, 2 `mechanic_to_customer`) sin ningún seeder ni migración que las
+explique — mismo patrón de deriva de esquema no documentada que `BACKLOG.md` ya
+registra para otras tablas; no se tocaron.
 
 ### ADR-16 — `vehicle_documents` / `vehicle_maintenance_records`
 

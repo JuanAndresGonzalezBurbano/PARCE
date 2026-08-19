@@ -94,6 +94,7 @@ Flujo de solicitud + revisión administrativa para obtener el rol `mechanic` —
 | POST | `/mechanic/requests/{id}/accept` | — | `pending→assigned`. 403 si licencia vencida/vacía, 409 si ya la tomó otro |
 | PUT | `/mechanic/requests/{id}/start` | — | `assigned→in_progress`. Solo el mecánico asignado |
 | PUT | `/mechanic/requests/{id}/complete` | `{final_cost}` | `in_progress→completed`. Solo el mecánico asignado |
+| POST | `/mechanic/requests/{id}/rate-customer` | `{score: 1-5, comment?, punctuality_score?: 1-5, quality_score?: 1-5}` | Rating mecánico→cliente (tabla `ratings`, `rating_type='mechanic_to_customer'`). Solo el mecánico asignado, solo si `completed`, una sola vez (`409` si ya calificó — respaldado por `UNIQUE(service_request_id, rating_type)` de BD) |
 | POST | `/mechanic/requests/{id}/evidence` | `{evidence_type: before\|during\|after, image_url, original_filename?, description?, file_size?}` | Solo si `assigned/in_progress/completed` |
 | GET | `/mechanic/requests/{id}/evidences` | — | Solo mecánico asignado |
 | GET | `/mechanic/stats` | — | Promedios de calificación, total ganado, servicios completados |
@@ -132,7 +133,7 @@ Flujo de solicitud + revisión administrativa para obtener el rol `mechanic` —
 
 ## Resumen de conteo
 
-- **52 rutas totales** (1 web + 51 API), verificado contra `config/routes.php` (sube de 46 con las 6 rutas nuevas de `/mechanic-applications` y `/admin/mechanic-applications`).
+- **53 rutas totales** (1 web + 52 API), verificado contra `config/routes.php` (46 originales + 6 de `/mechanic-applications`/`/admin/mechanic-applications` + 1 de `/mechanic/requests/{id}/rate-customer`).
 - Middleware de autenticación (`AuthMiddleware`) requerido en todas salvo: health checks, `register`, `login`, `forgot-password`, `reset-password`.
 - Middleware RBAC (`RBACMiddleware`) aplicado por grupo de rol en: `/service-requests/*` (customer), `/mechanic/*` (mechanic), `/pqr` y `/pqr/{id}` (customer+mechanic), `/admin/*` incl. `/admin/mechanic-applications/*` (administrator+super_admin). `/mechanic-applications/*` (sin prefijo `/admin/`) solo exige `AuthMiddleware` — cualquier rol autenticado puede solicitar, la restricción de administrator/super_admin se aplica dentro de `MechanicApplicationService::create()`, no vía RBAC de ruta.
 

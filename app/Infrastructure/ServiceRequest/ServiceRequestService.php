@@ -529,7 +529,13 @@ class ServiceRequestService
      */
     public function getById(int $requestId, int $userId, string $userRole): ?array
     {
-        // Consultar la solicitud con datos relacionados de cliente, mecánico y vehículo
+        // Consultar la solicitud con datos relacionados de cliente, mecánico,
+        // vehículo, y la calificación mecánico→cliente si existe (tabla
+        // `ratings`, rating_type='mechanic_to_customer' — ver
+        // MechanicRatingService). Único lugar donde se construye esta
+        // entidad; reutilizado por show/create/update/cancel/rate/accept/
+        // start/complete — cualquier campo nuevo se agrega aquí, no en una
+        // consulta aparte.
         $request = Database::fetchOne(
             'SELECT sr.*,
                     c.first_name as customer_first_name,
@@ -542,11 +548,17 @@ class ServiceRequestService
                     v.make as vehicle_make,
                     v.model as vehicle_model,
                     v.year as vehicle_year,
-                    v.license_plate as vehicle_license_plate
+                    v.license_plate as vehicle_license_plate,
+                    mr.score as mechanic_rating_score,
+                    mr.punctuality_score as mechanic_rating_punctuality_score,
+                    mr.quality_score as mechanic_rating_quality_score,
+                    mr.comment as mechanic_rating_comment,
+                    mr.created_at as mechanic_rating_created_at
              FROM service_requests sr
              LEFT JOIN users c ON sr.customer_id = c.id
              LEFT JOIN users m ON sr.mechanic_id = m.id
              LEFT JOIN vehicles v ON sr.vehicle_id = v.id
+             LEFT JOIN ratings mr ON mr.service_request_id = sr.id AND mr.rating_type = \'mechanic_to_customer\'
              WHERE sr.id = ? AND sr.deleted_at IS NULL',
             [$requestId]
         );

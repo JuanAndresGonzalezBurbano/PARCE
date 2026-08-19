@@ -8,6 +8,7 @@ use App\Core\Response;
 use App\Infrastructure\ServiceRequest\ServiceRequestService;
 use App\Infrastructure\ServiceRequest\ServiceRequestValidator;
 use App\Infrastructure\ServiceRequest\ServiceRequestEvidenceService;
+use App\Infrastructure\ServiceRequest\MechanicRatingService;
 use App\Infrastructure\Http\RequestValidator;
 use App\Infrastructure\Http\ResponseFormatter;
 use App\Infrastructure\Http\ErrorHandler;
@@ -17,17 +18,20 @@ use App\Infrastructure\Http\ErrorHandler;
  *
  * Gestiona las solicitudes HTTP para el manejo de solicitudes de servicio,
  * incluyendo creación, consulta, actualización, cancelación, calificación
- * y evidencias fotográficas.
+ * (en ambos sentidos: cliente→mecánico y mecánico→cliente) y evidencias
+ * fotográficas.
  */
 class ServiceRequestController extends Controller
 {
     private ServiceRequestService $serviceRequestService;
     private ServiceRequestEvidenceService $evidenceService;
+    private MechanicRatingService $mechanicRatingService;
 
     public function __construct()
     {
         $this->serviceRequestService = new ServiceRequestService();
         $this->evidenceService = new ServiceRequestEvidenceService();
+        $this->mechanicRatingService = new MechanicRatingService();
     }
 
     /**
@@ -374,6 +378,78 @@ class ServiceRequestController extends Controller
                 ['service_request' => $serviceRequest],
                 'Solicitud de servicio calificada exitosamente',
                 200
+            );
+
+        } catch (\Exception $e) {
+            return ErrorHandler::handleException($e);
+        }
+    }
+
+    /**
+     * El mecánico asignado califica al cliente de una solicitud completada
+     * (sentido faltante del rating bidireccional, ADR-15 — usa la tabla
+     * `ratings`, no las columnas de service_requests que usa el rating
+     * cliente→mecánico existente).
+     *
+     * POST /api/mechanic/requests/{id}/rate-customer
+     *
+     * @param Request $request Solicitud HTTP
+     * @param int     $id      ID de la solicitud de servicio
+     * @return Response Respuesta HTTP
+     */
+    public function rateCustomer(Request $request, int $id): Response
+    {
+        try {
+            $contentTypeValidation = RequestValidator::validateContentType($request, 'POST');
+            if (!$contentTypeValidation['valid']) {
+                return ResponseFormatter::error(
+                    $contentTypeValidation['error'],
+                    null,
+                    $contentTypeValidation['statusCode']
+                );
+            }
+
+            $jsonValidation = RequestValidator::parseJsonBody($request);
+            if (!$jsonValidation['valid']) {
+                return ResponseFormatter::error(
+                    $jsonValidation['error'],
+                    null,
+                    $jsonValidation['statusCode']
+                );
+            }
+
+            $validation = ServiceRequestValidator::validateMechanicRatingRequest($request);
+            if (!$validation['valid']) {
+                return ResponseFormatter::validationError($validation['errors']);
+            }
+
+            // El mecánico SIEMPRE sale de la sesión autenticada, nunca del body.
+            $mechanicId = $request->getAttribute('userId');
+            $userRole   = $request->getAttribute('userRole');
+
+            $data = [
+                'score'             => (int)$request->input('score'),
+                'comment'           => $request->input('comment')
+                    ? RequestValidator::sanitizeString($request->input('comment'))
+                    : null,
+                'punctuality_score' => $request->input('punctuality_score') !== null
+                    ? (int)$request->input('punctuality_score')
+                    : null,
+                'quality_score'     => $request->input('quality_score') !== null
+                    ? (int)$request->input('quality_score')
+                    : null,
+            ];
+
+            $this->mechanicRatingService->rateCustomer($id, $mechanicId, $data);
+
+            // Misma solicitud, recién enriquecida con el rating mecánico→cliente
+            // (getById() es el único lugar donde se construye esta entidad).
+            $serviceRequest = $this->serviceRequestService->getById($id, $mechanicId, $userRole);
+
+            return ResponseFormatter::success(
+                ['service_request' => $serviceRequest],
+                'Cliente calificado exitosamente',
+                201
             );
 
         } catch (\Exception $e) {

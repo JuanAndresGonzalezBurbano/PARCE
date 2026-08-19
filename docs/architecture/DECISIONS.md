@@ -18,6 +18,10 @@
 | ADR-12 | Sesión de servidor + cookie httpOnly; sin JWT | Vigente | `SessionManager`, tabla `sessions` |
 | ADR-13 | `.env` deja de estar trackeado en `main`/`Soto` tras la exposición de una API key real; el historial de git de ambas ramas **no** se reescribió | **Parcial — remediación de tracking hecha, purga de historial pendiente de decisión de equipo** | Ver "Registro de incidentes de seguridad" abajo |
 | ADR-14 | La migración `2026_07_10_000015_restore_document_fields_to_vehicles` colisiona (`Column already exists`) sobre una BD completamente fresca; se instala marcándola como ya aplicada en la tabla `migrations`, sin ejecutar su `up()` — nunca editando el archivo de migración | Vigente — deuda técnica documentada, no un bug a corregir en el código de la migración | Ver "Migración `2026_07_10_000015` sobre una BD fresca" abajo |
+| ADR-15 | Rating bidireccional (mecánico → cliente): la tabla `ratings` existe pero no se activa en esta entrega | **Diferido, no implementado** | Ver "Decisiones de producto diferidas" abajo |
+| ADR-16 | `vehicle_documents`/`vehicle_maintenance_records`: no se migra `VehicleController` a estas tablas en esta entrega | **Diferido, no se migra** | Ver "Decisiones de producto diferidas" abajo |
+| ADR-17 | Upload real de archivos (S3/Cloudinary/disco): se mantiene el diseño actual de URLs pegadas a mano | **Se mantiene como está** | Ver "Decisiones de producto diferidas" abajo |
+| ADR-18 | SOAT/Tecnomecánica vencidos no bloquean el uso del vehículo: se mantiene el comportamiento actual | **Se mantiene como está** | Ver "Decisiones de producto diferidas" abajo |
 
 **Regla de uso:** cualquier decisión futura que contradiga una fila de esta tabla debe documentarse explícitamente como una nueva decisión (con su propio ADR-N), no como una corrección silenciosa — para no repetir el problema que motivó la reconstrucción AS-BUILT de esta misma carpeta.
 
@@ -154,3 +158,63 @@ recibiendo sus propios números de batch normalmente a partir de 1.
 `docs/testing/INTEGRATION_TESTING.md` §11. No se documenta aquí un comando distinto —
 es el mismo workaround, generalizado como procedimiento estándar de instalación desde
 cero.
+
+---
+
+## Decisiones de producto diferidas (2026-08-19)
+
+Cuatro decisiones de producto que estaban listadas como pendientes en
+`docs/roadmap/PARCE_ROADMAP_AS_BUILT.md` (sección A) y en `BACKLOG.md`. Ninguna se
+implementa en esta entrega — se documenta aquí la decisión de diferir/mantener, con su
+razón, para que quede como decisión tomada y no como pendiente sin resolver.
+
+### ADR-15 — Rating bidireccional (mecánico → cliente)
+
+- **Estado actual verificado en el código:** existe la tabla `ratings`
+  (`rating_type`: `customer_to_mechanic`/`mechanic_to_customer`, `punctuality_score`/
+  `quality_score`, `UNIQUE` por solicitud+tipo), pero **ningún Controller ni Service la
+  usa** — verificado por ausencia de referencias en `app/Infrastructure/*` y
+  `app/Controllers/*`. El sistema de calificación real sigue siendo exclusivamente
+  Cliente → Mecánico, vía las columnas `customer_rating`/`punctuality_rating`/
+  `service_quality_rating` de `service_requests` (ADR-7, ya vigente).
+- **Decisión:** diferido, no implementado en esta entrega.
+- **Razón:** prioridad de tiempo hacia estabilidad de lo ya implementado (seguridad y
+  cobertura de tests) sobre features nuevas antes de la sustentación; riesgo de
+  introducir bugs nuevos cerca de la fecha de entrega.
+
+### ADR-16 — `vehicle_documents` / `vehicle_maintenance_records`
+
+- **Estado actual verificado en el código:** ambas tablas existen en la BD, bien
+  diseñadas (FKs e índices correctos), pero **ningún Controller/Service las usa** —
+  `VehicleController`/`VehicleService` siguen leyendo/escribiendo las columnas planas
+  de `vehicles` (`soat_expiration_date`, etc.), confirmado en la lectura completa de
+  `VehicleService.php` hecha para `VehicleServiceTest` (Paso 1, commit `fea948d`).
+- **Decisión:** diferido, no se migra.
+- **Razón:** el sistema actual con columnas planas funciona y está probado (ver
+  `VehicleServiceTest`); migrar ahora arriesga romper la regla ya establecida de "una
+  entidad, un solo lugar de construcción" sin que exista una necesidad de negocio
+  actual que lo justifique.
+
+### ADR-17 — Upload real de archivos (S3/Cloudinary/disco)
+
+- **Estado actual verificado en el código:** SOAT, licencia de conducción y evidencias
+  se guardan como `VARCHAR` validados solo como URL bien formada (`FILTER_VALIDATE_URL`)
+  — el usuario pega un enlace externo manualmente. Sin integración con almacenamiento
+  propio ni proveedor externo en ningún dominio.
+- **Decisión:** se mantiene como está.
+- **Razón:** es el diseño actual, consistente en todo el proyecto, no un bug; cambiarlo
+  es una mejora de "production-grade" fuera del alcance académico de esta entrega.
+
+### ADR-18 — SOAT/Tecnomecánica vencidos no bloquean el uso del vehículo
+
+- **Estado actual verificado en el código:** puramente informativo hoy — no existe, ni
+  en `VehicleService` ni en `VehicleValidator` ni en `ServiceRequestService`, ninguna
+  comprobación de vencimiento de SOAT/Tecnomecánica que impida activar un vehículo o
+  crear una solicitud de servicio con él. Confirmado explícitamente por
+  `VehicleServiceTest::testUpdateAcceptsAnExpiredSoatDateWithoutAnyBlockingValidation()`
+  (Paso 1, commit `fea948d`): un vehículo con SOAT vencido puede seguir actualizándose
+  y usándose sin restricción.
+- **Decisión:** se mantiene como está.
+- **Razón:** es una decisión de producto (no técnica) que requeriría acuerdo de todo el
+  equipo para cambiar el comportamiento de negocio; no se cambia unilateralmente en
+  esta fase.

@@ -106,9 +106,14 @@ class AuthController extends Controller
             $lastName = RequestValidator::sanitizeString($request->input('last_name'));
             $phone = $request->input('phone') ? RequestValidator::sanitizeString($request->input('phone')) : null;
 
-            // Rol solicitado para el auto-registro (validado por RequestValidator: solo
-            // 'customer' o 'mechanic' — nunca administrator/super_admin vía este endpoint)
-            $requestedRole = $request->input('role') ?? 'customer';
+            // El registro público SOLO crea usuarios con rol 'customer'.
+            // RequestValidator::validateRegistrationRequest() ya rechaza (400)
+            // cualquier valor de 'role' distinto de 'customer' antes de llegar
+            // aquí, y AuthService::register() ya no acepta ningún parámetro de
+            // rol — no existe ninguna vía por la que un valor del body pueda
+            // llegar a asignar un rol. El rol 'mechanic' solo puede obtenerse
+            // mediante POST /api/mechanic-applications seguido de aprobación
+            // administrativa (ver docs/architecture/DECISIONS.md ADR-5).
 
             // Check if email already exists
             if ($this->authService->emailExists($email)) {
@@ -119,14 +124,13 @@ class AuthController extends Controller
             // Hash password
             $passwordHash = $this->passwordHasher->hash($password);
 
-            // Crear usuario, asignar rol y crear sesión (transacción única en AuthService)
+            // Crear usuario (rol customer), asignar rol y crear sesión (transacción única en AuthService)
             $authResult = $this->authService->register(
                 $email,
                 $passwordHash,
                 $firstName,
                 $lastName,
                 $phone,
-                $requestedRole,
                 IPValidator::getClientIP($request),
                 $request->userAgent()
             );

@@ -22,13 +22,13 @@
 | Email transaccional | Resend (HTTP API vía cURL, sin SDK) |
 | Tests | PHPUnit (backend). No confirmado: tests automatizados de frontend |
 
-**Backend** — `app/Core/` (16 clases: Router, Database, Request, Response, Controller base, Session, EnvLoader, Migration/MigrationRunner, Seeder, DomainException, DatabaseException, ConfigValidator, Route, RequestContext), `app/Controllers/` (8 clases), `app/Infrastructure/` (8 dominios), `app/Middleware/` (5 clases), `config/routes.php` (46 rutas: 1 web + 45 API).
+**Backend** — `app/Core/` (16 clases: Router, Database, Request, Response, Controller base, Session, EnvLoader, Migration/MigrationRunner, Seeder, DomainException, DatabaseException, ConfigValidator, Route, RequestContext), `app/Controllers/` (9 clases, incl. `MechanicApplicationController`), `app/Infrastructure/` (9 dominios, incl. `MechanicApplication`), `app/Middleware/` (5 clases), `config/routes.php` (52 rutas: 1 web + 51 API).
 
-**Frontend** — 18 páginas, 5 Contexts, 5 hooks (uno por Context), 7 services, 7 archivos de types, 6 componentes reutilizables, enrutamiento con `react-router-dom` v6 y guardas de rol vía `ProtectedRoute`.
+**Frontend** — 20 páginas (incl. `MechanicApplicationPage`, `admin/AdminMechanicApplicationsPage`), 6 Contexts (incl. `MechanicApplicationContext`), 6 hooks, 8 services, 8 archivos de types, 6 componentes reutilizables, enrutamiento con `react-router-dom` v6 y guardas de rol vía `ProtectedRoute`.
 
-**Base de datos** — 17 archivos de migración → **11 tablas reales**. Ver [`ERD_AS_BUILT.md`](ERD_AS_BUILT.md) para el detalle completo.
+**Base de datos** — 17 archivos de migración → **11 tablas reales**. Sin migraciones nuevas para el flujo de solicitud de mecánico — reutiliza `admin_access_requests`, existente desde la migración inicial. Ver [`ERD_AS_BUILT.md`](ERD_AS_BUILT.md) para el detalle completo.
 
-**Tests** — 11 archivos PHPUnit, 134 tests / 202 aserciones (ejecución verificada con `vendor/bin/phpunit`, todos en verde), **cobertura exclusiva de clases `*Validator` y DTOs**. Sin tests de `*Service.php`, Controllers ni Middleware (ver §1.16).
+**Tests** — 12 archivos PHPUnit unitarios, **150 tests / 231 aserciones** (ejecución verificada con `composer test` / `vendor/bin/phpunit`, todos en verde), **cobertura exclusiva de clases `*Validator`/DTOs y, desde el flujo de solicitud de mecánico, `MechanicApplicationValidator`**. Sin tests unitarios de `*Service.php`, Controllers ni Middleware (ver §1.16). Adicionalmente, **32 tests de integración** (`tests/Integration/`, contra una BD MySQL real aislada `parce_test`) cubren `MechanicApplicationService` de punta a punta, incl. una prueba real de concurrencia — infraestructura **opt-in**, no conectada a `composer test` ni a CI (ver §1.16 y §1.17).
 
 **Arquitectura general:** MVC en capas simple, sin Repository/DAO intermedio, sin arquitectura modular (`app/Modules/` no existe). Cada dominio de negocio vive como una carpeta bajo `app/Infrastructure/` con un `*Service.php` (lógica + transacciones) y un `*Validator.php` (reglas de entrada).
 
@@ -89,6 +89,7 @@ app/Controllers/
 │   └── AuthController.php
 ├── HealthController.php
 ├── HomeController.php
+├── MechanicApplicationController.php
 ├── PQRController.php
 ├── ServiceRequestController.php
 ├── SurveyController.php
@@ -109,6 +110,9 @@ app/Infrastructure/
 │   └── ResponseFormatter.php
 ├── Mail/
 │   └── MailerService.php
+├── MechanicApplication/
+│   ├── MechanicApplicationService.php
+│   └── MechanicApplicationValidator.php
 ├── PQR/
 │   ├── PQRService.php
 │   └── PQRValidator.php
@@ -134,7 +138,7 @@ config/
 └── routes.php                — las 46 rutas de la aplicación (única fuente de verdad de rutas)
 
 database/
-├── migrations/                — 17 archivos, ver ERD_AS_BUILT.md
+├── migrations/                — 17 archivos, ver ERD_AS_BUILT.md (sin cambios por el flujo de mecánico)
 └── seeders/
     ├── DatabaseSeeder.php      — orquestador (AdminUserSeeder → DemoUsersSeeder → VehiclesSeeder → ServiceRequestsSeeder)
     ├── AdminUserSeeder.php
@@ -142,20 +146,30 @@ database/
     ├── VehiclesSeeder.php
     └── ServiceRequestsSeeder.php
 
+tests/
+├── Unit/Infrastructure/       — 12 archivos, ver §1.16
+└── Integration/                — opt-in, BD real `parce_test`, ver §1.16/§1.17
+    ├── IntegrationTestCase.php
+    ├── MechanicApplicationFlowTest.php
+    └── scripts/concurrent_approve_probe.php
+
+phpunit.integration.xml         — config PHPUnit separada para tests/Integration/ (NO referenciada por composer.json ni por .github/workflows/ci.yml)
+
 frontend/src/
-├── pages/                     — 18 páginas (customer/, mechanic/, admin/, + top-level auth/shared)
+├── pages/                     — 20 páginas (customer/, mechanic/, admin/, + top-level auth/shared), incl. MechanicApplicationPage y admin/AdminMechanicApplicationsPage
 ├── components/                — auth/, common/, layout/, vehicles/ (6 archivos)
-├── contexts/                  — AuthContext, VehicleContext, RequestContext, PQRContext, AdminContext
-├── hooks/                     — useAuth, useVehicles, useRequests, usePqr, useAdmin
-├── services/                  — apiClient, authService, vehicleService, serviceRequestService, pqrService, surveyService, adminService
-├── types/                     — auth, vehicle, serviceRequest, pqr, survey, admin, pagination
+├── contexts/                  — AuthContext, VehicleContext, RequestContext, PQRContext, AdminContext, MechanicApplicationContext
+├── hooks/                     — useAuth, useVehicles, useRequests, usePqr, useAdmin, useMechanicApplication
+├── services/                  — apiClient, authService, vehicleService, serviceRequestService, pqrService, surveyService, adminService, mechanicApplicationService
+├── types/                     — auth, vehicle, serviceRequest, pqr, survey, admin, pagination, mechanicApplication
 ├── routes/
 │   └── ProtectedRoute.tsx
 ├── layouts/                   — AuthLayout, MainLayout
 ├── config/
 │   └── api.ts                 — API_ENDPOINTS, API_CONFIG.API_URL
 ├── constants/
-│   └── pqr.ts
+│   ├── pqr.ts
+│   └── mechanicApplication.ts
 ├── utils/
 │   └── apiErrors.ts
 └── App.tsx                    — configuración del router
@@ -214,6 +228,9 @@ flowchart LR
     subgraph Admin["Admin (solo lectura / agregados)"]
         AdmSvc[AdminService]
     end
+    subgraph MechApp["MechanicApplication"]
+        MechSvc[MechanicApplicationService]
+    end
     Mail[MailerService / Resend]
 
     Auth --> Vehicles
@@ -228,9 +245,11 @@ flowchart LR
     PQR -.->|"lee, agrega"| Admin
     Surveys -.->|"lee, agrega"| Admin
     Auth -.->|"lee total_users"| Admin
+    Auth -->|"RoleValidator (roles actuales)"| MechApp
+    MechApp -->|"aprobar: INSERT user_roles"| Auth
 ```
 
-**No existen como módulos independientes** (verificado — sin carpeta, sin tabla, sin clase): Mechanics (perfil formal), Documents, Notifications, Tracking/Location, Payments. "Ratings" no es un módulo propio — son columnas dentro de `service_requests` (ver §1.14).
+**No existen como módulos independientes** (verificado — sin carpeta, sin tabla, sin clase): Mechanics (perfil formal), Documents, Notifications, Tracking/Location, Payments. "Ratings" no es un módulo propio — son columnas dentro de `service_requests` (ver §1.14). `MechanicApplication` (nuevo, ver §1.17) tampoco es un perfil de mecánico — es únicamente el flujo de solicitud/revisión para *conceder* el rol `mechanic`.
 
 **Fuente:** inventario completo de `app/Infrastructure/*` y `app/Controllers/*`; migraciones de `database/migrations/`.
 
@@ -255,7 +274,7 @@ Ver el diagrama Mermaid completo y las notas de divergencia en [`ERD_AS_BUILT.md
 | `users` | `id` | — | `email` | `account_status` ENUM(active,suspended,deactivated,pending_verification) |
 | `roles` | `id` | — | `name`, `slug` | 5 roles sembrados: customer, mechanic, administrator, super_admin, support (`support` sin uso en `RBACMiddleware` de ninguna ruta actual) |
 | `user_roles` | `id` | `user_id`→users(CASCADE), `role_id`→roles(CASCADE), `assigned_by`→users(SET NULL, nullable) | `(user_id, role_id)` | CHECK: `expires_at` nulo o posterior a `assigned_at` |
-| `admin_access_requests` | `id` | `user_id`→users(CASCADE), `requested_role_id`→roles(CASCADE), `reviewed_by`/`approved_by`→users(SET NULL, nullable) | — | Tabla existente en BD; **ningún Controller/Service la lee o escribe actualmente** (ver `AS_DESIGNED_VS_AS_BUILT.md`) |
+| `admin_access_requests` | `id` | `user_id`→users(CASCADE), `requested_role_id`→roles(CASCADE), `reviewed_by`/`approved_by`→users(SET NULL, nullable) | — | Existente desde la migración inicial, hoy **activamente usada** por `MechanicApplicationService` (§1.17) — sin migraciones nuevas, sin cambios de esquema |
 | `sessions` | `id` (varchar) | `user_id`→users(CASCADE, nullable) | — | `payload` LONGTEXT, `last_activity` INT |
 | `vehicles` | `id` | `user_id`→users(RESTRICT) | ninguna a nivel BD desde migración 16 (antes `license_plate`, `vin`) | Unicidad de placa/VIN aplicada solo en capa de aplicación (ver §1.10) |
 | `service_requests` | `id` | `customer_id`→users(RESTRICT), `vehicle_id`→vehicles(RESTRICT), `mechanic_id`→users(RESTRICT, nullable), `resolved_by`→users(RESTRICT, nullable), `cancelled_by`→users(RESTRICT, nullable) | `service_code` | `status`/`emergency_type`/`priority` son VARCHAR planos, validados solo en `ServiceRequestValidator` (sin ENUM de BD ni tabla de catálogo) |
@@ -278,7 +297,7 @@ Ver el diagrama Mermaid completo y las notas de divergencia en [`ERD_AS_BUILT.md
 
 Flujo real (sin JWT):
 
-1. **Registro** — `POST /api/auth/register` → `AuthController::register()` → `AuthService::register()`. Inserta `users` + `user_roles` en una transacción. **El rol (`customer` o `mechanic`) se autodeclara en el propio formulario de registro** (`RegisterRequest.role?: 'customer'|'mechanic'` en el frontend) — no hay paso de aprobación administrativa.
+1. **Registro** — `POST /api/auth/register` → `AuthController::register()` → `AuthService::register()`. Inserta `users` + `user_roles` en una transacción. **El registro público SOLO puede crear usuarios con rol `customer`** — `AuthService::register()` ya no acepta ningún parámetro de rol (el rol `customer` se resuelve internamente), `RequestValidator::validateRegistrationRequest()` rechaza con 400 cualquier `role` distinto de `customer` enviado en el body (no lo ignora en silencio), y el frontend (`RegisterRequest` en `types/auth.ts`) no tiene ningún campo de rol. El rol `mechanic` **ya no se autodeclara**: solo puede obtenerse solicitándolo tras el registro y siendo aprobado por un administrador — ver §1.17.
 2. **Login** — `POST /api/auth/login` → `AuthService::authenticate()` → `SessionManager::create()` → se fija una **cookie httpOnly de sesión** (nombre configurable vía `ResponseFormatter::setSessionCookie()`). La fila de sesión se persiste en la tabla `sessions`.
 3. **Verificación de sesión en cada petición protegida** — `AuthMiddleware` extrae la cookie, valida vía `SessionManager::validate()` (verifica timeout absoluto e inactividad), gestiona regeneración anti-fijación cuando corresponde, carga el usuario y sus roles, y adjunta `user`/`userId`/`userRole`/`userRoles`/`session` como atributos del `Request`. Responde 401 si la sesión es inválida/inexistente, 403 si la cuenta no está `active`.
 4. **RBAC por ruta** — `RBACMiddleware(array $allowedRoles)`, instanciado por ruta en `config/routes.php` (p. ej. `RBACMiddleware(['customer'])`, `RBACMiddleware(['mechanic'])`, `RBACMiddleware(['administrator','super_admin'])`), consulta `RoleValidator::hasAnyRole()`. 403 si el usuario autenticado no tiene ninguno de los roles permitidos.
@@ -294,7 +313,7 @@ Flujo real (sin JWT):
 - No existe CSRF token explícito en el código verificado en esta reconstrucción — no se afirma su existencia.
 - No existe 2FA/MFA — no confirmado ningún rastro en el código.
 
-**Diagrama:** ver [`uml/03-authentication.md`](uml/03-authentication.md).
+**Diagrama:** ver [`uml/03-authentication.md`](uml/03-authentication.md). Para el flujo de obtención del rol `mechanic` (solicitud + revisión administrativa), ver §1.17 y [`uml/03-authentication.md`](uml/03-authentication.md) (diagrama de solicitud de mecánico, al final del archivo).
 
 ---
 
@@ -461,10 +480,12 @@ Esto significa que "Admin" como módulo de negocio es una fachada delgada de sol
 
 ## 1.16 Tests
 
+### 1.16.1 Tests unitarios (`tests/Unit/`)
+
 - **Framework:** PHPUnit 10.5.64.
-- **Archivos:** 11.
-- **Resultado de ejecución real** (`vendor/bin/phpunit --no-coverage`, verificado en esta auditoría): **134 tests, 202 aserciones, 0 fallos, 0 errores.** El conteo por archivo de la tabla de abajo (132) era un conteo manual aproximado de métodos `test*` hecho en una pasada anterior — **134 es el número correcto**, tomado de la ejecución real del framework.
-- **Ubicación:** exclusivamente `tests/Unit/Infrastructure/` — no existen `tests/Feature/` ni `tests/Integration/`.
+- **Archivos:** 12 (incl. `Http/RequestValidatorRegistrationTest.php` y `MechanicApplication/MechanicApplicationValidatorTest.php`, añadidos junto con el flujo de solicitud de mecánico).
+- **Resultado de ejecución real** (`composer test` / `vendor/bin/phpunit --no-coverage`): **150 tests, 0 fallos, 0 errores** (ver §1.17.5 para la ejecución exacta más reciente). Sube desde el número anterior (134) exclusivamente por los tests nuevos de `MechanicApplicationValidator` y `RequestValidator::validateRegistrationRequest()` (rechazo de `role` ≠ `customer`).
+- **Ubicación:** `tests/Unit/Infrastructure/`. Además, desde el flujo de solicitud de mecánico, existe `tests/Integration/` — ver §1.16.2.
 
 | Archivo | Métodos aprox. | Cubre |
 |---|---|---|
@@ -475,17 +496,102 @@ Esto significa que "Admin" como módulo de negocio es una fachada delgada de sol
 | `Auth/Services/PasswordHasherTest.php` | 8 | `PasswordHasher` (Argon2id) |
 | `Http/IPValidatorTest.php` | 16 | `IPValidator` |
 | `Http/RequestValidatorPaginationTest.php` | 6 | `RequestValidator::parsePagination()` |
+| `Http/RequestValidatorRegistrationTest.php` | — | `RequestValidator::validateRegistrationRequest()` — incl. rechazo (400) de `role` ≠ `customer` |
+| `MechanicApplication/MechanicApplicationValidatorTest.php` | — | `MechanicApplicationValidator` (justificación, motivo de rechazo) |
 | `PQR/PQRValidatorTest.php` | 17 | `PQRValidator` (incl. transiciones de estado) |
 | `ServiceRequest/ServiceRequestValidatorTest.php` | 37 | `ServiceRequestValidator` (el más grande — incl. matriz de transiciones) |
 | `Survey/SurveyValidatorTest.php` | 10 | `SurveyValidator` |
 | `Vehicle/VehicleValidatorTest.php` | 14 | `VehicleValidator` |
 
-**Qué SÍ tiene cobertura:** las clases `*Validator.php` de todos los dominios (Auth DTOs, Http, PQR, ServiceRequest, Survey, Vehicle) — lógica pura, sin tocar base de datos.
+**Qué SÍ tiene cobertura:** las clases `*Validator.php` de todos los dominios (Auth DTOs, Http, PQR, ServiceRequest, Survey, Vehicle, MechanicApplication) — lógica pura, sin tocar base de datos.
 
-**Qué NO tiene cobertura — afirmado explícitamente, no se debe asumir lo contrario:**
-- Ninguna clase `*Service.php` (`AuthService`, `SessionManager`, `ServiceRequestService`, `VehicleService`, `PQRService`, `SurveyService`, `AdminService`, `ServiceRequestEvidenceService`, `PasswordResetService`) tiene tests automatizados.
+**Qué NO tiene cobertura vía tests unitarios — afirmado explícitamente, no se debe asumir lo contrario:**
+- Ninguna clase `*Service.php` (`AuthService`, `SessionManager`, `ServiceRequestService`, `VehicleService`, `PQRService`, `SurveyService`, `AdminService`, `ServiceRequestEvidenceService`, `PasswordResetService`) tiene tests unitarios. **Excepción parcial:** `MechanicApplicationService` sí tiene cobertura, pero exclusivamente vía tests de integración contra BD real (§1.16.2) — deliberado, porque su lógica depende de transacciones/locks/carreras que no se pueden probar honestamente con mocks.
 - Ningún Controller (`app/Controllers/*`) tiene tests automatizados.
 - Ningún Middleware (`app/Middleware/*`) tiene tests automatizados.
 - No se confirmó la existencia de tests automatizados de frontend (Jest/Vitest/Testing Library) — no encontrados durante esta reconstrucción; si existen, no fueron localizados en `frontend/src`.
 
 **Fuente:** árbol completo de `tests/Unit/Infrastructure/` inventariado directamente.
+
+### 1.16.2 Tests de integración (`tests/Integration/`) — infraestructura opt-in
+
+Introducidos junto con `MechanicApplicationService`, porque su lógica de negocio real (transacciones, `SELECT ... FOR UPDATE`, condiciones de carrera, `INSERT`/`UPDATE` efectivos sobre `admin_access_requests`/`user_roles`) no puede probarse honestamente con mocks — se prefirió una BD MySQL real y aislada antes que fabricar cobertura falsa.
+
+- **Config separada:** [`phpunit.integration.xml`](../../phpunit.integration.xml) (raíz del repo), distinta de `phpunit.xml`. Se ejecuta explícitamente con `vendor/bin/phpunit -c phpunit.integration.xml --no-coverage` — **nunca** como parte de `composer test`.
+- **NO conectada a CI:** `.github/workflows/ci.yml` no referencia `phpunit.integration.xml` ni ejecuta `tests/Integration/`. Es una decisión deliberada, no un olvido — requiere una BD MySQL real disponible, que el pipeline de CI actual no aprovisiona.
+- **Base de datos:** `parce_test`, completamente separada de `parce` (la BD real de desarrollo). Se crea con `CREATE DATABASE IF NOT EXISTS` y se migra con un script de un solo uso con configuración hardcodeada (nunca vía `.env`), para que no exista ninguna posibilidad de que un test de integración corra contra la BD real por error de configuración.
+- **Resultado de ejecución real:** **32 tests, 53 aserciones, 0 fallos, 0 errores** (ver §1.17.5).
+- **Prueba real de concurrencia:** `tests/Integration/scripts/concurrent_approve_probe.php` se lanza dos veces como procesos del sistema operativo independientes (no simulado dentro del mismo proceso PHPUnit) contra la misma solicitud, para probar la exclusión mutua real vía `SELECT ... FOR UPDATE` de MySQL — uno de los dos procesos debe ganar la carrera y el otro debe recibir el 409 de `MechanicApplicationService::approve()`.
+- **Qué cubre:** el ciclo de vida completo de `MechanicApplicationService` (`create`, `getByUser`, `cancel`, `adminList`, `approve`, `reject`), incl. anti-IDOR, anti-autoaprobación, exclusión de administrator/super_admin, licencia incompleta/vencida, y las condiciones de carrera de aprobar/rechazar/cancelar concurrentemente.
+
+**Fuente:** `tests/Integration/`, `phpunit.integration.xml`, `.github/workflows/ci.yml` (ausencia verificada de referencia).
+
+---
+
+## 1.17 Solicitud de rol de mecánico (Mechanic Application)
+
+Reemplaza la autodeclaración del rol `mechanic` en el registro público por un flujo de solicitud + revisión administrativa. **Sin migraciones nuevas**: reutiliza `admin_access_requests`, tabla existente desde la migración inicial (`2024_01_01_000001`) pero sin ningún código que la usara hasta este flujo. Ver `AS_DESIGNED_VS_AS_BUILT.md` para el contraste con el diseño original y `DECISIONS.md` (ADR-5) para el registro de la decisión.
+
+### 1.17.1 Resolución server-side del rol — sin autodeclaración
+
+- `AuthService::register()` ya no acepta ningún parámetro de rol. El rol `customer` se resuelve internamente (`SELECT id FROM roles WHERE slug = 'customer'`), nunca desde un valor del body.
+- `RequestValidator::validateRegistrationRequest()` rechaza con `400` cualquier `role` presente en el body distinto de `customer` — no lo ignora en silencio.
+- El único lugar de todo el sistema donde se hace `INSERT INTO user_roles` con el rol `mechanic` para un usuario que no lo tenía es `MechanicApplicationService::approve()`.
+
+### 1.17.2 Estados y transiciones
+
+Estados reales, tomados del ENUM ya existente de `admin_access_requests.status`: **`pending`, `approved`, `rejected`, `cancelled`**.
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending: create() — Usuario (licencia completa y vigente)
+    pending --> approved: approve() — Admin (no el propio solicitante)
+    pending --> rejected: reject() — Admin (motivo obligatorio)
+    pending --> cancelled: cancel() — Usuario (dueño)
+    approved --> [*]
+    rejected --> [*]: el usuario puede volver a solicitar
+    cancelled --> [*]: el usuario puede volver a solicitar
+```
+
+| Transición | Método | Quién | Condiciones |
+|---|---|---|---|
+| `(nueva)` → `pending` | `MechanicApplicationService::create()` | Usuario autenticado | Cuenta activa; **no** `administrator`/`super_admin`; no tiene ya el rol `mechanic`; licencia de conducción completa (número, fecha de vencimiento, documento) y no vencida; sin otra solicitud propia `pending` |
+| `pending` → `approved` | `approve()` | administrator/super_admin | No puede ser el propio solicitante (403 anti-autoaprobación); solicitud debe seguir `pending` (lock `FOR UPDATE`); re-verifica cuenta activa y licencia vigente del solicitante en el momento de aprobar (pudieron cambiar desde la creación); asigna `mechanic` vía `INSERT user_roles` |
+| `pending` → `rejected` | `reject()` | administrator/super_admin | Solicitud debe seguir `pending`; `rejection_reason` obligatorio |
+| `pending` → `cancelled` | `cancel()` | Usuario (dueño) | Solicitud debe seguir `pending`; UPDATE atómico condicionado a `status='pending'` (409 si cambió concurrentemente) |
+
+### 1.17.3 Seguridad
+
+- **Anti-IDOR:** `getByIdForUser()` combina `id` + `user_id` en el mismo `WHERE` — una solicitud ajena responde `404`, igual que una inexistente (nunca `403` separado, para no permitir enumerar IDs ajenos válidos por diferencia de código de estado). Mismo patrón que `PQRService::getByIdForUser()`.
+- **Anti-autoaprobación:** `approve()` compara `application.user_id` contra `$adminUserId` (de la sesión) antes de escribir nada; `403` si coinciden.
+- **Exclusión de administrator/super_admin:** `create()` verifica `RoleValidator::hasAnyRole($userId, ['administrator','super_admin'])` dentro de la misma transacción que el resto de reglas, con los roles actuales del usuario — `403` si aplica, sin escribir en `admin_access_requests` ni en `user_roles`. Frontend: el link "Ser mecánico" del Navbar y el formulario de `/mechanic-application` no se muestran a estos roles (el backend sigue siendo la autoridad; esto solo evita mostrar un formulario que sería rechazado).
+- **`user_id`, `assigned_by`, `reviewed_by`, `approved_by` nunca vienen del body de la petición** — siempre del atributo `userId` que `AuthMiddleware` adjunta al `Request` desde la sesión autenticada.
+- **`SELECT ... FOR UPDATE` + `UPDATE` condicionado al estado**, mismo patrón que `ServiceRequestService`/`PQRService`/`ServiceRequestEvidenceService`: `create()` bloquea la fila del propio usuario (serializa dobles clics/reintentos del mismo usuario); `approve()`/`reject()` bloquean la fila de la solicitud (cierran la carrera de dos administradores actuando sobre la misma solicitud a la vez); todo `UPDATE` de cambio de estado repite el estado esperado en el `WHERE` y lanza `409` si `affected === 0`.
+- **Rate limiting** por IP en `POST /mechanic-applications` (`RateLimiter::check('mechanic-application', ...)`), mismo mecanismo que Auth.
+
+### 1.17.4 Endpoints y middleware
+
+Ver [`API_REFERENCE.md`](../api/API_REFERENCE.md) para la tabla completa (método, ruta, middleware, body, respuestas, errores). Resumen: 3 endpoints de usuario (`AuthMiddleware` únicamente) + 3 endpoints de administrador (`AuthMiddleware` + `RBACMiddleware(['administrator','super_admin'])`).
+
+### 1.17.5 Verificación (ejecución real más reciente)
+
+| Comando | Resultado |
+|---|---|
+| `composer test` | 150/150 tests unitarios, 0 fallos |
+| `vendor/bin/phpunit -c phpunit.integration.xml --no-coverage` | 32/32 tests de integración, 53 aserciones, 0 fallos |
+| `npm run build` | 0 errores |
+| `npm run lint` | sin regresión respecto al conteo previo a este flujo |
+| `git diff --check` | limpio |
+
+### 1.17.6 Frontend
+
+- **Registro** (`RegisterPage.tsx`) — ya no ofrece selector de rol; el mensaje explica que la cuenta se crea como cliente y que el rol de mecánico se solicita después.
+- **`ProfilePage.tsx`** — la sección de licencia de conducción (`DriverLicenseSection`) ahora es visible para **cualquier** usuario autenticado, no solo mecánicos, porque un cliente necesita poder completarla ANTES de tener el rol, como precondición para solicitarlo. El backend (`PUT /auth/profile`) ya aceptaba estos campos de cualquier rol — este era un gate puramente de UI, corregido durante la verificación en navegador de esta fase (ver `AS_DESIGNED_VS_AS_BUILT.md`).
+- **`MechanicApplicationPage.tsx`** (`/mechanic-application`) — requisitos de licencia, formulario de justificación, historial de solicitudes propias con estado/motivo de rechazo, cancelación de solicitudes `pending`. Bloquea el formulario (con mensaje explicativo) para `administrator`/`super_admin` y para quien ya es `mechanic`.
+- **`admin/AdminMechanicApplicationsPage.tsx`** (`/admin/mechanic-applications`) — listado paginado con filtro por estado, aprobar/rechazar (rechazo exige motivo).
+- **`MechanicApplicationContext.tsx`** — `approveApplication()`/`rejectApplication()` hacen un **merge parcial** del resultado (`{ ...previo, ...respuesta.application }`) en vez de reemplazar el item completo: `approve()`/`reject()` devuelven la fila cruda de `admin_access_requests` (sin el JOIN de nombre/email/licencia que sí trae `adminList()`), y un reemplazo completo hacía desaparecer esos campos de la UI hasta recargar la página — bug real encontrado y corregido durante la verificación en navegador de esta fase.
+- **Navbar** — el link "Ser mecánico" solo aparece para `customer` sin el rol `mechanic` y sin ser admin.
+
+**Diagrama:** ver [`uml/03-authentication.md`](uml/03-authentication.md) (sección de solicitud de mecánico, al final del archivo).
+
+**Fuente:** `app/Infrastructure/MechanicApplication/{MechanicApplicationService,MechanicApplicationValidator}.php`, `app/Controllers/MechanicApplicationController.php`, `config/routes.php`, `frontend/src/{pages/MechanicApplicationPage.tsx,pages/admin/AdminMechanicApplicationsPage.tsx,contexts/MechanicApplicationContext.tsx,hooks/useMechanicApplication.ts,services/mechanicApplicationService.ts}`, `tests/Integration/MechanicApplicationFlowTest.php`.

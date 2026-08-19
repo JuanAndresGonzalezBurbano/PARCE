@@ -270,18 +270,27 @@ class AuthService
 
     /**
      * Registra un nuevo usuario: crea la fila en `users`, le asigna el rol
-     * solicitado, y crea su primera sesión — todo en una única transacción.
+     * `customer`, y crea su primera sesión — todo en una única transacción.
      *
-     * @param string      $email         Correo electrónico (ya validado/único)
-     * @param string      $passwordHash  Hash de la contraseña (ya calculado)
-     * @param string      $firstName     Nombre
-     * @param string|null $lastName      Apellido
-     * @param string|null $phone         Teléfono
-     * @param string      $requestedRole Slug del rol solicitado ('customer' o 'mechanic')
-     * @param string      $ipAddress     IP del cliente, para la sesión creada
-     * @param string      $userAgent     User-Agent del cliente, para la sesión creada
+     * El registro público SOLO puede crear usuarios con rol 'customer'. Este
+     * método deliberadamente no acepta ningún parámetro de rol — no existe
+     * ninguna vía por la que un valor controlado por el cliente pueda llegar
+     * hasta el INSERT de `user_roles`. El rol 'mechanic' únicamente puede
+     * asignarse a través de MechanicApplicationService::approve(), tras una
+     * solicitud aprobada por un administrador (ver
+     * docs/architecture/DECISIONS.md ADR-5).
+     *
+     * @param string      $email        Correo electrónico (ya validado/único)
+     * @param string      $passwordHash Hash de la contraseña (ya calculado)
+     * @param string      $firstName    Nombre
+     * @param string|null $lastName     Apellido
+     * @param string|null $phone        Teléfono
+     * @param string      $ipAddress    IP del cliente, para la sesión creada
+     * @param string      $userAgent    User-Agent del cliente, para la sesión creada
      * @return AuthResult Resultado con userId y sessionId del usuario recién creado
-     * @throws \Exception Si el rol solicitado no existe (revierte la transacción)
+     * @throws \Exception Si el rol 'customer' no existe (revierte la transacción;
+     *                    no debería ocurrir nunca — es uno de los 5 roles sembrados
+     *                    desde la migración inicial del proyecto)
      */
     public function register(
         string $email,
@@ -289,7 +298,6 @@ class AuthService
         string $firstName,
         ?string $lastName,
         ?string $phone,
-        string $requestedRole,
         string $ipAddress,
         string $userAgent
     ): AuthResult {
@@ -319,17 +327,19 @@ class AuthService
                 throw $e;
             }
 
-            // Obtener el ID del rol solicitado ('customer' o 'mechanic')
+            // El registro público SOLO asigna el rol 'customer' — resuelto aquí
+            // internamente, nunca desde un parámetro del método ni desde la
+            // petición HTTP.
             $role = Database::fetchOne(
                 'SELECT id FROM roles WHERE slug = ? AND is_active = TRUE',
-                [$requestedRole]
+                ['customer']
             );
 
             if ($role === null) {
-                throw new \Exception("Role '{$requestedRole}' not found");
+                throw new \Exception("Role 'customer' not found");
             }
 
-            // Asignar el rol solicitado
+            // Asignar el rol 'customer'
             Database::insert('user_roles', [
                 'user_id' => $userId,
                 'role_id' => $role['id'],

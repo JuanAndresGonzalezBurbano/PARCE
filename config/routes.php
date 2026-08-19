@@ -327,3 +327,45 @@ $router->get('/api/admin/ratings', [\App\Controllers\AdminController::class, 'ra
         [\App\Middleware\RBACMiddleware::class, ['administrator', 'super_admin']]
     ])
     ->name('api.admin.ratings');
+
+// ============================================================================
+// Mechanic Application API Routes (Protected)
+// ============================================================================
+// Flujo de solicitud + revisión administrativa para obtener el rol
+// `mechanic`. El registro público (POST /api/auth/register) ya no concede
+// este rol directamente — ver docs/architecture/DECISIONS.md ADR-5.
+
+// User endpoints (cualquier usuario autenticado)
+$router->post('/api/mechanic-applications', [\App\Controllers\MechanicApplicationController::class, 'store'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.mechanic-applications.store');
+
+$router->get('/api/mechanic-applications/me', [\App\Controllers\MechanicApplicationController::class, 'myApplications'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.mechanic-applications.me');
+
+$router->post('/api/mechanic-applications/{id}/cancel', [\App\Controllers\MechanicApplicationController::class, 'cancel'])
+    ->middleware([\App\Middleware\AuthMiddleware::class])
+    ->name('api.mechanic-applications.cancel');
+
+// Admin endpoints (RBAC: administrator, super_admin)
+$router->get('/api/admin/mechanic-applications', [\App\Controllers\MechanicApplicationController::class, 'adminIndex'])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['administrator', 'super_admin']]
+    ])
+    ->name('api.admin.mechanic-applications.index');
+
+$router->post('/api/admin/mechanic-applications/{id}/approve', [\App\Controllers\MechanicApplicationController::class, 'approve'])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['administrator', 'super_admin']]
+    ])
+    ->name('api.admin.mechanic-applications.approve');
+
+$router->post('/api/admin/mechanic-applications/{id}/reject', [\App\Controllers\MechanicApplicationController::class, 'reject'])
+    ->middleware([
+        \App\Middleware\AuthMiddleware::class,
+        [\App\Middleware\RBACMiddleware::class, ['administrator', 'super_admin']]
+    ])
+    ->name('api.admin.mechanic-applications.reject');

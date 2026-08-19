@@ -55,11 +55,19 @@ export const API_ENDPOINTS = {
     PQR_UPDATE_STATUS: (id: number) => `/admin/pqr/${id}/status`,
     PQR_RESPOND: (id: number) => `/admin/pqr/${id}/respond`,
     SURVEYS: '/admin/surveys',
+    MECHANIC_APPLICATIONS_LIST: '/admin/mechanic-applications',
+    MECHANIC_APPLICATIONS_APPROVE: (id: number) => `/admin/mechanic-applications/${id}/approve`,
+    MECHANIC_APPLICATIONS_REJECT: (id: number) => `/admin/mechanic-applications/${id}/reject`,
   },
   PQR: {
     LIST: '/pqr',
     CREATE: '/pqr',
     GET: (id: number) => `/pqr/${id}`,
+  },
+  MECHANIC_APPLICATIONS: {
+    CREATE: '/mechanic-applications',
+    ME: '/mechanic-applications/me',
+    CANCEL: (id: number) => `/mechanic-applications/${id}/cancel`,
   },
   SURVEYS: {
     LIST: '/surveys',

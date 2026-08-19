@@ -53,6 +53,12 @@ export default function Navbar() {
                   >
                     Calificaciones
                   </Link>
+                  <Link
+                    to="/admin/mechanic-applications"
+                    className="text-sm text-gray-300 hover:text-white transition-colors"
+                  >
+                    Solicitudes de Mecánico
+                  </Link>
                 </>
               )}
 
@@ -93,6 +99,16 @@ export default function Navbar() {
                   >
                     Mis PQR
                   </Link>
+                  {/* Los administradores no pueden solicitar el rol de mecánico
+                      (regla de negocio del backend, ver MechanicApplicationService::create()) */}
+                  {!isMechanic && !isAdmin && (
+                    <Link
+                      to="/mechanic-application"
+                      className="text-sm text-gray-300 hover:text-white transition-colors"
+                    >
+                      Ser mecánico
+                    </Link>
+                  )}
                 </>
               )}
 

@@ -16,7 +16,7 @@
 | GET | `/health/database` | No | — | — | Health check de BD |
 | GET | `/health/system` | No | — | — | Health check integral |
 | GET | `/auth/health` | No | — | — | Health check del módulo Auth |
-| POST | `/auth/register` | No | — | `{email, password, password_confirmation, first_name, last_name, phone?, role?: 'customer'\|'mechanic'}` | Rate-limited. El rol se autodeclara — sin aprobación admin (ver `AS_DESIGNED_VS_AS_BUILT.md`) |
+| POST | `/auth/register` | No | — | `{email, password, password_confirmation, first_name, last_name, phone?}` | Rate-limited. **Siempre crea rol `customer`** — no hay campo de rol; si el body incluye `role` distinto de `customer`, `400`. Para obtener `mechanic`, ver sección "Solicitudes de mecánico" abajo |
 | POST | `/auth/login` | No | — | `{email, password, remember?}` | Rate-limited. Fija cookie httpOnly de sesión |
 | POST | `/auth/forgot-password` | No | — | `{email}` | Rate-limited. Respuesta siempre genérica (anti-enumeración) |
 | POST | `/auth/reset-password` | No | — | `{token, new_password, new_password_confirmation}` | Rate-limited. Destruye todas las sesiones del usuario al completar |
@@ -26,6 +26,34 @@
 | PUT | `/auth/password` | Sí | cualquiera | `{current_password, new_password, new_password_confirmation}` | Destruye todas las sesiones al completar |
 
 **Errores comunes:** `400` validación, `401` no autenticado / credenciales inválidas, `403` cuenta no activa, `409` email duplicado (registro concurrente), `429` rate limit excedido.
+
+---
+
+## Solicitudes de mecánico (`/mechanic-applications`, `/admin/mechanic-applications`)
+
+Flujo de solicitud + revisión administrativa para obtener el rol `mechanic` — reemplaza la autodeclaración de rol en el registro (ver `PARCE_AS_BUILT_ARCHITECTURE.md` §1.17). Reutiliza la tabla `admin_access_requests` (existente desde la migración inicial), sin migraciones nuevas.
+
+### Usuario (cualquier usuario autenticado, `AuthMiddleware`)
+
+| Método | Ruta | Middleware | Body / Params | Respuesta exitosa | Notas |
+|---|---|---|---|---|---|
+| POST | `/mechanic-applications` | `AuthMiddleware` | `{justification}` (string, 20–2000 caracteres) | `201` `{application}` | Rate-limited por IP (`RateLimiter::check('mechanic-application', ip)`). `user_id` sale siempre de la sesión, nunca del body |
+| GET | `/mechanic-applications/me` | `AuthMiddleware` | — | `200` `{applications: [], count}` | Historial completo del usuario autenticado (más reciente primero) |
+| POST | `/mechanic-applications/{id}/cancel` | `AuthMiddleware` | — (path: `id`) | `200` `{application}` | Solo el dueño; solo si `status='pending'` |
+
+**Restricciones de autorización en `create()` (dentro de la misma transacción, con datos actuales):** `403` si la cuenta no está `active`; `403` si el usuario tiene rol `administrator` o `super_admin`; `409` si ya tiene el rol `mechanic`; `400` si la licencia de conducción está incompleta (número/fecha/documento) o vencida; `409` si ya existe una solicitud propia `pending`.
+
+### Administrador (`AuthMiddleware` + `RBACMiddleware(['administrator', 'super_admin'])`)
+
+| Método | Ruta | Middleware | Body / Params | Respuesta exitosa | Notas |
+|---|---|---|---|---|---|
+| GET | `/admin/mechanic-applications?status=&page=&per_page=` | `AuthMiddleware`, `RBACMiddleware(['administrator','super_admin'])` | Query: `status?` (pending\|approved\|rejected\|cancelled), paginación estándar | `200` `{applications, count, total, page, perPage, totalPages}` | Paginado; incluye datos del solicitante (nombre, email, licencia) y del revisor vía JOIN |
+| POST | `/admin/mechanic-applications/{id}/approve` | `AuthMiddleware`, `RBACMiddleware(['administrator','super_admin'])` | — (path: `id`; sin body) | `200` `{application}` | Asigna `user_roles` (rol `mechanic`); `assigned_by`/`reviewed_by`/`approved_by` = admin autenticado (nunca del body) |
+| POST | `/admin/mechanic-applications/{id}/reject` | `AuthMiddleware`, `RBACMiddleware(['administrator','super_admin'])` | `{rejection_reason}` (string, requerido, ≤1000 caracteres) | `200` `{application}` | `reviewed_by` = admin autenticado; `approved_by`/`approved_at` permanecen `NULL` |
+
+**Restricciones de autorización en `approve()`/`reject()`:** `404` si la solicitud no existe; `409` si ya no está `pending` (o si el estado cambió concurrentemente — lock `SELECT ... FOR UPDATE` + `UPDATE` condicionado); `403` en `approve()` si el admin es el propio solicitante (anti-autoaprobación); `400` en `approve()` si la cuenta del solicitante ya no está activa o su licencia ya no es válida (re-verificado en el momento de aprobar, no solo al crear la solicitud).
+
+**Errores comunes:** `400` validación / licencia incompleta o vencida / cuenta del solicitante ya no válida, `403` cuenta no activa / rol excluido (admin) / autoaprobación / no es dueño, `404` solicitud no existe o no es propia (mismo código que "no existe" — anti-IDOR, sin distinguir con 403), `409` ya tiene el rol / solicitud pendiente duplicada / estado cambió concurrentemente, `429` rate limit excedido (solo en `create()`).
 
 ---
 
@@ -104,8 +132,8 @@
 
 ## Resumen de conteo
 
-- **46 rutas totales** (1 web + 45 API), verificado contra `config/routes.php`.
+- **52 rutas totales** (1 web + 51 API), verificado contra `config/routes.php` (sube de 46 con las 6 rutas nuevas de `/mechanic-applications` y `/admin/mechanic-applications`).
 - Middleware de autenticación (`AuthMiddleware`) requerido en todas salvo: health checks, `register`, `login`, `forgot-password`, `reset-password`.
-- Middleware RBAC (`RBACMiddleware`) aplicado por grupo de rol en: `/service-requests/*` (customer), `/mechanic/*` (mechanic), `/pqr` y `/pqr/{id}` (customer+mechanic), `/admin/*` (administrator+super_admin).
+- Middleware RBAC (`RBACMiddleware`) aplicado por grupo de rol en: `/service-requests/*` (customer), `/mechanic/*` (mechanic), `/pqr` y `/pqr/{id}` (customer+mechanic), `/admin/*` incl. `/admin/mechanic-applications/*` (administrator+super_admin). `/mechanic-applications/*` (sin prefijo `/admin/`) solo exige `AuthMiddleware` — cualquier rol autenticado puede solicitar, la restricción de administrator/super_admin se aplica dentro de `MechanicApplicationService::create()`, no vía RBAC de ruta.
 
 **Fuente:** `config/routes.php` completo, `app/Controllers/*.php`, `app/Infrastructure/{Dominio}/*Validator.php` para los cuerpos de petición. Ver [`../architecture/PARCE_AS_BUILT_ARCHITECTURE.md`](../architecture/PARCE_AS_BUILT_ARCHITECTURE.md) para el detalle de reglas de negocio por endpoint.

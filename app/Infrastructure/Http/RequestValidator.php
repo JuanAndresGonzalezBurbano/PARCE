@@ -342,10 +342,18 @@ class RequestValidator
         }
 
         // Validar el rol solicitado (opcional, por defecto 'customer')
-        // Solo se permite auto-registro como customer o mechanic — nunca administrator/super_admin
+        // El registro público SOLO permite crear usuarios con rol 'customer'.
+        // El rol 'mechanic' ya no se concede aquí bajo ninguna circunstancia —
+        // ni siquiera si el cliente lo envía explícitamente, en cuyo caso se
+        // rechaza con 400 (no se ignora en silencio). El rol 'mechanic' solo
+        // puede obtenerse mediante POST /api/mechanic-applications seguido de
+        // aprobación administrativa (ver docs/architecture/DECISIONS.md ADR-5).
         $role = $request->input('role');
-        if ($role !== null && !in_array($role, ['customer', 'mechanic'], true)) {
-            $errors['role'] = ['Rol inválido. Roles válidos: customer, mechanic'];
+        if ($role !== null && $role !== 'customer') {
+            $errors['role'] = [
+                'Rol inválido. El registro público solo permite el rol customer. ' .
+                'Para solicitar el rol mechanic, regístrate como customer y luego usa POST /api/mechanic-applications.'
+            ];
         }
 
         if (!empty($errors)) {

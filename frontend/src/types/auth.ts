@@ -46,6 +46,14 @@ export interface LoginRequest {
 }
 
 // Datos de registro
+// El registro público SOLO crea usuarios con rol 'customer' — no existe
+// ningún campo de rol aquí a propósito, para que sea imposible que el
+// frontend intente enviar role=mechanic (o cualquier otro). El backend
+// (RequestValidator::validateRegistrationRequest) es quien tiene la
+// autoridad real: cualquier 'role' que llegara igual sería rechazado con
+// 400. Ver docs/architecture/DECISIONS.md ADR-5. Para obtener el rol
+// mechanic, ver mechanicApplicationService.ts (POST /mechanic-applications
+// tras registrarse como customer).
 export interface RegisterRequest {
   email: string;
   password: string;
@@ -53,7 +61,6 @@ export interface RegisterRequest {
   first_name: string;
   last_name: string;
   phone?: string;
-  role?: 'customer' | 'mechanic';
 }
 
 // Auth response from backend

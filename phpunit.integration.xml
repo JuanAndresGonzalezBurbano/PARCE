@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Configuración OPT-IN de la suite de integración (FASE 1C.1).
+
+    NO se usa por `composer test` ni por el CI actual (.github/workflows/ci.yml),
+    que siguen apuntando a phpunit.xml (solo la suite "Unit", sin base de
+    datos). Esta suite requiere la base de datos "parce_test" ya creada y
+    migrada — ver tests/Integration/bootstrap.php y
+    docs/testing/INTEGRATION_TESTING.md.
+
+    Ejecutar manualmente con:
+        vendor/bin/phpunit -c phpunit.integration.xml
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/Integration/bootstrap.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache/integration">
+    <testsuites>
+        <testsuite name="Integration">
+            <directory>tests/Integration</directory>
+            <exclude>tests/Integration/scripts</exclude>
+        </testsuite>
+    </testsuites>
+</phpunit>

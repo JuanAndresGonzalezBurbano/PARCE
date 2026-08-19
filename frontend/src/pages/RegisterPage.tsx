@@ -7,6 +7,10 @@ export default function RegisterPage() {
   const navigate = useNavigate();
   const { register, error, fieldErrors, clearError, isLoading, isAuthenticated, user } = useAuth();
 
+  // El registro público SOLO crea usuarios con rol 'customer' — no hay
+  // selector de rol aquí a propósito (ver types/auth.ts::RegisterRequest).
+  // Para convertirse en mecánico, un usuario ya registrado debe pasar por
+  // /mechanic-application (solicitud + revisión administrativa).
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -14,7 +18,6 @@ export default function RegisterPage() {
     first_name: '',
     last_name: '',
     phone: '',
-    role: 'customer' as 'customer' | 'mechanic',
   });
   const [confirmMismatch, setConfirmMismatch] = useState(false);
 
@@ -74,39 +77,12 @@ export default function RegisterPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Quiero registrarme como *
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, role: 'customer' }))}
-                  disabled={isLoading}
-                  className={`py-2.5 px-4 rounded-lg border text-sm font-medium transition-colors ${
-                    formData.role === 'customer'
-                      ? 'bg-blue-600 border-blue-500 text-white'
-                      : 'bg-gray-700 border-gray-600 text-gray-300 hover:border-gray-500'
-                  }`}
-                >
-                  🚗 Cliente
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, role: 'mechanic' }))}
-                  disabled={isLoading}
-                  className={`py-2.5 px-4 rounded-lg border text-sm font-medium transition-colors ${
-                    formData.role === 'mechanic'
-                      ? 'bg-blue-600 border-blue-500 text-white'
-                      : 'bg-gray-700 border-gray-600 text-gray-300 hover:border-gray-500'
-                  }`}
-                >
-                  🔧 Mecánico
-                </button>
-              </div>
-            </div>
+          <p className="text-sm text-gray-400 mb-4">
+            Esta cuenta se crea como cliente. Si quieres ofrecer tus servicios como mecánico, podrás
+            solicitarlo desde tu perfil una vez registrado — la solicitud pasa por revisión administrativa.
+          </p>
 
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor="first_name" className="block text-sm font-medium text-gray-300 mb-1">

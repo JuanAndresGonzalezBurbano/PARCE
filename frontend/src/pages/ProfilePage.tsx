@@ -125,18 +125,22 @@ export default function ProfilePage() {
           </p>
         </div>
 
-        {/* Driver license section — solo aplica a mecánicos (el sistema bloquea
-            la aceptación de solicitudes si su licencia está vencida) */}
-        {isMechanic && (
-          <DriverLicenseSection
-            license={user.driverLicense}
-            onSave={updateProfile}
-            isLoading={isLoading}
-            error={error}
-            fieldErrors={fieldErrors}
-            clearError={clearError}
-          />
-        )}
+        {/* Driver license section — visible para cualquier usuario, no solo
+            mecánicos: el sistema bloquea la aceptación de solicitudes si la
+            licencia de un mecánico está vencida, pero además un cliente
+            necesita poder completarla aquí ANTES de tener el rol, para poder
+            solicitar convertirse en mecánico (ver /mechanic-application,
+            que exige licencia completa y vigente ya en el perfil). El
+            backend (PUT /auth/profile) ya acepta estos campos de cualquier
+            rol autenticado — esto solo ajusta cuándo se muestra en la UI. */}
+        <DriverLicenseSection
+          license={user.driverLicense}
+          onSave={updateProfile}
+          isLoading={isLoading}
+          error={error}
+          fieldErrors={fieldErrors}
+          clearError={clearError}
+        />
 
         <div className="mt-6">
           <PasswordSection />

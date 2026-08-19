@@ -10,7 +10,7 @@
 
 Ninguna de estas requiere más investigación técnica — todas requieren que el equipo/producto decida.
 
-1. **¿Mecánico autodeclarado o aprobación administrativa?** Hoy cualquier usuario puede registrarse directamente como `mechanic` (`role?: 'customer'|'mechanic'` en el registro) y, con solo cargar una fecha de licencia no vencida, empezar a aceptar solicitudes. La tabla `admin_access_requests` ya existe en la BD para soportar un flujo de aprobación, pero no está conectada a ningún Controller/Service. Es la decisión con mayor implicación de confianza/seguridad de todo el sistema.
+~~1. ¿Mecánico autodeclarado o aprobación administrativa?~~ **Resuelto e implementado.** El registro público ya solo crea `customer`; el rol `mechanic` se obtiene vía `MechanicApplicationService` (solicitud + aprobación administrativa, con `administrator`/`super_admin` explícitamente excluidos de poder solicitarlo), reutilizando `admin_access_requests` sin migraciones nuevas. Ver `PARCE_AS_BUILT_ARCHITECTURE.md` §1.17 y `AS_DESIGNED_VS_AS_BUILT.md` (fila "Admin Access", ahora "Implementado"). Movido a la sección "Funcionalidades implementadas" abajo — ya no es una decisión pendiente.
 2. **¿Rating bidireccional (mecánico → cliente)?** Hoy solo existe Cliente → Mecánico (`customer_rating`, `punctuality_rating`, `service_quality_rating`). No hay columna ni endpoint en sentido inverso.
 3. **Infraestructura real de subida de archivos.** Hoy `soat_document_url`, `driver_license_document_url`, `image_url` (evidencias) son `VARCHAR` validados solo como URL bien formada — el usuario pega un enlace externo manualmente. No hay integración con S3/Cloudinary/almacenamiento propio.
 4. **¿Qué hacer con el diseño de `vehicle_documents`/`vehicle_maintenance_records`?** Nunca se crearon como tablas; el caso de uso que iban a cubrir (SOAT/Tecnomecánica) ya se resolvió de otra forma (columnas directas en `vehicles`). Hay que decidir si se descartan formalmente del backlog o si aún cubren algo distinto (p. ej. mantenimientos).
@@ -18,9 +18,15 @@ Ninguna de estas requiere más investigación técnica — todas requieren que e
 
 ---
 
+## Funcionalidades implementadas (desde la auditoría AS-BUILT inicial)
+
+1. **Flujo de solicitud de rol de mecánico (resuelve A.1).** El registro público ya solo crea `customer`. El rol `mechanic` se obtiene mediante `POST /api/mechanic-applications` (solicitud, requiere licencia de conducción completa y vigente) seguido de revisión administrativa (`POST /api/admin/mechanic-applications/{id}/approve|reject`), reutilizando la tabla `admin_access_requests` ya existente — **sin migraciones nuevas**. Incluye anti-IDOR, anti-autoaprobación, exclusión explícita de `administrator`/`super_admin` como solicitantes, y los locks `SELECT ... FOR UPDATE` habituales del resto del codebase para las condiciones de carrera de aprobar/rechazar/cancelar. Cobertura: 32 tests de integración contra BD real (incl. una prueba real de concurrencia multi-proceso) + tests unitarios de `MechanicApplicationValidator`. Ver `../architecture/PARCE_AS_BUILT_ARCHITECTURE.md` §1.17, `../architecture/AS_DESIGNED_VS_AS_BUILT.md` (fila "Admin Access") y `../architecture/DECISIONS.md` (ADR-5, reemplazada).
+
+---
+
 ## B. Deuda técnica
 
-1. **Cobertura de tests de `*Service.php` — 0%.** Los 134 tests existentes (verificados en ejecución real, 0 fallos) cubren únicamente `*Validator`/DTOs. `AuthService`, `SessionManager`, `ServiceRequestService`, `VehicleService`, `PQRService`, `SurveyService`, `AdminService`, `ServiceRequestEvidenceService`, `PasswordResetService` no tienen ningún test automatizado.
+1. **Cobertura de tests unitarios de `*Service.php` — 0%** (con una excepción). Los 150 tests unitarios existentes (verificados en ejecución real, 0 fallos) cubren únicamente `*Validator`/DTOs. `AuthService`, `SessionManager`, `ServiceRequestService`, `VehicleService`, `PQRService`, `SurveyService`, `AdminService`, `ServiceRequestEvidenceService`, `PasswordResetService` no tienen ningún test unitario. **Excepción:** `MechanicApplicationService` sí tiene cobertura real, pero vía 32 tests de integración contra una BD MySQL aislada (`tests/Integration/`, opt-in, no conectada a `composer test` ni a CI — ver `../architecture/PARCE_AS_BUILT_ARCHITECTURE.md` §1.16.2), no vía tests unitarios con mocks.
 2. **Cobertura de Controllers — 0%.**
 3. **Cobertura de Middleware — 0%** (`AuthMiddleware`, `RBACMiddleware`, `CORSMiddleware`, `SecurityHeadersMiddleware`, `RequestLoggerMiddleware`).
 4. **Documentación de módulos existentes sin ningún documento previo:** PQR, Encuestas, Admin dashboard real, Evidencias, Password Reset/Mail — los 5 dominios más recientes y con más código son, a la vez, los 5 con cero documentación arquitectónica hasta la creación de este set de documentos.
@@ -28,7 +34,8 @@ Ninguna de estas requiere más investigación técnica — todas requieren que e
 6. **Deriva de esquema no explicada:** las migraciones `2026_07_10_000011` y `2026_07_10_000015` existen para *restaurar* columnas (SOAT/Tecnomecánica/ratings) que en algún momento desaparecieron de una base de datos viva sin que exista, en el repositorio actual, una migración que documente quién/qué las eliminó.
 7. **Dos mecanismos de sembrado de datos demo sin coordinar:** `database/seeders/*` (dominio `@parce.local`) y la migración `2026_07_10_000012` (dominio `@parcedemo.local`) — no se solapan, pero tampoco se referencian entre sí ni están documentados como dos vías intencionalmente distintas.
 8. **Rol `support`** sembrado en la tabla `roles` pero sin ningún `RBACMiddleware` que lo referencie en `config/routes.php` — no se usa en ninguna ruta actual.
-9. **Tabla `admin_access_requests` huérfana** — existe en la BD, no la usa ningún Controller/Service (ligado a la decisión de producto A.1).
+9. ~~Tabla `admin_access_requests` huérfana~~ **Resuelto** — activamente usada por `MechanicApplicationService` desde el flujo de solicitud de mecánico (ver "Funcionalidades implementadas" arriba).
+10. **Migración `2026_07_10_000015_restore_document_fields_to_vehicles` falla sobre una BD completamente fresca** (`SQLSTATE[42S21]: Column already exists` para `soat_number`) — **deuda preexistente, sin relación con el flujo de solicitud de mecánico y no remediada por él.** La migración 5 ya crea esas columnas en una BD nueva; la migración 15 existe para *restaurar* las mismas columnas en la BD real de desarrollo, donde en algún momento no documentado desaparecieron (ver ítem 6 de esta misma lista). Al construir la base de datos de integración aislada `parce_test` (§1.16.2 de `PARCE_AS_BUILT_ARCHITECTURE.md`) para los tests de `MechanicApplicationService`, esta colisión se evidenció de forma reproducible; se documenta aquí en vez de remediarse porque corregirla implica decidir cuál de las dos migraciones es la fuente de verdad real, lo cual está fuera del alcance de esa pieza de trabajo.
 
 ---
 
@@ -57,4 +64,4 @@ Elementos que, si se decide construirlos, no requieren primero resolver una dive
 
 ## Resumen de prioridad de decisión (no de implementación)
 
-El punto de partida antes de tocar cualquiera de las secciones B/C/D es resolver **A.1** (autodeclaración vs. aprobación de mecánico) — es la única decisión con implicación directa de seguridad/confianza de la plataforma, y condiciona si `admin_access_requests` se activa, se documenta como descartada, o se elimina.
+**A.1 (autodeclaración vs. aprobación de mecánico) ya está resuelta e implementada** (ver "Funcionalidades implementadas" arriba) — era la única decisión pendiente con implicación directa de seguridad/confianza de la plataforma. De las decisiones de producto restantes (A.2–A.5), ninguna tiene la misma urgencia de seguridad; el resto de prioridad queda abierto a criterio de producto.

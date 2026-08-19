@@ -4,6 +4,7 @@ import { VehicleProvider } from './contexts/VehicleContext';
 import { RequestProvider } from './contexts/RequestContext';
 import { AdminProvider } from './contexts/AdminContext';
 import { PQRProvider } from './contexts/PQRContext';
+import { MechanicApplicationProvider } from './contexts/MechanicApplicationContext';
 import AuthLayout from './layouts/AuthLayout';
 import MainLayout from './layouts/MainLayout';
 import LoginPage from './pages/LoginPage';
@@ -22,7 +23,9 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminPQRPage from './pages/admin/AdminPQRPage';
 import AdminSurveysPage from './pages/admin/AdminSurveysPage';
 import AdminRatingsPage from './pages/admin/AdminRatingsPage';
+import AdminMechanicApplicationsPage from './pages/admin/AdminMechanicApplicationsPage';
 import ProfilePage from './pages/ProfilePage';
+import MechanicApplicationPage from './pages/MechanicApplicationPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ProtectedRoute from './routes/ProtectedRoute';
 
@@ -34,6 +37,7 @@ function App() {
           <RequestProvider>
             <AdminProvider>
               <PQRProvider>
+              <MechanicApplicationProvider>
               <Routes>
                 {/* Auth routes */}
                 <Route element={<AuthLayout />}>
@@ -142,6 +146,14 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+                  <Route
+                    path="/admin/mechanic-applications"
+                    element={
+                      <ProtectedRoute requireRole={['administrator', 'super_admin']}>
+                        <AdminMechanicApplicationsPage />
+                      </ProtectedRoute>
+                    }
+                  />
                   {/* Profile route - accessible to all authenticated users */}
                   <Route
                     path="/profile"
@@ -151,11 +163,22 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+                  {/* Solicitud de mecánico - accesible a cualquier usuario autenticado
+                      (la propia página decide qué mostrar según el rol/estado actual) */}
+                  <Route
+                    path="/mechanic-application"
+                    element={
+                      <ProtectedRoute>
+                        <MechanicApplicationPage />
+                      </ProtectedRoute>
+                    }
+                  />
                 </Route>
 
                 {/* 404 */}
                 <Route path="*" element={<NotFoundPage />} />
               </Routes>
+              </MechanicApplicationProvider>
               </PQRProvider>
             </AdminProvider>
           </RequestProvider>

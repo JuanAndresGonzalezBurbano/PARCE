@@ -11,44 +11,33 @@
  * - Default values
  */
 
-// Minimal bootstrap
-spl_autoload_register(function ($class) {
-    $prefix = 'App\\';
-    $base_dir = __DIR__ . '/app/';
-    $len = strlen($prefix);
-    if (strncmp($prefix, $class, $len) !== 0) return;
-    $relative_class = substr($class, $len);
-    $file = $base_dir . str_replace('\\', '/', $relative_class) . '.php';
-    if (file_exists($file)) require $file;
-});
+// Este script vive dos niveles bajo la raíz del proyecto (scripts/validation/)
+// — mismo patrón BASE_PATH + autoload de Composer que el resto de scripts de
+// esta carpeta (ver p. ej. verify_final_status.php). Reemplaza un autoloader
+// casero roto (apuntaba a __DIR__ . '/app/', ruta inexistente desde aquí) y
+// una carga de .env que buscaba __DIR__ . '/.env' en vez de la raíz real.
+define('BASE_PATH', dirname(__DIR__, 2));
 
-// Load environment configuration
-$envFile = __DIR__ . '/.env';
-if (!file_exists($envFile)) {
-    echo "Error: .env file not found.\n";
-    exit(1);
-}
-
-$env = parse_ini_file($envFile);
-if ($env === false) {
-    echo "Error: Failed to parse .env file.\n";
-    exit(1);
-}
-
-// Set environment variables
-$_ENV['DB_HOST'] = $env['DB_HOST'] ?? '127.0.0.1';
-$_ENV['DB_DATABASE'] = $env['DB_DATABASE'] ?? 'parce';
-$_ENV['DB_USERNAME'] = $env['DB_USERNAME'] ?? 'root';
-$_ENV['DB_PASSWORD'] = $env['DB_PASSWORD'] ?? '';
+require_once BASE_PATH . '/vendor/autoload.php';
+require_once BASE_PATH . '/app/Core/Database.php';
 
 use App\Core\Database;
 
-// Set database configuration
+$env = [];
+if (file_exists(BASE_PATH . '/.env')) {
+    $lines = file(BASE_PATH . '/.env', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        if (strpos(trim($line), '#') === 0) continue;
+        list($key, $value) = explode('=', $line, 2);
+        $env[trim($key)] = trim($value);
+    }
+}
+
 Database::setConfig([
-    'driver' => $env['DB_CONNECTION'] ?? 'mysql',
+    'driver' => 'mysql',
     'host' => $env['DB_HOST'] ?? '127.0.0.1',
     'port' => (int)($env['DB_PORT'] ?? 3306),
-    'database' => $env['DB_DATABASE'] ?? 'parce',
+    'database' => $env['DB_DATABASE'] ?? '',
     'username' => $env['DB_USERNAME'] ?? 'root',
     'password' => $env['DB_PASSWORD'] ?? '',
     'charset' => 'utf8mb4'

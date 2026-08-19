@@ -43,6 +43,18 @@ class Database
     }
 
     /**
+     * Inyecta una conexión PDO ya construida (o la limpia con null), en vez de
+     * dejar que getConnection() cree una real vía connect(). Único propósito:
+     * permitir a los tests unitarios inyectar un PDO mockeado (PHPUnit
+     * createMock) sin tocar MySQL — ver tests/Unit/Support/MocksDatabase.php.
+     * No se usa en ningún flujo de producción.
+     */
+    public static function setConnection(?PDO $connection): void
+    {
+        self::$connection = $connection;
+    }
+
+    /**
      * Establece la conexión a la base de datos con lógica de reintentos
      */
     private static function connect(): void

@@ -205,6 +205,30 @@ investigación previa: la tabla `ratings` ya tenía 5 filas de datos (3
 explique — mismo patrón de deriva de esquema no documentada que `BACKLOG.md` ya
 registra para otras tablas; no se tocaron.
 
+**Observación 2026-08-19 — investigación de esas 5 filas preexistentes (decisión: no
+tocarlas).** Ninguna es huérfana: las 3 `service_request_id` referenciadas (3, 5, 6)
+existen hoy, `status='completed'`, y en cada fila `rater_id`/`ratee_id` coinciden
+exactamente con el `customer_id`/`mechanic_id` real de esa solicitud — datos internamente
+consistentes, no basura ni corrupción. Origen probable, con evidencia concreta (no solo
+coincidencia de fechas): la tabla `migrations` registra que `ratings` fue creada por una
+migración real que sí corrió —`2026_01_01_000012_create_ratings_table`, batch 12,
+2026-07-05 21:28:50— cuyo archivo ya no existe en disco, en el mismo lote que
+`2026_01_01_000009_add_technical_fields_to_vehicles` (batch 9) y
+`2026_01_01_000010/000011_create_vehicle_documents/maintenance_records_table` (batch
+10-11) — el mismo evento que `BACKLOG.md` ya documentaba como "batches 9-12, corridas
+2026-07-05", ahora confirmado que incluyó también `ratings`. Dos de las cinco filas
+(`mechanic_to_customer`, ids 4 y 5) tienen `created_at` 12 y 30 minutos después de esa
+migración (21:40:44 y 21:59:04) — consistente con alguien probando/poblando la tabla
+recién creada en la misma sesión; las otras tres tienen `created_at` fijado a mano
+imitando fechas cercanas a sus `service_requests` reales, mismo estilo narrativo que los
+seeders oficiales del proyecto. Ningún commit de git existe en esa fecha en ninguna rama.
+Uno de los `rater_id` (`id=1`, `testuser1@example.com`) es además un artefacto conocido
+de `scripts/validation/validate_session_manager.php` (crea `testuser1..5@example.com` si
+`id=1` no existe), no una cuenta demo oficial. **Decisión: no se tocan** — confirman que
+el diseño de `ratings` soportaba ambos sentidos desde su creación real, y no interfieren
+con la implementación de `MechanicRatingService` (que solo opera sobre solicitudes
+nuevas, vía `INSERT` propio, sin leer ni depender de estas 5 filas).
+
 ### ADR-16 — `vehicle_documents` / `vehicle_maintenance_records`
 
 - **Estado actual verificado en el código:** ambas tablas existen en la BD, bien

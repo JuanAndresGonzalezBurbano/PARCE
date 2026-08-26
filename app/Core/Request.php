@@ -19,6 +19,15 @@ class Request
     private array $attributes = [];
     private string $rawBody;
 
+    /**
+     * Override de solo pruebas para el cuerpo sin procesar — en el proceso CLI
+     * de PHPUnit, php://input está siempre vacío y no hay forma nativa de
+     * "sembrarlo" por test. Mismo criterio que Database::setConnection(): un
+     * seam estático, aditivo, en null por defecto (comportamiento real de
+     * producción intacto), que solo un test activa explícitamente.
+     */
+    private static ?string $rawBodyOverride = null;
+
     public function __construct()
     {
         $this->query = $_GET;
@@ -31,7 +40,7 @@ class Request
         // que en algunos SAPIs solo puede leerse de forma fiable la primera vez.
         // rawBody() expone este mismo valor para quien lo necesite (p. ej.
         // RequestValidator::parseJsonBody()) en vez de volver a leer el stream.
-        $this->rawBody = file_get_contents('php://input') ?: '';
+        $this->rawBody = self::$rawBodyOverride ?? (file_get_contents('php://input') ?: '');
 
         // Parsear el cuerpo JSON si el Content-Type es application/json
         if ($this->isJson()) {
@@ -41,11 +50,21 @@ class Request
 
     /**
      * Retorna el cuerpo sin procesar de la petición (los mismos bytes leídos
-     * una vez en el constructor desde php://input).
+     * una vez en el constructor desde php://input, o el override de pruebas).
      */
     public function rawBody(): string
     {
         return $this->rawBody;
+    }
+
+    /**
+     * SOLO PRUEBAS: fija el cuerpo sin procesar que el próximo `new Request()`
+     * usará en vez de leer php://input. Pasar null restaura el comportamiento
+     * real (lectura de php://input).
+     */
+    public static function setRawBodyOverride(?string $rawBody): void
+    {
+        self::$rawBodyOverride = $rawBody;
     }
 
     /**

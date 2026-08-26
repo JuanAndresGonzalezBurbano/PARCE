@@ -49,19 +49,35 @@ trait SimulatesHttp
     /**
      * Construye un Request real simulando una petición HTTP.
      *
-     * @param string $method     Método HTTP (GET, POST, PUT, ...)
-     * @param array  $body       Datos de body — llegan por $_POST (leídos por
-     *                           Request::input() igual que un body JSON real)
-     * @param array  $query      Parámetros de query string ($_GET)
-     * @param array  $cookies    Cookies ($_COOKIE)
-     * @param array  $attributes Atributos ya resueltos por middleware (userId,
-     *                           userRole, user, etc.) — para probar un
-     *                           Controller/Middleware más adelante en la cadena
-     *                           sin tener que ejecutar los anteriores
-     * @param bool   $asJson     Si true (por defecto) y el método no es GET/OPTIONS,
-     *                           fija Content-Type: application/json (pasa
-     *                           RequestValidator::validateContentType())
-     * @param array  $headers    Cabeceras adicionales, formato ['Origin' => '...']
+     * Request::rawBody() (ver App\Core\Request) lee php://input una única vez
+     * en el constructor — siempre vacío en el proceso CLI de PHPUnit, sin
+     * forma nativa de sembrarlo. Cuando $asJson aplica (método no GET/OPTIONS),
+     * este helper activa Request::setRawBodyOverride() con $body codificado
+     * como JSON (o con $rawBody tal cual, para simular un body malformado/
+     * vacío/no-objeto) ANTES de construir el Request, y lo restaura a null
+     * inmediatamente después — el mismo patrón aditivo que MocksDatabase usa
+     * para Database::setConnection(). $_POST también se fija por si algún
+     * código consultara la superglobal directamente, pero Request::input()
+     * siempre prioriza el JSON ya parseado, igual que en producción.
+     *
+     * @param string      $method     Método HTTP (GET, POST, PUT, ...)
+     * @param array       $body       Datos de body — se codifican como JSON
+     *                                cuando $asJson aplica; si no, llegan por $_POST
+     * @param array       $query      Parámetros de query string ($_GET)
+     * @param array       $cookies    Cookies ($_COOKIE)
+     * @param array       $attributes Atributos ya resueltos por middleware (userId,
+     *                                userRole, user, etc.) — para probar un
+     *                                Controller/Middleware más adelante en la cadena
+     *                                sin tener que ejecutar los anteriores
+     * @param bool        $asJson     Si true (por defecto) y el método no es GET/OPTIONS,
+     *                                fija Content-Type: application/json (pasa
+     *                                RequestValidator::validateContentType())
+     *                                y codifica $body como el cuerpo JSON real
+     * @param array       $headers    Cabeceras adicionales, formato ['Origin' => '...']
+     * @param string|null $rawBody    Cuerpo sin procesar explícito — tiene prioridad
+     *                                sobre $body cuando se necesita simular JSON
+     *                                inválido, un body vacío, o un array en vez
+     *                                de un objeto JSON
      */
     protected function makeRequest(
         string $method = 'GET',
@@ -70,25 +86,32 @@ trait SimulatesHttp
         array $cookies = [],
         array $attributes = [],
         bool $asJson = true,
-        array $headers = []
+        array $headers = [],
+        ?string $rawBody = null
     ): Request {
         $_SERVER['REQUEST_METHOD'] = $method;
+        $sendsJsonBody = $asJson && !in_array(strtoupper($method), ['GET', 'OPTIONS'], true);
 
-        if ($asJson && !in_array(strtoupper($method), ['GET', 'OPTIONS'], true)) {
+        if ($sendsJsonBody) {
             $_SERVER['HTTP_CONTENT_TYPE'] = 'application/json';
+            $_POST = [];
+            Request::setRawBodyOverride($rawBody ?? ($body === [] ? '{}' : json_encode($body)));
         } else {
             unset($_SERVER['HTTP_CONTENT_TYPE']);
+            $_POST = $body;
+            Request::setRawBodyOverride($rawBody);
         }
 
         foreach ($headers as $name => $value) {
             $_SERVER['HTTP_' . strtoupper(str_replace('-', '_', $name))] = $value;
         }
 
-        $_POST   = $body;
         $_GET    = $query;
         $_COOKIE = $cookies;
 
         $request = new Request();
+        Request::setRawBodyOverride(null);
+
         foreach ($attributes as $key => $value) {
             $request->setAttribute($key, $value);
         }

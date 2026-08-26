@@ -173,8 +173,8 @@ class RequestValidator
             ];
         }
 
-        // Obtener el cuerpo sin procesar
-        $rawBody = file_get_contents('php://input');
+        // Obtener el cuerpo sin procesar (ya leído una única vez por Request::__construct())
+        $rawBody = $request->rawBody();
 
         // Verificar si el cuerpo está vacío para solicitudes POST
         if (empty($rawBody) && $request->method() === 'POST') {

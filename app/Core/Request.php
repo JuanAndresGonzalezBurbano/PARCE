@@ -17,6 +17,7 @@ class Request
     private array $files;
     private ?array $json = null;
     private array $attributes = [];
+    private string $rawBody;
 
     public function __construct()
     {
@@ -26,10 +27,25 @@ class Request
         $this->cookies = $_COOKIE;
         $this->files = $_FILES;
 
+        // Leer el cuerpo sin procesar una única vez — php://input es un stream
+        // que en algunos SAPIs solo puede leerse de forma fiable la primera vez.
+        // rawBody() expone este mismo valor para quien lo necesite (p. ej.
+        // RequestValidator::parseJsonBody()) en vez de volver a leer el stream.
+        $this->rawBody = file_get_contents('php://input') ?: '';
+
         // Parsear el cuerpo JSON si el Content-Type es application/json
         if ($this->isJson()) {
-            $this->json = json_decode(file_get_contents('php://input'), true) ?? [];
+            $this->json = json_decode($this->rawBody, true) ?? [];
         }
+    }
+
+    /**
+     * Retorna el cuerpo sin procesar de la petición (los mismos bytes leídos
+     * una vez en el constructor desde php://input).
+     */
+    public function rawBody(): string
+    {
+        return $this->rawBody;
     }
 
     /**

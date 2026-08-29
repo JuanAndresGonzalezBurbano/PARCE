@@ -19,7 +19,7 @@ distinción primero.**
 
 ## Decisiones pendientes del usuario
 
-### 1. `vehicle_documents` / `vehicle_maintenance_records` — ¿migrar o descartar?
+### 1. ~~`vehicle_documents` / `vehicle_maintenance_records` — ¿migrar o descartar?~~ — Resuelto (decisión: diferir, no se migra)
 Existen dos tablas bien diseñadas (`vehicle_documents`: documentos por tipo con
 número/emisor/vencimiento/URL; `vehicle_maintenance_records`: historial de
 mantenimiento) creadas por una sesión anterior, con FKs y índices correctos, pero
@@ -32,9 +32,14 @@ columnas planas en `vehicles` (`soat_expiration_date`, etc. — restauradas en
   fuente de verdad (permite múltiples documentos por vehículo, historial de
   versiones) y `vehicle_maintenance_records` para una nueva pantalla de
   mantenimiento — esto sí es un módulo nuevo con alcance propio.
-Requiere decisión del usuario antes de tocar código.
 
-### 2. Tabla `ratings` — sistema de calificación bidireccional sin usar
+**Decisión tomada: (a).** No se migra — el riesgo de romper la regla "una entidad,
+un solo lugar de construcción" no se justifica sin una necesidad de negocio actual.
+Ver `docs/architecture/DECISIONS.md` (ADR-16) y `docs/roadmap/PARCE_ROADMAP_AS_BUILT.md`
+(sección A, ítem 4). Estado actual verificado (2026-08-25): ambas tablas siguen
+existiendo en la BD real, sin ningún Controller/Service que las referencie.
+
+### 2. ~~Tabla `ratings` — sistema de calificación bidireccional sin usar~~ — Resuelto/implementado 2026-08-19
 Existe una tabla `ratings` (rating_type: `customer_to_mechanic` / `mechanic_to_customer`,
 con `punctuality_score`/`quality_score`, UNIQUE por solicitud+tipo) construida por una
 sesión anterior, pero **ningún controlador la usa** — el sistema de calificación real
@@ -46,13 +51,27 @@ Antes de construir un flujo "mecánico califica al cliente" (pantalla nueva, end
 nuevo, cambio en la finalización del servicio), confirmar con el usuario si es un
 requisito real del alcance del proyecto.
 
-### 3. Upload real de archivos (fotos/documentos)
+**Decisión tomada: sí, es un requisito real — implementado.** `MechanicRatingService`
+usa esta misma tabla `ratings` (sin migraciones nuevas) vía
+`POST /api/mechanic/requests/{id}/rate-customer`. Ver `docs/architecture/DECISIONS.md`
+(ADR-15) y `docs/roadmap/PARCE_ROADMAP_AS_BUILT.md` (sección A, ítem 2, y
+"Funcionalidades implementadas", ítem 2). Cobertura: `MechanicRatingServiceTest`
+(6 tests) + `ServiceRequestControllerTest::testRateCustomerSucceeds...`, ambos
+verdes en la corrida de tests del 2026-08-25.
+
+### 3. ~~Upload real de archivos (fotos/documentos)~~ — Resuelto (decisión: se mantiene como está)
 Todo el proyecto usa URLs pegadas a mano (SOAT, licencia de conducción, evidencias)
 en vez de subida real de archivos — es el diseño actual, consistente en toda la app,
 no un bug. Construir upload real (backend de almacenamiento tipo S3/local disk +
 endpoints multipart) es un módulo nuevo con implicaciones de infraestructura
 (¿dónde se guardan los archivos?, ¿límites de tamaño?, ¿CDN?) — requiere decisión
 del usuario sobre la estrategia de almacenamiento antes de implementarse.
+
+**Decisión tomada: se mantiene el diseño actual de URLs pegadas a mano** — una
+integración real de almacenamiento es una mejora "production-grade" fuera del
+alcance académico de esta entrega. Ver `docs/architecture/DECISIONS.md` (ADR-17)
+y `docs/roadmap/PARCE_ROADMAP_AS_BUILT.md` (sección A, ítem 3). Estado actual
+verificado (2026-08-25): ningún Controller usa `$_FILES`/multipart.
 
 ### 4. ~~Recuperación de contraseña ("olvidé mi contraseña")~~ — Resuelto
 Implementado por completo: `PasswordResetService` + `MailerService` (Resend HTTP API),
@@ -99,9 +118,20 @@ Implementado: `EvidenceUpload` ahora soporta `readOnly`, y `RequestsPage.tsx`
   seam aditivo nuevo), enfocados en invariantes de negocio: doble asignación de mecánico
   perdiendo la carrera, guards de transición de estado, unicidad de placa/VIN vía locks
   nombrados de MySQL, SOAT/Tecnomecánica vencidos confirmados como no bloqueantes, hash
-  SHA-256 del token de reset, destrucción de sesiones al resetear. **Sigue sin cobertura**
-  (no reclamado como resuelto): ningún Controller, ningún Middleware, ni `SessionManager`/
-  `AdminService`/`PQRService`/`SurveyService`/`ServiceRequestEvidenceService` directamente.
+  SHA-256 del token de reset, destrucción de sesiones al resetear.
+
+  **Actualización 2026-08-25 (commit `af76683`) — desactualiza el párrafo anterior:**
+  Controllers y Middleware **ya no están** en la lista de "sigue sin cobertura" — se
+  agregaron 99 tests nuevos cubriendo 8 de 9 Controllers (`HomeController` omitido a
+  propósito, es código de ejemplo sin valor de negocio) y 20 tests cubriendo los 5
+  Middleware existentes (`AuthMiddleware`, `RBACMiddleware`, `CORSMiddleware`,
+  `SecurityHeadersMiddleware`, `RequestLoggerMiddleware`). Ver
+  `docs/roadmap/PARCE_ROADMAP_AS_BUILT.md` (sección B, ítems 2 y 3) para el detalle
+  completo. **Sigue sin cobertura propia de ningún tipo** (esto sí sigue vigente):
+  `SessionManager`, `MailerService`, `RoleValidator`, `AdminService`, `PQRService`,
+  `SurveyService`, `ServiceRequestEvidenceService` — los últimos tres quedan
+  ejercitados indirectamente vía `PQRControllerTest`/`SurveyControllerTest`/
+  `AdminControllerTest`, pero sin un test de Service dedicado.
 - **Notificaciones en tiempo real**: mecánicos ven solicitudes nuevas solo al
   recargar/hacer polling manual. Un WebSocket o polling automático es una mejora
   de UX significativa pero es una pieza de infraestructura nueva (alcance propio).

@@ -1,65 +1,184 @@
 <?php
 
-namespace Tests\Unit\Infrastructure\Mail;
-
-use App\Infrastructure\Mail\MailerService;
-use PHPUnit\Framework\TestCase;
-
 /**
- * Tests unitarios de MailerService — PDO mockeado no aplica, no toca la base
- * de datos.
+ * ATENCIÓN — este archivo declara funciones curl_init()/curl_setopt_array()/
+ * curl_exec()/curl_getinfo()/curl_error()/curl_close() FALSAS dentro del
+ * namespace App\Infrastructure\Mail (bloque de abajo). NO son las funciones
+ * reales de la extensión cURL de PHP.
  *
- * BLOQUEO TÉCNICO REAL (reportado, sin resolver — ver informe de esta fase):
- * send() llama curl_init()/curl_setopt_array()/curl_exec()/curl_getinfo()/
- * curl_error()/curl_close() de forma nativa e inline, sin ningún wrapper ni
- * cliente HTTP inyectable — no hay ningún seam existente (ni MocksDatabase ni
- * ningún otro) que pueda interceptar esta llamada. Por eso este archivo SOLO
- * cubre la única rama alcanzable sin tocar cURL en absoluto: cuando
- * RESEND_API_KEY no está configurada, send() retorna false ANTES de
- * construir siquiera el payload — no requiere ningún mock. Las ramas que sí
- * requieren interceptar cURL (éxito, error de red, rechazo de Resend) quedan
- * pendientes de tu decisión — ver el informe de esta fase para las opciones.
+ * Técnica usada: resolución de funciones por namespace de PHP — una llamada
+ * sin calificar a una función dentro de un namespace (ej. `curl_exec(...)`
+ * escrita dentro de MailerService::send(), que vive en el namespace
+ * App\Infrastructure\Mail) primero busca una función con ese nombre EN ESE
+ * MISMO namespace antes de caer a la función global real. Como este archivo
+ * de test declara esas funciones directamente en App\Infrastructure\Mail,
+ * PHP las usa en su lugar durante los tests — sin cambiar ni una línea de
+ * app/Infrastructure/Mail/MailerService.php.
+ *
+ * Motivo: MailerService::send() llama a cURL de forma nativa e inline (sin
+ * wrapper ni cliente HTTP inyectable) — no hay ningún seam de producción que
+ * permita interceptar la llamada de otra forma sin tocar ese archivo. Esta
+ * técnica es 100% nativa de PHP (ninguna librería nueva), autorizada
+ * explícitamente para este caso.
+ *
+ * Las funciones falsas leen su comportamiento de $GLOBALS['__mailerCurlFake']
+ * (arreglo mutable que cada test configura antes de instanciar MailerService)
+ * y registran las opciones recibidas en $GLOBALS['__mailerCurlLastOptions']
+ * para que los tests puedan verificar qué se le habría enviado realmente a
+ * Resend (payload, cabecera Authorization) sin hacer ninguna petición de red
+ * real. Los nombres de las constantes (CURLOPT_..., CURLINFO_...) siguen
+ * siendo las reales de la extensión cURL (no se redefinen) — solo el
+ * comportamiento de las funciones está falseado.
  */
-class MailerServiceTest extends TestCase
-{
-    private ?string $apiKeyBackup;
-    private ?string $mailFromBackup;
 
-    protected function setUp(): void
+namespace App\Infrastructure\Mail {
+
+    function curl_init(string $url = '')
     {
-        $this->apiKeyBackup = $_ENV['RESEND_API_KEY'] ?? null;
-        $this->mailFromBackup = $_ENV['MAIL_FROM'] ?? null;
+        $GLOBALS['__mailerCurlLastUrl'] = $url;
+        return 'fake-curl-handle';
     }
 
-    protected function tearDown(): void
+    function curl_setopt_array($ch, array $options): bool
     {
-        if ($this->apiKeyBackup === null) {
-            unset($_ENV['RESEND_API_KEY']);
-        } else {
-            $_ENV['RESEND_API_KEY'] = $this->apiKeyBackup;
+        $GLOBALS['__mailerCurlLastOptions'] = $options;
+        return true;
+    }
+
+    function curl_exec($ch)
+    {
+        return $GLOBALS['__mailerCurlFake']['exec'] ?? false;
+    }
+
+    function curl_getinfo($ch, $option = 0)
+    {
+        if ($option === CURLINFO_HTTP_CODE) {
+            return $GLOBALS['__mailerCurlFake']['httpCode'] ?? 0;
         }
-        if ($this->mailFromBackup === null) {
+        return null;
+    }
+
+    function curl_error($ch): string
+    {
+        return $GLOBALS['__mailerCurlFake']['error'] ?? '';
+    }
+
+    function curl_close($ch): void
+    {
+    }
+}
+
+namespace Tests\Unit\Infrastructure\Mail {
+
+    use App\Infrastructure\Mail\MailerService;
+    use PHPUnit\Framework\TestCase;
+
+    /**
+     * Tests unitarios de MailerService — sin base de datos. Las ramas que
+     * dependen de cURL usan el override por namespace declarado arriba (ver
+     * el comentario al inicio de este archivo); la rama sin API key no lo
+     * necesita, se corta antes de construir la petición.
+     */
+    class MailerServiceTest extends TestCase
+    {
+        private ?string $apiKeyBackup;
+        private ?string $mailFromBackup;
+
+        protected function setUp(): void
+        {
+            $this->apiKeyBackup = $_ENV['RESEND_API_KEY'] ?? null;
+            $this->mailFromBackup = $_ENV['MAIL_FROM'] ?? null;
+            $_ENV['RESEND_API_KEY'] = 'test-key-123';
             unset($_ENV['MAIL_FROM']);
-        } else {
-            $_ENV['MAIL_FROM'] = $this->mailFromBackup;
+
+            $GLOBALS['__mailerCurlFake'] = [];
+            $GLOBALS['__mailerCurlLastOptions'] = null;
+            $GLOBALS['__mailerCurlLastUrl'] = null;
         }
-    }
 
-    public function testSendFailsSafelyWithoutAttemptingAnyNetworkCallWhenTheApiKeyIsNotConfigured(): void
-    {
-        $_ENV['RESEND_API_KEY'] = '';
+        protected function tearDown(): void
+        {
+            if ($this->apiKeyBackup === null) {
+                unset($_ENV['RESEND_API_KEY']);
+            } else {
+                $_ENV['RESEND_API_KEY'] = $this->apiKeyBackup;
+            }
+            if ($this->mailFromBackup === null) {
+                unset($_ENV['MAIL_FROM']);
+            } else {
+                $_ENV['MAIL_FROM'] = $this->mailFromBackup;
+            }
+        }
 
-        $result = (new MailerService())->send('cliente@parce.test', 'Asunto', '<p>Cuerpo</p>');
+        public function testSendFailsSafelyWithoutAttemptingAnyNetworkCallWhenTheApiKeyIsNotConfigured(): void
+        {
+            $_ENV['RESEND_API_KEY'] = '';
 
-        $this->assertFalse($result);
-    }
+            $result = (new MailerService())->send('cliente@parce.test', 'Asunto', '<p>Cuerpo</p>');
 
-    public function testSendFailsSafelyWhenTheApiKeyEnvVarIsEntirelyUnset(): void
-    {
-        unset($_ENV['RESEND_API_KEY']);
+            $this->assertFalse($result);
+            $this->assertNull($GLOBALS['__mailerCurlLastOptions'], 'No debe siquiera intentar construir la petición cURL');
+        }
 
-        $result = (new MailerService())->send('cliente@parce.test', 'Asunto', '<p>Cuerpo</p>');
+        public function testSendFailsSafelyWhenTheApiKeyEnvVarIsEntirelyUnset(): void
+        {
+            unset($_ENV['RESEND_API_KEY']);
 
-        $this->assertFalse($result);
+            $result = (new MailerService())->send('cliente@parce.test', 'Asunto', '<p>Cuerpo</p>');
+
+            $this->assertFalse($result);
+        }
+
+        public function testSendSucceedsWhenResendAcceptsTheEmailAndSendsTheExpectedPayload(): void
+        {
+            $GLOBALS['__mailerCurlFake'] = ['exec' => '{"id":"abc123"}', 'httpCode' => 200];
+
+            $result = (new MailerService())->send('cliente@parce.test', 'Recupera tu contraseña', '<p>Hola</p>');
+
+            $this->assertTrue($result);
+
+            $options = $GLOBALS['__mailerCurlLastOptions'];
+            $payload = json_decode($options[CURLOPT_POSTFIELDS], true);
+
+            $this->assertSame(['cliente@parce.test'], $payload['to']);
+            $this->assertSame('Recupera tu contraseña', $payload['subject']);
+            $this->assertSame('<p>Hola</p>', $payload['html']);
+            $this->assertSame('P.A.R.C.E <onboarding@resend.dev>', $payload['from'], 'Debe usar el remitente por defecto cuando MAIL_FROM no está configurado');
+            $this->assertContains('Authorization: Bearer test-key-123', $options[CURLOPT_HTTPHEADER]);
+        }
+
+        public function testSendUsesTheConfiguredMailFromWhenSet(): void
+        {
+            $_ENV['MAIL_FROM'] = 'P.A.R.C.E <no-reply@parce.test>';
+            $GLOBALS['__mailerCurlFake'] = ['exec' => '{"id":"abc123"}', 'httpCode' => 200];
+
+            (new MailerService())->send('cliente@parce.test', 'Asunto', '<p>Cuerpo</p>');
+
+            $options = $GLOBALS['__mailerCurlLastOptions'];
+            $payload = json_decode($options[CURLOPT_POSTFIELDS], true);
+
+            $this->assertSame('P.A.R.C.E <no-reply@parce.test>', $payload['from']);
+        }
+
+        public function testSendReturnsFalseOnANetworkError(): void
+        {
+            $GLOBALS['__mailerCurlFake'] = ['exec' => false, 'error' => 'Connection refused'];
+
+            $result = (new MailerService())->send('cliente@parce.test', 'Asunto', '<p>Cuerpo</p>');
+
+            $this->assertFalse($result);
+        }
+
+        public function testSendReturnsFalseWhenResendRejectsTheRequest(): void
+        {
+            $GLOBALS['__mailerCurlFake'] = [
+                'exec' => '{"message":"Invalid API key"}',
+                'httpCode' => 401,
+            ];
+
+            $result = (new MailerService())->send('cliente@parce.test', 'Asunto', '<p>Cuerpo</p>');
+
+            $this->assertFalse($result);
+        }
     }
 }
